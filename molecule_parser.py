@@ -47,6 +47,13 @@ def get_groups( s ) :
 
         # handle all non-parenthases text
 
+        # if s[i] == '·' :
+        #     if groups[ groupnum ] : 
+        #         groupnum += 1
+        #         groups.append( '' )
+        #         counts.append( 1 )
+
+            
         if s[i] != '(' :
 
             groups[ groupnum ] += s[i]
@@ -131,6 +138,20 @@ def atom_counter( s, debug = 0 ) :
     
     s = s.replace( '[', '(' ).replace( ']', ')' )
 
+    if s[-1] in '-+' :
+        j = len(s) - 2
+        while j > 0  :
+            # print( s[j] ) 
+            if s[j].isdigit() :
+                j -= 1
+            else :
+                if s[j].isspace() :
+                    break
+                else :
+                    print( 'ERROR: ion state of $s is ambiguous. + or - at end'
+                           + 'of string must be preceded by a space' )
+                    return None 
+            
     if debug :
         print( s ) 
     
