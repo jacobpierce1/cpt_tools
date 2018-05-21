@@ -219,10 +219,6 @@ def parse_extra_args( a ) :
             print( '\nERROR: argument %s not recognized' % mode )
             print_help_info()
     
-    # print( 'Using custom params for query: \n\tsmall_molecule_size = %d \n\tmin_half_life = %.3f \n\tmin_cf_yield_fraction = %.3f \n\tmax_charge = %d \n'
-    #            % ( small_molecule_size, min_half_life,
-    #                min_cf_yield_fraction, max_charge ) )
-    
 
 
 def print_help_info() :
@@ -675,8 +671,7 @@ def get_molecule_db( atom_masses, atom_labels ) :
                     # N_indices_gen = get_large_molecule_N_indices(
                     #     atom_labels, Z_list_unique, Z_num_occurrences ) 
 
-                # print( num_elements ) 
-                # print( N_indices_gen ) 
+
                     
                 for N_indices in N_indices_gen : 
 
