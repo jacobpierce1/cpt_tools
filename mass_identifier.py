@@ -23,6 +23,7 @@ import sqlite3
 from molecule_parser import atom_counter
 
 
+
 # define this for database debug
 DEBUG_DB = 0
 
@@ -36,10 +37,12 @@ molecule_db_schema_path = './molecule_db_schema.sql'
 
 ame16_data_path = './data/ame16_all_masses_accurate.txt'
 nubase2016_data_path = './data/nubase2016_raw.txt'
-wikipedia_molecule_data_path = './data/wikipedia_molecule_data.txt'
+wikipedia_molecule_data_path = './data/molecules/wikipedia_molecule_data.txt'
+carbon_molecule_data_dir = './data/molecules/carbon_molecules/'
+carbon_file_name = 'C'
 wallet_card_path = './data/nuclear-wallet-cards.txt'
 fission_yield_data_path = './data/fissionyields.txt' 
-stable_isotopes_path = './data/stable_masses.txt'
+abundances_path = './data/abundances.txt'
 
 
 
@@ -53,7 +56,7 @@ proton_mass = 1.007276e6
 cesium_133_mass = 132905451.961
 cesium_133_omega =  657844.45
 
-line_break =  '----------------------------------------------------------' * 2 
+line_break =  '--------------------------------------------' * 2 
 
 max_Z = 119
 max_N = 200
@@ -66,15 +69,32 @@ min_half_life = 0.05  # seconds. modifiable as command line arg
 # used for debug 
 proton_mass = 1.007276e6 
 
-# the maximum charge of an ion or molecule in the trap 
+# the maximum charge of an ion or molecule in the trap
+# only used during the query 
 max_charge = 2
 
 # maximum number of atoms constituting a  molecule
-max_atoms_per_molecule = 7
+# small_molecule_size = 7
+small_molecule_size = 8
 
-# probability of nuclide production must be at least this much
+# large_molecule_min_abund = 0.02
+large_molecule_max_uncommon = 3
+large_molecule_common_abund = 0.1
+large_molecule_common_half_life = 1.0
+large_molecule_common_cf_yield_fraction = 1e-4
+
+
+# probability of nuclide production for unstable nuclides must be at least this much
 # to be considered in calculations 
 min_cf_yield_fraction = 1e-8
+
+
+
+
+# these are the min and max carbon numbers that we have a list of molecules for
+min_carbon_number = 1 
+max_carbon_number = 24
+
 
 
 
@@ -105,7 +125,8 @@ periodic_table_dict = get_periodic_table_dict()
 
 def main() :
 
-    if len( sys.argv ) <= 4 :
+    if len( sys.argv ) < 4 :
+        print( '\nERROR: less than 3 args supplied' )
         print_help_info() 
         return
 
@@ -113,7 +134,6 @@ def main() :
     
     # atomic number of singly ionized ions in the trap
     mode = int( sys.argv[1] )
-    # A1 = int( sys.argv[2] ) 
     omega = float( sys.argv[2] )
     d_omega = float( sys.argv[3] )
 
@@ -121,32 +141,21 @@ def main() :
     if len( sys.argv ) > 4  :
         parse_extra_args( sys.argv[4:] ) 
 
-    else :
-        print( 'Using default params: \n\tmax_atoms_per_molecule = %d \n\tmin_half_life = %.1f \n\tmin_cf_yield_fraction = %.1f \n\tmax_charge = %d \n'
-               % ( max_atoms_per_molecule, min_half_life,
+
+    print( 'Using params for query: \n\tsmall_molecule_size = %d \n\tmin_half_life = %.1f s\n\tmin_cf_yield_fraction = %.1f \n\tmax_charge = %d \n'
+               % ( small_molecule_size, min_half_life,
                    min_cf_yield_fraction, max_charge ) )
 
-        # min_lifetime = float( sys.argv[5] )
-        
-
-    # A for the q = 1 isobar 
-    # print( omega_to_mass( omega, 1 ) / proton_mass ) 
-    # A1 = 
-    
-    half_lives = get_half_life_data() 
-    cf_yields = get_cf_yield_data()
-    stable_abundances = get_stable_abundances_data() 
 
     atom_masses = get_atom_masses()
     
-    filtered_atom_masses, filtered_atom_labels = get_filtered_atom_masses_and_labels(
-        atom_masses, half_lives, cf_yields, stable_abundances )
+    filtered_atom_masses, filtered_atom_labels = get_filtered_atom_masses_and_labels( atom_masses )
     
     if mode == 0 :
 
         print( line_break ) 
         check_ions( atom_masses, omega, d_omega,
-                    half_lives, cf_yields, stable_abundances )
+                    half_lives, cf_yields, abundances )
         
         print( line_break ) 
 
@@ -158,22 +167,22 @@ def main() :
         print( line_break ) 
 
         check_ions( atom_masses, omega, d_omega,
-                    half_lives, cf_yields, stable_abundances )
+                    half_lives, cf_yields, abundances )
 
         print( line_break )
         print( '\n' * 4 )
         print( line_break ) 
 
         check_molecule_combinations( molecule_db,  omega, d_omega,
-                                     half_lives, cf_yields, stable_abundances ) 
+                                     half_lives, cf_yields, abundances ) 
 
         print( line_break ) 
         
-    elif mode == 2 :
+    # elif mode == 2 :
 
-        print( line_break ) 
-        check_all_ion_combinations( atom_masses, atom_labels ) 
-        print( line_break ) 
+    #     print( line_break ) 
+    #     check_all_ion_combinations( atom_masses, atom_labels ) 
+    #     print( line_break ) 
         
     else :
         print( 'ERROR: mode not implemented\n' )
@@ -185,7 +194,7 @@ def main() :
 
 def parse_extra_args( a ) :
 
-    global max_atoms_per_molecule
+    global small_molecule_size
     global min_half_life
     global min_cf_yield_fraction
     global max_charge 
@@ -200,37 +209,44 @@ def parse_extra_args( a ) :
         elif mode == 'min_cf_yield' :
             min_cf_yield_fraction = float( a[ i + 1 ] )
 
-        elif mode == 'molecule_size' :
-            max_atoms_per_molecule = int( a[ i+1 ] )
+        elif mode == 'small_molecule_size' :
+            small_molecule_size = int( a[ i+1 ] )
 
         elif mode == 'max_charge' :
             max_charge = int( a[ i+1 ] )
 
         else :
-            print( 'ERROR: argument %s not recognized' % mode )
-            sys.exit( 0  )
+            print( '\nERROR: argument %s not recognized' % mode )
+            print_help_info()
     
-    print( 'Using custom params: \n\tmax_atoms_per_molecule = %d \n\tmin_half_life = %.3f \n\tmin_cf_yield_fraction = %.3f \n\tmax_charge = %d \n'
-               % ( max_atoms_per_molecule, min_half_life,
-                   min_cf_yield_fraction, max_charge ) )
+    # print( 'Using custom params for query: \n\tsmall_molecule_size = %d \n\tmin_half_life = %.3f \n\tmin_cf_yield_fraction = %.3f \n\tmax_charge = %d \n'
+    #            % ( small_molecule_size, min_half_life,
+    #                min_cf_yield_fraction, max_charge ) )
     
 
 
 def print_help_info() :
 
-    print( ( '\nERROR: 4 arguments were not supplied'
-             + '\n\tsyntax: contaminant_identifier  mode  omega  d_omega  <min_lifetime>\n'
-             + '\n\t mode: 0 for known molecules, 1 for all combinations '
-             + '(computationally intensive)\n'
+    print( ( '\n\nsyntax: ipython mass_identifier.py  mode  omega  d_omega  [optional query args] \n'
+             + '\n\tmode: \t0 for all ions \n\t\t1 for all ions and known molecules'
+             + '\n\n'
+             + '\toptional query args: \n\t\tmin_half_life FLOAT \n\t\tmin_cf_yield FLOAT '
+             + '\n\t\tsmall_molecule_size INT \n\t\tmax_charge INT'
+             + '\n\n'
+             + '\texample: to check all molecules in DB with max charge of 1 and defaults for other params: \n\t\tipython mass_identifier.py 1 616024 0.5 max_charge 1  '
+             # + '<--- check all molecules in database with max charge of 1, defaults for rest of params'
+             + '\n\n'
     ) )
 
+    sys.exit(0)
+    
     return 
 
 
 
 
 def check_ions( atom_masses, omega, d_omega,
-                half_lives, cf_yields, stable_abundances ) :
+                half_lives, cf_yields, abundances ) :
 
     print( 'ION MATCHES' )
     print( 'OMEGA\t NAME\t q\t A\t Z\t N\t T_1/2\t CF_YIELD \tNATURAL_ABUND\n' )
@@ -267,7 +283,7 @@ def check_ions( atom_masses, omega, d_omega,
                     print( '%.1f\t%s \t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f'
                            % ( current_omega, element_name, q, Z+N, Z, N,
                                half_life, cf_yields[Z,N],
-                               stable_abundances[Z,N] ) )
+                               abundances[Z,N] ) )
 
                     none_found_flag = 0
 
@@ -398,7 +414,7 @@ def get_partitions_recurs( target, maxvalue, ret, partial, max_len ) :
 
 
 def check_molecule_combinations( molecule_db, omega, d_omega,
-                                 half_lives, cf_yields, stable_abundances ) :
+                                 half_lives, cf_yields, abundances ) :
 
     candidate_masses = []
     candidate_indices = [] 
@@ -429,61 +445,68 @@ def check_molecule_combinations( molecule_db, omega, d_omega,
 
         # print( [ mass_low, mass_high ] ) 
 
-        isobar_molecules = molecule_db.search_mass( mass_low, mass_high ) 
+        isobar_molecules = molecule_db.search_mass( mass_low, mass_high )
 
-        print( 'INFO: Found %d candidates:\n' % len( isobar_molecules ) )
+        if len( isobar_molecules ) > 0 : 
 
-        for data in isobar_molecules : 
+            print( 'INFO: Found %d candidates:\n' % len( isobar_molecules ) )
 
-            mass = data[ 'mass' ] 
+            for data in isobar_molecules : 
 
-            mass -= q * electron_mass
+                mass = data[ 'mass' ] 
 
-            current_omega = mass_to_omega( mass, q )
+                mass -= q * electron_mass
 
-            A = data['A'] 
-            molecule_name, Z, N = pickle.loads( data[ 'label' ] )
+                current_omega = mass_to_omega( mass, q )
 
-            half_life = []
-            for i in range( len( Z ) ) :
-                tmp = half_lives[ Z[i], N[i] ]
+                # A = data['A'] 
+                Z = pickle.loads( data[ 'Z' ] ) 
+                N = pickle.loads( data[ 'N' ] )
+                isomer_labels = pickle.loads( data[ 'isomer_labels' ] )
+                molecule_name = data[ 'molecule_name' ]
 
-                half_life.append( tmp  )
+                A = np.sum( Z ) + np.sum( N ) 
+                
+                # molecule_name, Z, N = pickle.loads( data[ 'label' ] )
 
-            if np.any( ( np.array( half_life ) < min_half_life ) ) :
-                continue
+                half_life = []
+                for i in range( len( Z ) ) :
+                    tmp = half_lives[ Z[i], N[i] ]
 
-            # store cf yield if unstable or relative natural abundance if stable 
-            cf_yields_arr = []
-            for i in range( len( Z ) ) :
+                    half_life.append( tmp  )
 
-                cf_yields_arr.append( cf_yields[ Z[i], N[i] ] )
+                if np.any( ( np.array( half_life ) < min_half_life ) ) :
+                    continue
 
-            abunds_arr = [ stable_abundances[ Z[i], N[i] ]
-                           for i in range( len( Z ) ) ]
+                # store cf yield if unstable or relative natural abundance if stable 
+                cf_yields_arr = []
+                for i in range( len( Z ) ) :
 
-            half_life_str = [ '%.2e' % x for x in half_life ] 
-            cf_yields_str = [ '%.2e' % x for x in cf_yields_arr ]
-            abunds_str = [ '%.2e' % x for x in abunds_arr ]
+                    cf_yields_arr.append( cf_yields[ Z[i], N[i] ] )
 
-            print( '%s' % molecule_name )
-            print( '\t%d' % q ) 
-            print( '\t%d' % A ) 
-            print( '\t%.1f' % current_omega ) 
-            print( '\t%s' % str( Z ) )
-            print( '\t%s' % str( N ) )
-            print( '\t%s' % str( half_life_str ) )
-            print( '\t%s' % str( cf_yields_str ) )
-            print( '\t%s' % str( abunds_str ) ) 
-            print( '\n' )
+                abunds_arr = [ abundances[ Z[i], N[i] ]
+                               for i in range( len( Z ) ) ]
 
-            none_found_flag = 0 
+                half_life_str = [ '%.2e' % x for x in half_life ] 
+                cf_yields_str = [ '%.2e' % x for x in cf_yields_arr ]
+                abunds_str = [ '%.2e' % x for x in abunds_arr ]
+
+                print( '%s' % molecule_name )
+                print( '\t%d' % q ) 
+                print( '\t%d' % A ) 
+                print( '\t%.1f' % current_omega ) 
+                print( '\t%s' % str( Z ) )
+                print( '\t%s' % str( N ) )
+                print( '\t%s' % str( half_life_str ) )
+                print( '\t%s' % str( cf_yields_str ) )
+                print( '\t%s' % str( abunds_str ) ) 
+                print( '\n' )
+
 
                 # candidate_labels.append( [ nuclide_labels ] )
 
-    if none_found_flag :
-
-        print( 'NONE FOUND' ) 
+        else : 
+            print( 'NONE FOUND' ) 
 
                     
     
@@ -525,12 +548,11 @@ def get_atom_masses() :
 
 
 
-def get_filtered_atom_masses_and_labels( atom_masses, half_lives, cf_yields, stable_abundances ) :
+def get_filtered_atom_masses_and_labels( atom_masses ) :
 
     mask = ( ( ( cf_yields >= min_cf_yield_fraction )
                & ( half_lives >= min_half_life ) )
              | ( half_lives == np.inf ) )
-
     
     filtered_atom_masses = [ [] for z in range( max_Z ) ]
     filtered_atom_labels = [ [] for z in range( max_Z ) ]
@@ -563,100 +585,121 @@ def get_molecule_db( atom_masses, atom_labels ) :
     if molecule_db.exists :
         return molecule_db        
     
-
-    num_lines = file_len( wikipedia_molecule_data_path ) 
-
-    time_estimator = TimeEstimator( 2600, 100 ) 
-
     iteration = 0
 
     molecule_db.begin_transaction()
+
+    molecule_files = [ wikipedia_molecule_data_path ]
+
+    for i in range( min_carbon_number, max_carbon_number ) :
+        molecule_files.append( carbon_molecule_data_dir + carbon_file_name + str(i) )
     
-    with open( wikipedia_molecule_data_path ) as f :
+    num_lines = np.sum( [ file_len( molecule_files[i] )
+                                    for i in range( len( molecule_files) ) ] ) 
 
-        for line in f.readlines() :
+    time_estimator = TimeEstimator( num_lines, 100 ) 
 
-            # print( line ) 
-            
-            time_estimator.update() 
-            
-            line = line.split( '\t' )
 
-            if line[0] == 'Chemical formula' :
-                continue
+    for molecule_file in molecule_files : 
+    
+        with open( molecule_file ) as f :
 
-            elif len( line ) == 0 :
-                continue
+            for line in f.readlines() :
 
-            # check that first character is capital
-            elif not line[0][0].isupper() :
-                continue
+                time_estimator.update() 
 
-            
-            # otherwise parse
-            # https://stackoverflow.com/questions/13923325/parsing-chemical-formula
-            molecule_string = line[0]
+                line = line.split( '\t' )
 
-            print( molecule_string ) 
-            
-            molecule_counts = atom_counter( molecule_string )
+                if line[0] == 'Chemical formula' :
+                    continue
 
-            # print( molecule_counts ) 
-            
-            if sum( molecule_counts.values() ) > max_atoms_per_molecule :
-                continue
-            
-            Z_list_unique = [ periodic_table_dict.get( x.lower() ) for x in molecule_counts.keys() ]
+                elif len( line ) == 0 :
+                    continue
 
-            # make sure it's a valid molecule
-            if None in Z_list_unique :
-                continue
+                # check that first character is capital
+                elif not line[0][0].isupper() :
+                    continue
 
-            num_elements = len( Z_list_unique ) 
 
-            Z_num_occurrences = list( molecule_counts.values() )  
+                # otherwise parse
+                # https://stackoverflow.com/questions/13923325/parsing-chemical-formula
+                molecule_string = line[0]
 
-            Z_list_repeats = [ Z_list_unique[i]  for i in range( len( Z_list_unique ) )
-                               for j in range( Z_num_occurrences[i] ) ]
+                print( molecule_string ) 
 
-            total_Z = np.sum( Z_list_repeats ) 
+                molecule_counts = atom_counter( molecule_string )
 
-            # now we have a list with (repeated) values of Z. find all unique
-            # permutations of the corresponding neutron number for nuclies
-            # which are produced in the Cf fission above our probability threshold
-            # and have a half life above the threshold ( these filteres were already
-            # applied in generation of the atomic mass table array )
+                # print( molecule_counts ) 
 
-            tmp = [ itertools.combinations_with_replacement(
-                range( len( atom_masses[ Z_list_unique[i] ] ) ),
-                Z_num_occurrences[i] )
-                    for i in range( len( Z_list_unique ) ) ]
+                # if sum( molecule_counts.values() ) > small_molecule_size :
+                #     continue
 
-            
-            for N_indices in itertools.product( * tmp ) :
-      
-                A = total_Z
-                mass = 0
-                label = [ molecule_string, Z_list_repeats, [] ]
+                Z_list_unique = [ periodic_table_dict.get( x.lower() )
+                                  for x in molecule_counts.keys() ]
+
+                # make sure it's a valid molecule
+                if None in Z_list_unique :
+                    continue
+
+                Z_num_occurrences = list( molecule_counts.values() )  
+
+                Z_list_repeats = [ Z_list_unique[i]  for i in range( len( Z_list_unique ) )
+                                   for j in range( Z_num_occurrences[i] ) ]
                 
-                for i in range( num_elements ) :
+                # total_Z = np.sum( Z_list_repeats ) 
 
-                    tmp = atom_labels[ Z_list_unique[i] ]
+                # now we have a list with (repeated) values of Z. if
+                # molecule is small: find all unique permutations of the
+                # corresponding neutron number for nuclies which are
+                # produced in the Cf fission above our probability
+                # threshold and have a half life above the threshold (
+                # these filteres were already applied in generation of the
+                # atomic mass table array )
+
+                if len( Z_list_repeats ) <= small_molecule_size : 
+
+                    tmp = [ itertools.combinations_with_replacement(
+                        range( len( atom_masses[ Z_list_unique[i] ] ) ),
+                        Z_num_occurrences[i] )
+                            for i in range( len( Z_list_unique ) ) ]
+
+                    N_indices_gen = itertools.product( * tmp )
+
+
+                # if molecule is large, check a reduced set of combinations.
+                # most of the combinations are extremely unlikely and there are
+                # too many to add to the DB.
+
+                else :
+                    continue
+                    # N_indices_gen = get_large_molecule_N_indices(
+                    #     atom_labels, Z_list_unique, Z_num_occurrences ) 
+
+                # print( num_elements ) 
+                # print( N_indices_gen ) 
                     
-                    for j in range( Z_num_occurrences[i] ) :
+                for N_indices in N_indices_gen : 
 
-                        A += tmp[ N_indices[i][j] ]
-                        mass += atom_masses[ Z_list_unique[i] ][ N_indices[i][j] ]
-                        label[2].append( tmp[ N_indices[i][j] ] )
-                        
-      
-                if iteration % transaction_block_size == 0 :
-                    molecule_db.end_transaction() 
-                    molecule_db.begin_transaction()
-                
-                molecule_db.insert_molecule_data( A, mass, label )
+                    mass = 0
+                    N = [] 
+                    
+                    for i in range( len( Z_list_unique ) ) :
 
-                iteration += 1 
+                        tmp = atom_labels[ Z_list_unique[i] ]
+
+                        for j in range( Z_num_occurrences[i] ) :
+                            mass += atom_masses[ Z_list_unique[i] ][ N_indices[i][j] ]
+                            N.append( tmp[ N_indices[i][j] ] )
+
+
+                    if iteration % transaction_block_size == 0 :
+                        molecule_db.end_transaction() 
+                        molecule_db.begin_transaction()
+
+                    molecule_db.insert_molecule_data( mass, Z_list_repeats, N,
+                                                      None, molecule_string )
+
+                    iteration += 1 
 
     molecule_db.end_transaction()
     molecule_db.update_db_complete_metadata()
@@ -667,33 +710,133 @@ def get_molecule_db( atom_masses, atom_labels ) :
 
 
 
+# modifiable function to return the allowed N index combinations for a
+# large molecule. mass = scalar, Z = Z repeats, N = 
 
-def get_stable_abundances_data() :
+# large_molecule_max_unstable = 3
+# large_molecule_common_abund = 0.1
+# large_molecule_common_half_life = 1.0
+# large_molecule_common_cf_yield_fraction = 1e-4
 
-    stable_abundances = np.zeros( ( 126, 200 ) )
 
-    with open( stable_isotopes_path ) as f :
+def get_large_molecule_N_indices( atom_labels, Z_list_unique, Z_num_occurrences ) :
+    
+    # partition the indices into two categories: common and uncommon.
+    # all common combinations will be checked, and only at most
+    # large_molecule_max_uncommon uncommon atoms will occur
+
+    # print( half_lives[1] )
+    # print( half_lives[2] ) 
+
+    common_indices = []
+    uncommon_indices = []
+
+    for i in range( len( Z_list_unique ) ) :
+
+        common_indices.append( [] )
+        uncommon_indices.append( [] )
+
+        N = atom_labels[ Z_list_unique[i] ]
+
+        print( '\nZ: ' + str( Z_list_unique[i] ) ) 
+        print( 'N: ' + str( N ) )
+        print( 'half_lives: ' + str( half_lives[ Z_list_unique[i] ][ N ] ) )
+        print( 'abundances: ' + str( abundances[ Z_list_unique[i] ][ N ] ) )
+        print( 'cf_yields: ' + str( cf_yields[ Z_list_unique[i] ][ N ] )  )
+        
+        for j in range( len( N ) ) :
+
+            if ( ( ( half_lives[ Z_list_unique[i] ][ N[j] ] == np.inf )
+                   and ( abundances[ Z_list_unique[i] ][ N[j] ] >
+                         large_molecule_common_abund ) )
+                 or ( ( cf_yields[ Z_list_unique[i] ][ N[j] ] >
+                        large_molecule_common_cf_yield_fraction )
+                      and ( half_lives[ Z_list_unique[i] ][ N[j] ] >
+                            large_molecule_common_half_life ) ) ) : 
+                
+                common_indices[i].append( j )
+
+            else : 
+                uncommon_indices[i].append( j )
+
+    print( common_indices )
+    print( uncommon_indices )
+
+    sys.exit( 0 ) 
+
+
+            
+
+def get_abundances_data() :
+
+    abundances = np.zeros( ( 126, 250 ) )
+
+    current_Z = 0
+
+    skiplines = 0 
+    
+    with open( abundances_path ) as f :
         
         for line in f.readlines() :
 
-            line = line.split()
-
-            if( not line ) :
+            if skiplines < 3 :
+                skiplines += 1
                 continue
 
-            A = int( line[0] )
-            symbol = line[1]
-            abund = line[2]
+            line = line.split()
+
+            # print( line ) 
+
+            # if( not line or len( line ) < 4 or not( line[0].isdigit() ) ) :
+            #     continue
             
-            Z = periodic_table_dict[ symbol.lower() ]
+            if line[0].isdigit() and line[1].isalpha() :
+                Z_idx = 0 
+                Z = int( line[0] )
+                current_Z = Z
+                min_len = 5
+
+            else :
+                Z_idx = -2 
+                Z = current_Z
+                min_len = 3 
+
+            if len( line ) < min_len :
+                continue
+
+            A = int( line[ 2 + Z_idx ] )
+            abund = line[ 4 + Z_idx ]
+
+            if '[' in abund :
+                continue
+            
+            parenth_idx = abund.find( '(' )
+            if parenth_idx != -1 :
+                abund = float( abund[ : parenth_idx ] )
+
+            # print( abund ) 
+
             N = A - Z
-            
-            stable_abundances[Z,N] = abund
+
+            # print( line )
+            # print( Z, N )
+            # print( abund ) 
+                        
+            abundances[Z,N] = abund
     
-    return stable_abundances
+    return abundances
 
 
 
+def str_is_int( s ) :
+    try: 
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
+    
 
 def get_cf_yield_data() :
 
@@ -732,34 +875,55 @@ def get_half_life_data() :
 
     with open( wallet_card_path ) as f :
 
-        for line in f.readlines()  :
+        for full_line in f.readlines()  :
 
-            line = line.split()
+            line = full_line.split()
 
-            # this denotes a metastable state
-            A = string_to_numstring( line[0] )
-            if A == '' :
-                A = int( string_to_numstring( line[ 1 ] ) ) 
-                Z = int( line[ 2 ] )
+            if 'STABLE' in full_line :
+                half_life = np.inf
 
             else :
-                A = int( A )
-                Z = int( line[1] ) 
+                try : 
+                    half_life = float( line[-1] )
+                except:
+                    continue
+
+            if has_digit( line[0] ) :
+                A_idx = 0
+
+            else :
+                A_idx = 1
+
+            # can't currently handle excited states. 
+            if not line[ A_idx ].isdigit() :
+                continue
+
+            else : 
+                A = int( line[ A_idx ] ) 
+
+            Z = int( line[ A_idx + 1 ] ) 
+            
+            # this denotes a metastable state
+            # A = string_to_numstring( line[0] )
+            # if A == '' :
+            #     A = int( string_to_numstring( line[ 1 ] ) ) 
+            #     Z = int( line[ 2 ] )
+
+            # else :
+            #     A = int( A )
+            #     Z = int( line[1] ) 
 
             N = A - Z
 
-            try : 
-                half_life = float( line[-1] )
-
-            except:
-                continue
-
-            # notation for a stable nuclide 
-            if( half_life == 0.0 ) :
-                half_life = np.inf
+            
+            # if Z == 9 :
+            #     print( full_line )
+            #     print( N ) 
+            #     print( half_life ) 
 
             half_lives[ Z, N ] = half_life
-                
+
+                    
     return half_lives
 
 
@@ -768,8 +932,13 @@ def get_half_life_data() :
 
 def string_to_numstring( s ) :
      return ''.join( [ c for c in s if c.isdigit() ] )
-                                
-                     
+
+ 
+def has_digit( s ) :
+    for c in s :
+        if c.isdigit() :
+            return 1
+    return 0 
                    
                    
                    
@@ -881,10 +1050,10 @@ class molecule_db_manager( object ) :
             else : 
                 print( '\tWARNING: database was not completely generated. there may have been a keyboard interrupt during generation.' )  
 
-            print( '\tTime taken to generate (mins) : %d ' % int( self.generation_time ) )
-            print( '\tMin half life (s): %f s' % self.min_half_life )
-            print( '\tMin Cf yield fraction (per 1 decay): %.2e' % self.min_cf_yield_fraction )
-            print( '\tMax atoms per molecule: %d' % self.max_atoms_per_molecule ) 
+            print( '\tTime taken to generate (mins) : %.1f ' % self.generation_time )
+            print( '\tmin_half_life = %.2f s' % self.min_half_life )
+            print( '\tmin_cf_yield_fractionfraction (per 1 decay): %.1e' % self.min_cf_yield_fraction )
+            print( '\tsmall_molecule_size = %d' % self.small_molecule_size ) 
             
         return 
 
@@ -962,7 +1131,7 @@ class molecule_db_manager( object ) :
         
         self.conn.cursor().execute( 'INSERT INTO metadata VALUES ( ?, ?, ?, ?, ?, ? ) ',
                                     ( min_cf_yield_fraction, min_half_life,
-                                      max_atoms_per_molecule, 0,
+                                      small_molecule_size, 0,
                                       -1, str( self.start_time ) ) )
 
         self.conn.commit() 
@@ -974,10 +1143,10 @@ class molecule_db_manager( object ) :
 
         stop_time = datetime.datetime.now()
         tmp = stop_time - self.start_time
-        generation_time = tmp.days * 1440 + tmp.seconds / 60 # report in minutes
+        generation_time = tmp.days * 1440 + tmp.minutes + tmp.seconds / 60 # report in minutes
 
-        print( generation_time )
-        print( type( generation_time ) ) 
+        # print( generation_time )
+        # print( type( generation_time ) ) 
     
         query = 'UPDATE metadata SET generation_time=?, database_complete=1'
 
@@ -997,7 +1166,7 @@ class molecule_db_manager( object ) :
 
         self.min_cf_yield_fraction = metadata[ 'min_cf_yield_fraction' ]
         self.min_half_life = metadata[ 'min_half_life' ]
-        self.max_atoms_per_molecule = metadata[ 'max_atoms_per_molecule' ]
+        self.small_molecule_size = metadata[ 'small_molecule_size' ]
         self.database_complete = metadata[ 'database_complete' ]
         self.generation_time = metadata[ 'generation_time' ]
         self.timestamp = metadata[ 'timestamp' ]
@@ -1008,32 +1177,33 @@ class molecule_db_manager( object ) :
 
     # note: does not handle updating, only inserting the data once.
     
-    def insert_molecule_data( self, A, mass, label ) :
+    def insert_molecule_data( self, mass, Z, N, isomer_labels, molecule_name ) :
 
         if self.conn is None:
             raise ValueError( 'Cannot insert data, sqlite3 connection is not open. Call db.connect().' )
 
-        query = 'INSERT INTO molecule_masses VALUES ( ?, ?, ? )'
+        query = 'INSERT INTO molecule_masses VALUES ( ?, ?, ?, ?, ? )'
         
-        self.cursor.execute( query, ( int(A), int(mass), pickle.dumps( label ) ) )
+        self.cursor.execute( query, ( mass, pickle.dumps( Z ), pickle.dumps( N ),
+                                      pickle.dumps( isomer_labels), molecule_name ) )
         # self.conn.commit() 
         
         return None
 
 
-    # read all molecules from the DB that have total atomic number A 
+    # # read all molecules from the DB that have total atomic number A 
     
-    def read_isobar( self, A ) :
+    # def read_isobar( self, A ) :
 
-        if self.conn is None:
-            raise ValueError( 'Cannot read db, sqlite3 connection is not open. Call db.connect().' )
+    #     if self.conn is None:
+    #         raise ValueError( 'Cannot read db, sqlite3 connection is not open. Call db.connect().' )
 
-        query = 'SELECT * FROM molecule_masses WHERE A=?'
+    #     query = 'SELECT * FROM molecule_masses WHERE A=?'
 
-        # cursor = self.conn.cursor()
-        self.cursor.execute( query, (A,) )
+    #     # cursor = self.conn.cursor()
+    #     self.cursor.execute( query, (A,) )
 
-        return self.cursor.fetchall()
+    #     return self.cursor.fetchall()
 
 
 
@@ -1060,7 +1230,12 @@ class molecule_db_manager( object ) :
     def end_transaction( self ) :
 
         self.cursor.execute( 'COMMIT' ) 
+        
 
+
+half_lives = get_half_life_data() 
+cf_yields = get_cf_yield_data()
+abundances = get_abundances_data() 
         
   
 main() 
