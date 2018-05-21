@@ -20,6 +20,10 @@ syntax: ipython mass_identifier.py  mode  omega  d_omega  [optional query args]
 
 If you forget the syntax, just type ipython mass_identifier.py and it will print out the above message.
 
+The first time you run the program in molecule mode (mode 1), a database will be generated containing the masses of all molecules with nuclide combinations meeting the half life, cf yield, molecule size, and abundance criteria in the code. For subsequent calls in molecule mode, the same database will be used and metadata about the database (what criteria were used to select molecules / nuclides ) will be printed. If you want to regenerate the database with different criteria, just set delete the database on your computer (it’s located in the directory ‘storage’) and set the desired criteria using the optional query args described above. If you don’t set one or more of the parameters, default values will be used.  
+
+In the future I can add support for a command line argument to reset the molecule database, but I doubt that would be used very frequently. 
+
 
 
 
