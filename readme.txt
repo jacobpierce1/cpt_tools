@@ -1,5 +1,7 @@
 INSTRUCTIONS: 
 
+Run from within the directory mass_identifier (the folder where the file mass_identifier.py is located):
+
 
 syntax: ipython mass_identifier.py  mode  omega  d_omega  [optional query args] 
 
