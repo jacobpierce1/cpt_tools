@@ -62,6 +62,7 @@ max_Z = 119
 max_N = 200
 max_A = 500 
 
+max_mass = 500
 
 min_half_life = 0.05  # seconds. modifiable as command line arg 
 
@@ -625,11 +626,6 @@ def get_molecule_db( atom_masses, atom_labels ) :
 
                 molecule_counts = atom_counter( molecule_string )
 
-                # print( molecule_counts ) 
-
-                # if sum( molecule_counts.values() ) > small_molecule_size :
-                #     continue
-
                 Z_list_unique = [ periodic_table_dict.get( x.lower() )
                                   for x in molecule_counts.keys() ]
 
@@ -642,8 +638,6 @@ def get_molecule_db( atom_masses, atom_labels ) :
                 Z_list_repeats = [ Z_list_unique[i]  for i in range( len( Z_list_unique ) )
                                    for j in range( Z_num_occurrences[i] ) ]
                 
-                # total_Z = np.sum( Z_list_repeats ) 
-
                 # now we have a list with (repeated) values of Z. if
                 # molecule is small: find all unique permutations of the
                 # corresponding neutron number for nuclies which are
@@ -667,13 +661,14 @@ def get_molecule_db( atom_masses, atom_labels ) :
                 # too many to add to the DB.
 
                 else :
-                    continue
-                    # N_indices_gen = get_large_molecule_N_indices(
-                    #     atom_labels, Z_list_unique, Z_num_occurrences ) 
-
+                    # continue
+                    N_indices_gen = get_large_molecule_N_indices(
+                        atom_labels, Z_list_unique, Z_num_occurrences ) 
 
                     
-                for N_indices in N_indices_gen : 
+                for N_indices in N_indices_gen :
+
+                    # print( N_indices ) 
 
                     mass = 0
                     N = [] 
@@ -686,11 +681,14 @@ def get_molecule_db( atom_masses, atom_labels ) :
                             mass += atom_masses[ Z_list_unique[i] ][ N_indices[i][j] ]
                             N.append( tmp[ N_indices[i][j] ] )
 
+                    if mass > max_mass :
+                        continue
 
                     if iteration % transaction_block_size == 0 :
                         molecule_db.end_transaction() 
                         molecule_db.begin_transaction()
 
+                        
                     molecule_db.insert_molecule_data( mass, Z_list_repeats, N,
                                                       None, molecule_string )
 
@@ -700,6 +698,9 @@ def get_molecule_db( atom_masses, atom_labels ) :
     molecule_db.update_db_complete_metadata()
 
     return molecule_db 
+
+
+
 
 
 
@@ -721,23 +722,29 @@ def get_large_molecule_N_indices( atom_labels, Z_list_unique, Z_num_occurrences 
     # large_molecule_max_uncommon uncommon atoms will occur
 
     # print( half_lives[1] )
-    # print( half_lives[2] ) 
+    # print( half_lives[2] )
+
+    all_combinations = [] 
+
+    Z_num_occurrences = np.asarray( Z_num_occurrences ) 
 
     common_indices = []
     uncommon_indices = []
 
-    for i in range( len( Z_list_unique ) ) :
+    num_unique_atoms = len( Z_list_unique )
+    
+    for i in range( num_unique_atoms ) :
 
         common_indices.append( [] )
         uncommon_indices.append( [] )
 
         N = atom_labels[ Z_list_unique[i] ]
 
-        print( '\nZ: ' + str( Z_list_unique[i] ) ) 
-        print( 'N: ' + str( N ) )
-        print( 'half_lives: ' + str( half_lives[ Z_list_unique[i] ][ N ] ) )
-        print( 'abundances: ' + str( abundances[ Z_list_unique[i] ][ N ] ) )
-        print( 'cf_yields: ' + str( cf_yields[ Z_list_unique[i] ][ N ] )  )
+        # print( '\nZ: ' + str( Z_list_unique[i] ) ) 
+        # print( 'N: ' + str( N ) )
+        # print( 'half_lives: ' + str( half_lives[ Z_list_unique[i] ][ N ] ) )
+        # print( 'abundances: ' + str( abundances[ Z_list_unique[i] ][ N ] ) )
+        # print( 'cf_yields: ' + str( cf_yields[ Z_list_unique[i] ][ N ] )  )
         
         for j in range( len( N ) ) :
 
@@ -754,13 +761,156 @@ def get_large_molecule_N_indices( atom_labels, Z_list_unique, Z_num_occurrences 
             else : 
                 uncommon_indices[i].append( j )
 
-    print( common_indices )
-    print( uncommon_indices )
+    # print( 'Z ', Z_list_unique )
+    # print( 'Z_num_occurrences ', Z_num_occurrences ) 
+    # print( 'common indices ', common_indices )
+    # print( 'uncommon indices ', uncommon_indices )
 
-    sys.exit( 0 ) 
+    num_uncommon_nuclides_per_atom = np.array( [ len( uncommon_indices[i] )
+                                                 for i in range( num_unique_atoms ) ] )
+
+    # print( num_uncommon_nuclides_per_atom ) 
+    
+    # combinations = []
+
+    # for unstable_atom_indices in itertools.combinations_with_replacement( range( num_unique_atoms ),
+    #                                                                      large_molecule_max_unstable ) :
+
+    for i in range( 0, large_molecule_max_uncommon + 1 ) :
+
+        partitions = get_partitions( i, i, num_unique_atoms )
+
+        for partition in partitions :
+
+            while len( partition ) < num_unique_atoms :
+                partition.append( 0 )
+                
+            permutations = perm_unique( partition )
+
+            # print( partition ) 
+            # print( list( permutations ) )
+
+            # print( len( list( permutations ) ) )
+
+            # x = list( permutations ) 
+            # print( x  ) 
+
+            for p in permutations :
+
+                # print( p ) 
+
+                # print( 'reached' ) 
+
+                # check p
+                # print(  'test', np.array( p ) <= Z_num_occurrences) 
+                if not np.all( np.array( p ) <= Z_num_occurrences ) : 
+                    continue 
+                    
+                # common_combinations = []
+                # uncommon_combinations = []
+
+                final_combinations_per_atom = []
+                
+                for j in range( num_unique_atoms ) :
+                    
+                    common_combinations = list( itertools.combinations_with_replacement(
+                        common_indices[j], Z_num_occurrences[j] - p[j] ) )
+
+                    # tmp_common = list( common_combinations )
+                    # print( j, 'tmp_common ', tmp_common )
+                    # print( len( tmp_common ) ) 
+                    
+                    uncommon_combinations = list( itertools.combinations_with_replacement(
+                        uncommon_indices[j], p[j] ) ) 
+
+                    # prod = itertools.product( common_combinations, uncommon_combinations )
+
+                    # print( list( common_combinations ) ) 
+                    # print( [ (*x) for x in common_combinations ] )
+
+                    
+                    # prod = [ ( *x, *y) for x in common_combinations
+                    #          for y in uncommon_combinations ]
+
+                    prod = []
+
+                    # print( 'common ', common_combinations )
+                    # print( 'uncommon ' , uncommon_combinations ) 
+
+                    if p[j] == 0 :
+                        prod.extend( common_combinations )
+
+                    elif p[j] == Z_num_occurrences[j] :
+                        prod.extend( uncommon_combinations )
+
+                    
+                    
+                    # if ( not common_combinations ) or ( not common_combinations[0] ) : 
+                    #     prod.append( uncommon_combinations )
+
+                    # elif ( not uncommon_combinations ) or ( not uncommon_combinations[0] ) :
+                    #     prod.append( common_combinations )
+
+                    else :                         
+                        for x in common_combinations :
+                            for y in uncommon_combinations :
+                                # print( 'x ', x )
+                                # print( 'y ', y ) 
+                                prod.append( ( *x, *y ) )
+
+                    # print( j, 'prod ', prod )
+                    
+                    final_combinations_per_atom.append( prod ) 
+
+                tmp = itertools.product( * final_combinations_per_atom )
+                    
+                all_combinations.append( tmp ) 
+
+                
+    # for num_unstable_per_element in get_partitions( num_unique_atoms, num_unique_atoms, num_unique_atoms )
+    ret = itertools.chain.from_iterable( all_combinations )
+
+    # for x in ret :
+    #     print( x )
+
+    # sys.exit( 0 ) 
+    return ret 
 
 
-            
+
+    
+# https://stackoverflow.com/questions/6284396/permutations-with-unique-values
+
+class unique_element:
+    def __init__(self,value,occurrences):
+        self.value = value
+        self.occurrences = occurrences
+
+def perm_unique(elements):
+    eset=set(elements)
+    listunique = [unique_element(i,elements.count(i)) for i in eset]
+    u=len(elements)
+    return perm_unique_helper(listunique,[0]*u,u-1)
+
+def perm_unique_helper(listunique,result_list,d):
+    if d < 0:
+        yield tuple(result_list)
+    else:
+        for i in listunique:
+            if i.occurrences > 0:
+                result_list[d]=i.value
+                i.occurrences-=1
+                for g in  perm_unique_helper(listunique,result_list,d-1):
+                    yield g
+                i.occurrences+=1
+
+
+
+
+
+
+
+
 
 def get_abundances_data() :
 
@@ -1138,7 +1288,7 @@ class molecule_db_manager( object ) :
 
         stop_time = datetime.datetime.now()
         tmp = stop_time - self.start_time
-        generation_time = tmp.days * 1440 + tmp.minutes + tmp.seconds / 60 # report in minutes
+        generation_time = tmp.days * 1440 + tmp.seconds / 60 # report in minutes
 
         # print( generation_time )
         # print( type( generation_time ) ) 
