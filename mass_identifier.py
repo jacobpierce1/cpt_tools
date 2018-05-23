@@ -62,15 +62,13 @@ max_Z = 119
 max_N = 200
 max_A = 500 
 
-max_mass = 500
+max_mass = 500 * proton_mass
 
 min_half_life = 0.05  # seconds. modifiable as command line arg 
 
 
-# used for debug 
-proton_mass = 1.007276e6 
 
-# the maximum charge of an ion or molecule in the trap
+# the default maximum charge of an ion or molecule in the trap
 # only used during the query 
 max_charge = 2
 
