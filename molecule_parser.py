@@ -134,7 +134,10 @@ def get_groups( s ) :
 
 def atom_counter( s, debug = 0 ) :        
 
-    counter = collections.Counter() 
+    counter = collections.Counter()
+
+    if '·' in s :
+        return None 
     
     s = s.replace( '[', '(' ).replace( ']', ')' )
 

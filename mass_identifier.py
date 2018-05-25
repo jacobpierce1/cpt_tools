@@ -62,9 +62,8 @@ max_Z = 119
 max_N = 200
 max_A = 500 
 
-max_mass = 500 * proton_mass
+max_mass = 550 * neutron_mass
 
-min_half_life = 0.05  # seconds. modifiable as command line arg 
 
 
 
@@ -74,19 +73,21 @@ max_charge = 2
 
 # maximum number of atoms constituting a  molecule
 # small_molecule_size = 7
-small_molecule_size = 8
+small_molecule_size = 12
 
 # large_molecule_min_abund = 0.02
-large_molecule_max_uncommon = 3
+large_molecule_max_uncommon = 4
 large_molecule_common_abund = 0.1
 large_molecule_common_half_life = 1.0
 large_molecule_common_cf_yield_fraction = 1e-4
 
 
+
 # probability of nuclide production for unstable nuclides must be at least this much
 # to be considered in calculations 
-min_cf_yield_fraction = 1e-8
 
+min_cf_yield_fraction = 1e-8
+min_half_life = 0.01  # seconds. modifiable as command line arg 
 
 
 
@@ -454,7 +455,6 @@ def check_molecule_combinations( molecule_db, omega, d_omega,
 
                 current_omega = mass_to_omega( mass, q )
 
-                # A = data['A'] 
                 Z = pickle.loads( data[ 'Z' ] ) 
                 N = pickle.loads( data[ 'N' ] )
                 isomer_labels = pickle.loads( data[ 'isomer_labels' ] )
@@ -462,29 +462,28 @@ def check_molecule_combinations( molecule_db, omega, d_omega,
 
                 A = np.sum( Z ) + np.sum( N ) 
                 
-                # molecule_name, Z, N = pickle.loads( data[ 'label' ] )
+                half_life = np.array( [ half_lives[ Z[i], N[i] ] for i in range( len( Z ) ) ] )           
+                current_cf_yields = np.array( [ cf_yields[ Z[i], N[i] ] for i in range( len( Z ) ) ] )
+                abunds_arr = np.array( [ abundances[ Z[i], N[i] ] for i in range( len( Z ) ) ] )
 
-                half_life = []
-                for i in range( len( Z ) ) :
-                    tmp = half_lives[ Z[i], N[i] ]
 
-                    half_life.append( tmp  )
+                # if ( np.any( ( half_life < min_half_life ) )
+                #      or np.any( current_cf_yields < min_cf_yield_fraction ) ) :
 
-                if np.any( ( np.array( half_life ) < min_half_life ) ) :
-                    continue
+                #     continue
+                 
 
-                # store cf yield if unstable or relative natural abundance if stable 
-                cf_yields_arr = []
-                for i in range( len( Z ) ) :
+                if np.all( ( half_life == np.inf ) ) :
+                    half_life_str = 'all stable'
+                else : 
+                    half_life_str = [ '%.2e' % x for x in half_life ] 
 
-                    cf_yields_arr.append( cf_yields[ Z[i], N[i] ] )
+                if np.all( ( current_cf_yields == 0.0 ) ) :
+                    cf_yields_str = 'no cf production'
+                else :
+                    cf_yields_str = [ '%.2e' % x for x in current_cf_yields ]
 
-                abunds_arr = [ abundances[ Z[i], N[i] ]
-                               for i in range( len( Z ) ) ]
-
-                half_life_str = [ '%.2e' % x for x in half_life ] 
-                cf_yields_str = [ '%.2e' % x for x in cf_yields_arr ]
-                abunds_str = [ '%.2e' % x for x in abunds_arr ]
+                abunds_str = [ '%.3f' % x for x in abunds_arr ]
 
                 print( '%s' % molecule_name )
                 print( '\t%d' % q ) 
@@ -594,6 +593,7 @@ def get_molecule_db( atom_masses, atom_labels ) :
 
     time_estimator = TimeEstimator( num_lines, 100 ) 
 
+    last_molecule_string = '' 
 
     for molecule_file in molecule_files : 
     
@@ -620,10 +620,18 @@ def get_molecule_db( atom_masses, atom_labels ) :
                 # https://stackoverflow.com/questions/13923325/parsing-chemical-formula
                 molecule_string = line[0]
 
+                if molecule_string == last_molecule_string :
+                    continue
+
+                last_molecule_string = molecule_string 
+
                 print( molecule_string ) 
 
                 molecule_counts = atom_counter( molecule_string )
 
+                if molecule_counts is None :
+                    continue
+                
                 Z_list_unique = [ periodic_table_dict.get( x.lower() )
                                   for x in molecule_counts.keys() ]
 
@@ -659,11 +667,12 @@ def get_molecule_db( atom_masses, atom_labels ) :
                 # too many to add to the DB.
 
                 else :
-                    # continue
                     N_indices_gen = get_large_molecule_N_indices(
                         atom_labels, Z_list_unique, Z_num_occurrences ) 
 
-                    
+
+                counts = 0
+                
                 for N_indices in N_indices_gen :
 
                     # print( N_indices ) 
@@ -680,7 +689,10 @@ def get_molecule_db( atom_masses, atom_labels ) :
                             N.append( tmp[ N_indices[i][j] ] )
 
                     if mass > max_mass :
-                        continue
+                        if counts == 0 :
+                            break
+                        else :
+                            continue
 
                     if iteration % transaction_block_size == 0 :
                         molecule_db.end_transaction() 
@@ -690,7 +702,11 @@ def get_molecule_db( atom_masses, atom_labels ) :
                     molecule_db.insert_molecule_data( mass, Z_list_repeats, N,
                                                       None, molecule_string )
 
-                    iteration += 1 
+                    iteration += 1
+
+                    counts += 1
+
+                print( counts ) 
 
     molecule_db.end_transaction()
     molecule_db.update_db_complete_metadata()
@@ -873,6 +889,9 @@ def get_large_molecule_N_indices( atom_labels, Z_list_unique, Z_num_occurrences 
 
     # sys.exit( 0 ) 
     return ret 
+
+
+
 
 
 
