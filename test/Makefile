@@ -1,0 +1,12 @@
+
+
+# all:
+# 	g++  hptdc_driver_3.4.3_x86_c_wrap.lib #  test.cpp -o run 
+
+
+
+all :
+
+	g++ hptdc_driver_3.4.3_x86_c_wrap.cpp
+
+# -I : include directories 
