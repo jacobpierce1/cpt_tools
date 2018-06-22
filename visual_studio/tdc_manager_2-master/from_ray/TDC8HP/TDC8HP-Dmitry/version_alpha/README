@@ -1,0 +1,20 @@
+C_Driver:
+(requires Visual Studio compiler)
+hptdc_driver_3.4.3_x86_c_wrap.h   -- header file (*)
+hptdc_driver_3.4.3_x86_c_wrap.cpp -- source file (*)
+hptdc_driver_3.4.3_x86_c_wrap.dll -- dynamically linked library
+hptdc_driver_3.4.3_x86_c_wrap.lib -- library to link with a C/C++ code
+This driver just simply converts original C++ "hptdc_driver_3.4.3_x86.xxx" to C-driver. Then functions of the C-driver can be directly called from the python code using "ctypes" module (included in python 2.7).
+
+Py_Driver:
+hptdc.py
+calls C_driver's functions from the python code.
+
+ 
+
+TDC_GUI:
+tdcGUI.py - Graphical User Interface (GUI) for manipulating TDC. 
+The idea is to use "multiprocessing" module (included in python 2.7). It's not clear, but it looks like due to "slow" reading and some memory issues, different processes have to be used for GUI and for reading/sorting function.
+
+
+ 
