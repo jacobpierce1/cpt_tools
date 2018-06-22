@@ -6,7 +6,7 @@
 
 #include <Windows.h>
 #include <stdio.h> 
-
+#include <fstream>
 
 #define _CRT_SECURE_NO_WARNINGS 1
 
@@ -21,6 +21,9 @@ void print_all_params(C_TDC* c_tdc);
 void print_TDCInfo(C_TDC* c_tdc);
 void test_read(C_TDC *c_tdc);
 void test_batch_read(C_TDC *c_tdc);
+void test_batch_ReadTDCHit(C_TDC *c_tdc);
+void test_batch_Read(C_TDC *c_tdc);
+
 
 
 
@@ -93,10 +96,17 @@ int _tmain(int argc, _TCHAR* argv[])
 		test_read(tdcmgr);
 	}
 */
-	test_batch_read(tdcmgr);
 
-	Sleep(1000);
-	test_batch_read(tdcmgr);
+	for (int i = 0; i < 10; i++)
+	{
+		test_batch_ReadTDCHit(tdcmgr);
+		Sleep(1);
+		test_batch_Read(tdcmgr);
+		Sleep( 1 );
+
+	}
+
+	// test_batch_read(tdcmgr);
 
 	Sleep(1000);
 
@@ -105,6 +115,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	return 0;
 }
+
+
 
 
 void print_all_params(C_TDC* c_tdc)
@@ -146,12 +158,12 @@ void test_read(C_TDC *c_tdc)
 }
 
 
-void test_batch_read(C_TDC *c_tdc)
+void test_batch_ReadTDCHit(C_TDC *c_tdc)
 {
-	const int num_reads = 10;
+	const int num_reads = 100;
 	TDCHit test_hit[num_reads];
 
-	cout << "\n\nTESTING BATCH READ" << endl;
+	cout << "\n\nTESTING BATCH ReadTDCHit" << endl;
 	int num_words = TDCManager_ReadTDCHit(c_tdc, test_hit, num_reads);
 	/*cout << "rising: " << test_hit.RISING << endl;
 	cout << "falling: " << test_hit.FALLING << endl;
@@ -174,6 +186,32 @@ void test_batch_read(C_TDC *c_tdc)
 		cout << endl; 
 	}
 
+}
+
+
+
+
+
+void test_batch_Read(C_TDC *c_tdc)
+{
+	// ofstream outfile("test_batch_read.bin", ofstream::binary );
+
+	const int num_reads = 100;
+	HIT test_hit[num_reads];
+
+	cout << "\n\nTESTING BATCH REead" << endl;
+	int num_words = TDCManager_Read(c_tdc, test_hit, num_reads);
+	/*cout << "rising: " << test_hit.RISING << endl;
+	cout << "falling: " << test_hit.FALLING << endl;
+	cout << "tdc_error: " << test_hit.TDC_ERROR << endl;
+	printf("time: %lld \n", test_hit.time);
+	printf("time (s): %.4f \n", test_hit.time * 25.0e-12);
+	printf("channel: %u \n", test_hit.channel);
+	printf("type: %u \n", test_hit.type);*/
+	
+	cout << "hits read: " << num_words << endl << endl;
+	// outfile.write( (char *) test_hit, num_words * sizeof( HIT ) );
+	// outfile.close();
 }
 
 
