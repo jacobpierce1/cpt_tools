@@ -1,24 +1,6 @@
 
 
-# all:
-# 	g++  hptdc_driver_3.4.3_x86_c_wrap.lib #  test.cpp -o run 
+all :
+	g++ -I ../include ../source/gui.cpp `wx-config --cxxflags --libs` -o run.exe
+#	g++ ../source/wxWidgets_test.cpp `wx-config --cxxflags --libs` -o widget_test
 
-SRC = ../source/
-INC = ../include/
-OBJ = ../obj/
-
-all : gui.o 
-	;
-
-
-gui.o : $(SRC)/gui.cpp $(INC)/gui.h
-	g++ -c $^ -o $(OBJ)/gui.o
-
-
-clean :
-	rm $(OBJ)/*
-
-
-.PHONY:
-	all
-	clean
