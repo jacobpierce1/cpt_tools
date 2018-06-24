@@ -167,6 +167,7 @@ int _tmain(int argc, _TCHAR* argv[])
 			}
 		}
 	}
+	// modifiable 
 	int nsteps = 5; //  1 or 2 = wminus only, 3 or 4 = wminus + wplus, 5 = everything
 
 	double wminus = 1600.0;
@@ -192,6 +193,10 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	int tacc = 68;// 220040;// 234075; // 240023;// 250063; // 190318;// 148010;// 60008 18500; // time in us
 	//int tacc 55.21	// Load three arbitrary waveforms consecutively on all channels
+
+	// modifiable
+
+	
 	for (n = 0; n < 4; n++)
 	{
 		counter = 0;
