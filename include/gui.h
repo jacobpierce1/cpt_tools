@@ -1,3 +1,6 @@
+#ifndef GUI_H
+#define GUI_H
+
 #include <iostream>
 // #include "Qt5" 
 
@@ -28,7 +31,7 @@
 #define MCP_PLOT_X_OFFSET 400
 #define MCP_PLOT_SIZE 400
 
-#define BUTTONS_DISTANCE 700
+#define CONTROL_BUTTONS_DISTANCE 700
 
 /* class Gui */
 /* { */
@@ -107,6 +110,15 @@ struct TDCDataGui
 
 
 
+struct ControlButtons
+{
+    wxButton *save;
+    wxButton *save_and_run_next_button;
+    wxButton *start_pause_toggle_button;
+    wxButton *reload_caribu_config_button;
+    wxButton *tmp;
+};
+
 /* struct MCPPlot */
 /* { */
     
@@ -119,3 +131,9 @@ struct TDCDataGui
 /*     TextEntry( const wxString & default_name ); */
 /*     void OnEnter( wxCommandEvent &event ); */
 /* }; */
+
+
+
+
+
+#endif // GUI_H 
