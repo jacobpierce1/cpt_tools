@@ -1,58 +1,70 @@
 #include <iostream>
 #include "gui.h"
 #include <wx/valnum.h>
+#include "tabor.h"
+#include "mathplot.h"
 
 
+using namespace std;
+
+void initTaborTextCtrls( wxFrame *frame, TaborTextCtrls *tabor_text_ctrls );
+
+void initTDCLabels( TDCDataGui *tdc_data_gui, wxFrame *frame );
+
+    
 IMPLEMENT_APP(MyApp)
 
 
 
 
-class MyFrame : public wxFrame
-{
-public:
-    MyFrame();
-private:
-    void OnHello(wxCommandEvent& event);
-    void OnExit(wxCommandEvent& event);
-    void OnAbout(wxCommandEvent& event);
-};
-enum
-{
-    ID_Hello = 1
-};
+
+
+// class MyFrame : public wxFrame
+// {
+// public:
+//     MyFrame();
+// private:
+//     void OnHello(wxCommandEvent& event);
+//     void OnExit(wxCommandEvent& event);
+//     void OnAbout(wxCommandEvent& event);
+// };
+// enum
+// {
+//     ID_Hello = 1
+// };
 
 
 
-MyFrame::MyFrame()
-    : wxFrame(NULL, wxID_ANY, "CPT Master Controller")
-{
-    // wxMenu *menuFile = new wxMenu;
-    // menuFile->Append(ID_Hello, "&Hello...\tCtrl-H",
-    //                  "Help string shown in status bar for this menu item");
-    // menuFile->AppendSeparator();
-    // menuFile->Append(wxID_EXIT);
-    // wxMenu *menuHelp = new wxMenu;
-    // menuHelp->Append(wxID_ABOUT);
-    // wxMenuBar *menuBar = new wxMenuBar;
-    // menuBar->Append(menuFile, "&File");
-    // menuBar->Append(menuHelp, "&Help");
-    // SetMenuBar( menuBar );
-    // CreateStatusBar();
-    // SetStatusText("Welcome to wxWidgets!");
-    // Bind(wxEVT_MENU, &MyFrame::OnHello, this, ID_Hello);
-    // Bind(wxEVT_MENU, &MyFrame::OnAbout, this, wxID_ABOUT);
-    // Bind(wxEVT_MENU, &MyFrame::OnExit, this, wxID_EXIT);
-}
-
+// MyFrame::MyFrame()
+//     : wxFrame(NULL, wxID_ANY, "CPT Master Controller")
+// {
+//     // wxMenu *menuFile = new wxMenu;
+//     // menuFile->Append(ID_Hello, "&Hello...\tCtrl-H",
+//     //                  "Help string shown in status bar for this menu item");
+//     // menuFile->AppendSeparator();
+//     // menuFile->Append(wxID_EXIT);
+//     // wxMenu *menuHelp = new wxMenu;
+//     // menuHelp->Append(wxID_ABOUT);
+//     // wxMenuBar *menuBar = new wxMenuBar;
+//     // menuBar->Append(menuFile, "&File");
+//     // menuBar->Append(menuHelp, "&Help");
+//     // SetMenuBar( menuBar );
+//     // CreateStatusBar();
+//     // SetStatusText("Welcome to wxWidgets!");
+//     // Bind(wxEVT_MENU, &MyFrame::OnHello, this, ID_Hello);
+//     // Bind(wxEVT_MENU, &MyFrame::OnAbout, this, wxID_ABOUT);
+//     // Bind(wxEVT_MENU, &MyFrame::OnExit, this, wxID_EXIT);
+// }
 
 
 
 bool MyApp::OnInit()
 {
-    wxFrame *frame = new wxFrame(NULL, wxID_ANY, "CPT Master Controller");
+    wxFrame *frame = new wxFrame(NULL, wxID_ANY, "CPT Master Controller",
+				 wxDefaultPosition, wxSize( 1200, 800 ) );
     frame->Show(true);
 
+    
     // Button *btnapp = new Button(wxT("Button"));
     // btnapp->Show(true);
 
@@ -65,20 +77,137 @@ bool MyApp::OnInit()
     button->SetFocus();
     button->Show();
 
-    wxIntegerValidator<signed char> my_validator;
-    my_validator.SetRange (1, 10);
-    wxTextCtrl *text_ctrl = new wxTextCtrl(  frame, 0, wxT("5"), wxDefaultPosition,
-					     wxDefaultSize, 0,
-					     my_validator ) ;
+    TaborTextCtrls tabor_text_ctrls;
+    initTaborTextCtrls( frame, &tabor_text_ctrls ) ;
 
-    
-    
+    TDCDataGui tdc_data_gui;
+    initTDCLabels( &tdc_data_gui, frame ) ;
+        
     return true;
 }
 
 
 
+void initTaborTextCtrls( wxFrame *frame, TaborTextCtrls *tabor_text_ctrls )
+{
 
+    // create title for this section 
+    wxPoint title_coords = wxPoint( ( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP ) / 2,
+				    TABOR_TEXT_CTRLS_START_YPOS - TABOR_TITLE_OFFSET ) ;
+    wxSize title_size = wxSize( 100, 40 ) ;
+    wxStaticText *title = new wxStaticText( frame, 0, "Tabor Settings", title_coords, title_size );
+    wxFont title_font( 20, wxDEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+    title->SetFont( title_font );
+
+
+    // add the labels 
+
+    wxPoint textctrl_positions[ NUM_TABOR_SETTINGS ];
+
+    char labels[ NUM_TABOR_SETTINGS ][ 64 ] =
+	{ "num steps", "wminus", "wplus",
+	  "wminus_phase", "wplus_phase", "wc_phase",
+	  "wminus_amp", "wplus_amp", "wc_amp",
+	  "wminus_loops", "wplus_loops", "wc_loops",
+	  "wminus_length", "wplus_length", "wc_length",
+	  "time acc" 
+	};
+    
+    for( int i = 0; i < NUM_TABOR_SETTINGS; i++ )
+    {
+	textctrl_positions[i] = wxPoint( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP,
+					 TABOR_TEXT_CTRLS_START_YPOS
+					 + i * TABOR_TEXT_CTRLS_YPOS_DELTA ) ;
+
+	wxPoint label_position = wxPoint( TABOR_LABEL_X_OFFSET,
+					  TABOR_TEXT_CTRLS_START_YPOS
+					  + i * TABOR_TEXT_CTRLS_YPOS_DELTA ) ;
+	
+	new wxStaticText( frame, 0, labels[i], label_position ) ;
+
+    }
+
+
+    // now add all text controls 
+
+    TaborSettings default_tabor_settings;
+
+    wxIntegerValidator<signed char> nsteps_validator;
+    nsteps_validator.SetRange(1, 10);
+
+    string default_nsteps = to_string( default_tabor_settings.nsteps );
+    tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0,
+						default_nsteps.c_str(), 
+						textctrl_positions[0],
+						wxDefaultSize, 0,
+						nsteps_validator ) ;
+
+    string default_wminus = to_string( default_tabor_settings.wminus );
+    tabor_text_ctrls->wminus = new wxTextCtrl(  frame, 0, default_wminus.c_str(),
+						textctrl_positions[1],
+						wxDefaultSize, 0,
+						nsteps_validator ) ;
+
+
+    tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[2],
+					     wxDefaultSize, 0,
+					     nsteps_validator ) ;
+
+
+    tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[3],
+					     wxDefaultSize, 0,
+					     nsteps_validator ) ;
+
+
+    tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[4],
+					     wxDefaultSize, 0,
+					     nsteps_validator ) ;
+
+
+    tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[5],
+					     wxDefaultSize, 0,
+					     nsteps_validator ) ;
+
+
+    tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[6],
+					     wxDefaultSize, 0,
+					     nsteps_validator ) ;
+
+
+    tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[7],
+					     wxDefaultSize, 0,
+					     nsteps_validator ) ;
+    
+}
+
+
+
+
+
+void initTDCLabels( TDCDataGui *tdc_data_gui, wxFrame *frame )
+{
+    // int xcoord = (int) ( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP ) / 2;
+
+    wxPoint title_coords = wxPoint( ( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP ) / 2,
+				    TDC_LABELS_Y_OFFSET + TABOR_TITLE_OFFSET ) ;
+    wxSize title_size = wxSize( 100, 40 ) ;
+    wxStaticText *title = new wxStaticText( frame, 0, "TDC Data", title_coords, title_size );
+    wxFont title_font( 20, wxDEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+    title->SetFont( title_font );
+
+    int x1 = TABOR_LABEL_X_OFFSET;
+    int x2 = TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP;
+    int y1 = TDC_LABELS_Y_OFFSET + 2 * TABOR_TITLE_OFFSET;
+    int y2 = TDC_LABELS_Y_OFFSET + 2 * TABOR_TITLE_OFFSET
+	+ TABOR_TEXT_CTRLS_YPOS_DELTA;
+
+    new wxStaticText( frame, 0, "Counts", wxPoint( x1, y1 ) );
+    new wxStaticText( frame, 0, "Count Rate", wxPoint( x1, y2 ) );
+    
+    tdc_data_gui->counts = new wxStaticText( frame, 0, "0", wxPoint( x2, y1 ) );
+    tdc_data_gui->count_rate = new wxStaticText( frame, 0, "0", wxPoint( x2, y2 ) );
+
+}
 
 // Button::Button(const wxString& title)
 //     : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(270, 150))
@@ -107,23 +236,23 @@ void Button::OnQuit(wxCommandEvent & WXUNUSED(event))
 
 
 
-void MyFrame::OnExit(wxCommandEvent& event)
-{
-    Close(true);
-}
+// void MyFrame::OnExit(wxCommandEvent& event)
+// {
+//     Close(true);
+// }
 
 
-void MyFrame::OnAbout(wxCommandEvent& event)
-{
-    wxMessageBox("This is a wxWidgets Hello World example",
-                 "About Hello World", wxOK | wxICON_INFORMATION);
-}
+// void MyFrame::OnAbout(wxCommandEvent& event)
+// {
+//     wxMessageBox("This is a wxWidgets Hello World example",
+//                  "About Hello World", wxOK | wxICON_INFORMATION);
+// }
 
 
-void MyFrame::OnHello(wxCommandEvent& event)
-{
-    wxLogMessage("Hello world from wxWidgets!");
-} 
+// void MyFrame::OnHello(wxCommandEvent& event)
+// {
+//     wxLogMessage("Hello world from wxWidgets!");
+// } 
 
 
 
