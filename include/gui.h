@@ -1,19 +1,19 @@
+#if USE_GUI
+
 #ifndef GUI_H
 #define GUI_H
 
 
-
+#include "constants.h" 
 #include <iostream>
-// #include "Qt5" 
-
 #include <wx/wx.h>
+#include <chrono>
 
-// include timekeeping 
-#ifndef _WIN_32 
-#include <time.h>
-#else
-#include <Windows.h>
-#endif 
+#define FRAME_WIDTH 1200
+#define FRAME_HEIGHT 800
+
+#define MAIN_TITLE_FONTSIZE 30
+#define MAIN_TITLE_Y_OFFSET 10 
 
 #define TITLE_FONTSIZE 20
 
@@ -35,22 +35,6 @@
 
 #define CONTROL_BUTTONS_DISTANCE 700
 
-/* class Gui */
-/* { */
-/* public : */
-/*     Gui(); */
-/*     void read_text_field( TextField tf ) ; */
-
-/* private : */
-/*     TextField *create_text_field( int x1, int x2, int y1, int y2, int length, */
-/* 				  int max_char, char *entry_ptr, char *default_text, */
-/* 				  char *title, char *help_description ); */
-
-/*     void read_text_field( TextField * tf) ; */
-    
-/*     void set_title( char *title ); */
-
-/* } */
 
 
 
@@ -63,13 +47,13 @@ class MyApp : public wxApp
 
 
 
-class Button : public wxFrame
-{
-public:
-    Button(const wxString& title);
+/* class Button : public wxFrame */
+/* { */
+/* public: */
+/*     Button(const wxString& title); */
 
-    void OnQuit(wxCommandEvent & event);
-};
+/*     void OnQuit(wxCommandEvent & event); */
+/* }; */
 
 
 
@@ -127,15 +111,32 @@ struct ControlButtons
 /* }; */
 
 
-/* class TextCtrl : public wxTextCtrl */
-/* { */
-/* public : */
-/*     TextEntry( const wxString & default_name ); */
-/*     void OnEnter( wxCommandEvent &event ); */
-/* }; */
+
+
+
+
+
+
+class Gui
+{
+public :
+    TaborTextCtrls tabor_text_ctrls;
+    ControlButtons control_buttons;
+    TDCDataGui TDC_data_gui;
+
+    // pointers to corresponding array / int in TDC if it exists,
+    // otherwise NULL
+    double *mcp_positions[2][ TDC_MAX_COUNTS ];
+    int *num_processed_data_ptr;
+
+    void update( void );
+    void main_loop( void );
+};
 
 
 
 
 
 #endif // GUI_H 
+
+#endif

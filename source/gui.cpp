@@ -1,3 +1,5 @@
+#if USE_GUI
+
 #ifdef _WIN32
 #include "stdafx.h"
 #endif
@@ -22,24 +24,6 @@ wxStaticText * make_title( wxFrame *frame, const char *label, int x, int y,
     
 IMPLEMENT_APP(MyApp)
 
-
-
-
-
-
-// class MyFrame : public wxFrame
-// {
-// public:
-//     MyFrame();
-// private:
-//     void OnHello(wxCommandEvent& event);
-//     void OnExit(wxCommandEvent& event);
-//     void OnAbout(wxCommandEvent& event);
-// };
-// enum
-// {
-//     ID_Hello = 1
-// };
 
 
 
@@ -98,10 +82,15 @@ public:
 bool MyApp::OnInit()
 {
     wxFrame *frame = new wxFrame(NULL, wxID_ANY, "CPT Master Controller",
-				 wxDefaultPosition, wxSize( 1200, 800 ) );
+				 wxDefaultPosition,
+				 wxSize( FRAME_WIDTH, FRAME_HEIGHT  ) );
     frame->Show(true);
 
-    
+    make_title( frame, "CPT Master Controller",
+		FRAME_WIDTH / 2,
+		MAIN_TITLE_Y_OFFSET,
+		MAIN_TITLE_FONTSIZE, wxALIGN_RIGHT );
+	
     // Button *btnapp = new Button(wxT("Button"));
     // btnapp->Show(true);
 
@@ -122,7 +111,7 @@ bool MyApp::OnInit()
 
 
     make_title( frame, "MCP Hits",
-		MCP_PLOT_X_OFFSET + MCP_PLOT_SIZE / 2 - 40 ,
+		MCP_PLOT_X_OFFSET + MCP_PLOT_SIZE / 2,
 		MCP_PLOT_Y_OFFSET - MCP_PLOT_TITLE_OFFSET,
 		TITLE_FONTSIZE, wxALIGN_RIGHT );
     
@@ -240,6 +229,8 @@ wxStaticText * make_title( wxFrame *frame, const char *label, int x, int y,
     
     wxFont title_font( fontsize, wxDEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
     title->SetFont( title_font );
+
+    wxSize size = title->GetSize();
 
     return title;
 }
@@ -382,10 +373,10 @@ void initTDCLabels( TDCDataGui *tdc_data_gui, wxFrame *frame )
 
 
 
-void Button::OnQuit(wxCommandEvent & WXUNUSED(event))
-{
-    Close(true);
-}
+// void Button::OnQuit(wxCommandEvent & WXUNUSED(event))
+// {
+//     Close(true);
+// }
 
 
 
@@ -446,64 +437,21 @@ void mpFXYVector::AddData(float x, float y, std::vector<double> &xs, std::vector
 
 
 
-
-// void MyFrame::OnExit(wxCommandEvent& event)
+// void Gui::main_loop( void )
 // {
-//     Close(true);
+
 // }
 
-
-// void MyFrame::OnAbout(wxCommandEvent& event)
+// void Gui::update( void )
 // {
-//     wxMessageBox("This is a wxWidgets Hello World example",
-//                  "About Hello World", wxOK | wxICON_INFORMATION);
-// }
+    
 
-
-// void MyFrame::OnHello(wxCommandEvent& event)
-// {
-//     wxLogMessage("Hello world from wxWidgets!");
-// } 
-
-
-
-
-
-
-// void Text :: OnEnter( wxCommandEvent & WXUNUSED( event ) )
-// {
-//     printf( "enter pressed" ) ;
 // }
 
 
 
 
-// #include <QApplication>
-// #include <QWidget>
-
-// #define RUN_INSTRUMENTS defined( _WIN_32 ) 
-
-
-// int main(int argc, char *argv[]) {
-//     QApplication app(argc, argv);
-
-//     QWidget window;
-
-//     window.resize(250, 150);
-//     window.setWindowTitle("Simple example");
-//     window.show();
-
-//     return app.exec();
-// }
-
-
-
-
-
-
-
-
-// Gui::init( void )
+// Gui::Gui( void )
 // {
    
 // }
@@ -518,34 +466,4 @@ void mpFXYVector::AddData(float x, float y, std::vector<double> &xs, std::vector
 
 
 
-// // text field:
-
-// // modifiable
-
-// int nsteps = 5; //  1 or 2 = wminus only, 3 or 4 = wminus + wplus, 5 = everything
-
-// double wminus = 1600.0;
-	
-// double wplus = 656252.0; // 130In //646445.9 135Te// 150Ce 1164702.5; // 1118649.8;// // //133Cs = 656250.0 //142Cs = 614447.6
-// double wc = 657844.5; //130I648038.4 135Te // 150Ce 1166293.3; // 1120240.8;//1797579.0;// 1181999.3;// 1121410.2;// 130In = 672935.5; // 616040.4; // 657844.5;// 133Cs = 657844.5; //// 142Cs = 616040.4
-
-// double wminus_phase = -140.0;// -110.0;// 30.0;
-// double wplus_phase = 0.0;
-// double wc_phase = 0.0;
-
-// double wminus_amp = 0.0005;// 0.0035;// 0.003;//0.0045;// 0.0075
-// double wplus_amp = 0.2;//0.22;  //0.11
-// double wc_amp = 0.5;
-
-// int wminus_loops = 1; // don't change
-// int wplus_loops = 100;// 133Cs = 100;
-// int wc_loops = 208;// 212;// 133Cs = 210
-	 
-// int wminus_length = 3;// 3 ; // 2
-// int wplus_length = 1;
-// int wc_length = 1; // don't change
-
-// int tacc = 68;// 220040;// 234075; // 240023;// 250063; // 190318;// 148010;// 60008 18500; // time in us
-// //int tacc 55.21	// Load three arbitrary waveforms consecutively on all channels
-
-// // modifiable<
+#endif 

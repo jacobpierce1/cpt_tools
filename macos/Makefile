@@ -2,11 +2,13 @@ INC = ../include/
 SRC = ../source/
 OBJ = ../obj/
 
+DEFINES = -DUSE_GUI # -DUSE_TDC -DUSE_CARIBU
+WX_INCLUDE = `wx-config --cxxflags --libs`
 
 all : $(OBJ)/mathplot.o gui.exe
 
 gui.exe : $(OBJ)/mathplot.o $(SRC)/gui.cpp $(INC)/gui.h
-	g++ $(OBJ)/mathplot.o -I ../include ../source/gui.cpp `wx-config --cxxflags --libs` -o gui.exe
+	g++ $(DEFINES) $(OBJ)/mathplot.o -I ../include ../source/gui.cpp $(WX_INCLUDE) -o gui.exe
 
 
 
