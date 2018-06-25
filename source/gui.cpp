@@ -10,7 +10,7 @@ using namespace std;
 void initTaborTextCtrls( wxFrame *frame, TaborTextCtrls *tabor_text_ctrls );
 
 void initTDCLabels( TDCDataGui *tdc_data_gui, wxFrame *frame );
-
+//void mpFXYVector::AddData(float x, float y, std::vector<double> &xs, std::vector<double> &ys);
     
 IMPLEMENT_APP(MyApp)
 
@@ -71,7 +71,7 @@ bool MyApp::OnInit()
     // wxPanel *panel = new wxPanel( frame, wxID_ANY);
     
     wxButton *button = new wxButton(  frame, wxID_EXIT, wxT("Quit"), 
-				    wxPoint(20, 20));
+				      wxPoint(20, 20));
     Connect(wxID_EXIT, wxEVT_COMMAND_BUTTON_CLICKED, 
 	    wxCommandEventHandler(Button::OnQuit));
     button->SetFocus();
@@ -82,9 +82,31 @@ bool MyApp::OnInit()
 
     TDCDataGui tdc_data_gui;
     initTDCLabels( &tdc_data_gui, frame ) ;
-        
+
+
+    mpFXYVector *m_Vector = new mpFXYVector();
+    mpWindow *m_plot = new mpWindow( frame, 0, wxPoint( 400, 100 ),
+				    wxSize( 400, 400 ) );
+    // mpLayer *layer = &mpFXY
+    m_Vector->SetVisible( true ) ;
+    
+    vector<double> vectorX;
+    vector<double> vectorY;
+    double xpos = 1.0;
+    double ypos = 2.0;
+    
+    m_Vector->AddData( xpos, ypos, vectorX, vectorY);
+
+    m_plot->AddLayer( m_Vector );
+    
+    m_plot->Fit();
+
+    
     return true;
 }
+
+
+
 
 
 
@@ -150,33 +172,33 @@ void initTaborTextCtrls( wxFrame *frame, TaborTextCtrls *tabor_text_ctrls )
 
 
     tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[2],
-					     wxDefaultSize, 0,
-					     nsteps_validator ) ;
+						wxDefaultSize, 0,
+						nsteps_validator ) ;
 
 
     tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[3],
-					     wxDefaultSize, 0,
-					     nsteps_validator ) ;
+						wxDefaultSize, 0,
+						nsteps_validator ) ;
 
 
     tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[4],
-					     wxDefaultSize, 0,
-					     nsteps_validator ) ;
+						wxDefaultSize, 0,
+						nsteps_validator ) ;
 
 
     tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[5],
-					     wxDefaultSize, 0,
-					     nsteps_validator ) ;
+						wxDefaultSize, 0,
+						nsteps_validator ) ;
 
 
     tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[6],
-					     wxDefaultSize, 0,
-					     nsteps_validator ) ;
+						wxDefaultSize, 0,
+						nsteps_validator ) ;
 
 
     tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[7],
-					     wxDefaultSize, 0,
-					     nsteps_validator ) ;
+						wxDefaultSize, 0,
+						nsteps_validator ) ;
     
 }
 
@@ -232,6 +254,62 @@ void Button::OnQuit(wxCommandEvent & WXUNUSED(event))
     Close(true);
 }
 
+
+
+void mpFXYVector::AddData(float x, float y, std::vector<double> &xs, std::vector<double> &ys)
+{
+    // Check if the data vectora are of the same size
+    if (xs.size() != ys.size()) {
+	wxLogError(_("wxMathPlot error: X and Y vector are not of the same length!"));
+	return;
+    }
+
+    //Delete first point if you need a filo buffer (i dont need it)
+    //xs.erase(xs.begin());
+    //xy.erase(xy.begin());
+
+    //Add new Data points at the end
+    xs.push_back(x);
+    ys.push_back(y);
+
+
+    // Copy the data:
+    m_xs = xs;
+    m_ys = ys;
+
+    // Update internal variables for the bounding box.
+    if (xs.size()>0)
+    {
+	m_minX  = xs[0];
+	m_maxX  = xs[0];
+	m_minY  = ys[0];
+	m_maxY  = ys[0];
+
+	std::vector<double>::const_iterator  it;
+
+	for (it=xs.begin();it!=xs.end();it++)
+	{
+	    if (*it<m_minX) m_minX=*it;
+	    if (*it>m_maxX) m_maxX=*it;
+	}
+	for (it=ys.begin();it!=ys.end();it++)
+	{
+	    if (*it<m_minY) m_minY=*it;
+	    if (*it>m_maxY) m_maxY=*it;
+	}
+	m_minX-=0.5f;
+	m_minY-=0.5f;
+	m_maxX+=0.5f;
+	m_maxY+=0.5f;
+    }
+    else
+    {
+	m_minX  = -1;
+	m_maxX  = 1;
+	m_minY  = -1;
+	m_maxY  = 1;
+    }
+}
 
 
 

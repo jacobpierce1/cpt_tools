@@ -5,7 +5,7 @@ OBJ = ../obj/
 
 all : $(OBJ)/mathplot.o gui.exe
 
-gui.exe : $(OBJ)/mathplot.o
+gui.exe : $(OBJ)/mathplot.o $(SRC)/gui.cpp $(INC)/gui.h
 	g++ $(OBJ)/mathplot.o -I ../include ../source/gui.cpp `wx-config --cxxflags --libs` -o gui.exe
 
 
