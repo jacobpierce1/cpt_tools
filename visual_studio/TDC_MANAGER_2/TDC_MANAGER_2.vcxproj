@@ -85,12 +85,17 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\include\gui.h" />
+    <ClInclude Include="..\..\include\mathplot.h" />
+    <ClInclude Include="..\..\include\tdc.h" />
     <ClInclude Include="hptdc_driver_3.4.3_x86_c_wrap.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="tdcmanager_3.5.2.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\source\gui.cpp" />
+    <ClCompile Include="..\..\source\mathplot.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>

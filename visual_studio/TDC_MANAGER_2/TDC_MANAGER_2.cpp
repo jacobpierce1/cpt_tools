@@ -42,6 +42,14 @@ int _tmain(int argc, _TCHAR* argv[])
 	int driver_version = TDCManager_GetDriverVersion(tdcmgr);
 	int state = TDCManager_GetState(tdcmgr);
 
+	const char * buf_size_bits_str = TDCManager_GetParameter( tdcmgr, "BufferSize");
+
+	//unsigned long buf_size; 
+	//sscanf( buf_size_bits_str, "%ul", &buf_size );
+
+
+	// cout << buf_size << endl;
+
 	cout << "count: " << count << endl;
 	cout << "driver version: " << driver_version << endl;
 	cout << "state: " << state << endl;
@@ -99,8 +107,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	for (int i = 0; i < 10; i++)
 	{
-		test_batch_ReadTDCHit(tdcmgr);
-		Sleep(1);
+		// test_batch_ReadTDCHit(tdcmgr);
+		// Sleep(1);
 		test_batch_Read(tdcmgr);
 		Sleep( 1 );
 
@@ -195,8 +203,7 @@ void test_batch_ReadTDCHit(C_TDC *c_tdc)
 void test_batch_Read(C_TDC *c_tdc)
 {
 	// ofstream outfile("test_batch_read.bin", ofstream::binary );
-
-	const int num_reads = 100;
+	const int num_reads = 1000;
 	HIT test_hit[num_reads];
 
 	cout << "\n\nTESTING BATCH REead" << endl;

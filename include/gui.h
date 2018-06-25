@@ -1,3 +1,9 @@
+
+#ifdef _WIN_32h
+#include "stdafx.h"
+#endif 
+
+
 #include <iostream>
 // #include "Qt5" 
 

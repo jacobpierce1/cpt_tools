@@ -1,14 +1,62 @@
-﻿Build started 6/22/2018 4:41:13 PM.
-     1>Project "C:\Users\cpt\Desktop\JACOB\TDC_MANAGER_2\visual_studio\TDC_MANAGER_2\TDC_MANAGER_2.vcxproj" on node 2 (Build target(s)).
+﻿Build started 6/25/2018 10:35:22 AM.
+     1>Project "C:\Users\cpt\Desktop\JACOB\cpt_master_controller\visual_studio\TDC_MANAGER_2\TDC_MANAGER_2.vcxproj" on node 2 (Build target(s)).
      1>ClCompile:
-         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _CRT_SECURE_NO_WARNINGS /D WIN32 /D _DEBUG /D _CONSOLE /D _LIB /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yu"stdafx.h" /Fp"Debug\TDC_MANAGER_2.pch" /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt TDC_MANAGER_2.cpp
-         TDC_MANAGER_2.cpp
-       Link:
-         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\cpt\Desktop\JACOB\TDC_MANAGER_2\visual_studio\Debug\TDC_MANAGER_2.exe" /INCREMENTAL /NOLOGO /LIBPATH:C:\Users\cpt\Desktop\JACOB\TDC_MANAGER_2\visual_studio\TDC_MANAGER_2\ kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib hptdc_driver_3.4.3_x86_c_wrap.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\cpt\Desktop\JACOB\TDC_MANAGER_2\visual_studio\Debug\TDC_MANAGER_2.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\cpt\Desktop\JACOB\TDC_MANAGER_2\visual_studio\Debug\TDC_MANAGER_2.lib" /MACHINE:X86 Debug\stdafx.obj
-         Debug\TDC_MANAGER_2.obj
-         TDC_MANAGER_2.vcxproj -> C:\Users\cpt\Desktop\JACOB\TDC_MANAGER_2\visual_studio\Debug\TDC_MANAGER_2.exe
-     1>Done Building Project "C:\Users\cpt\Desktop\JACOB\TDC_MANAGER_2\visual_studio\TDC_MANAGER_2\TDC_MANAGER_2.vcxproj" (Build target(s)).
+         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _CRT_SECURE_NO_WARNINGS /D WIN32 /D _DEBUG /D _CONSOLE /D _LIB /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yu"stdafx.h" /Fp"Debug\TDC_MANAGER_2.pch" /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt ..\..\source\gui.cpp ..\..\source\mathplot.cpp
+         mathplot.cpp
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(19): warning C4627: '#include <wx/window.h>': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(31): warning C4627: '#include "wx/object.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(32): warning C4627: '#include "wx/font.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(33): warning C4627: '#include "wx/colour.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(34): warning C4627: '#include "wx/settings.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(35): warning C4627: '#include "wx/sizer.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(36): warning C4627: '#include "wx/log.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(37): warning C4627: '#include "wx/intl.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(38): warning C4627: '#include "wx/dcclient.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(39): warning C4627: '#include "wx/cursor.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(42): warning C4627: '#include "mathplot.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(43): warning C4627: '#include <wx/bmpbuttn.h>': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(44): warning C4627: '#include <wx/module.h>': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(45): warning C4627: '#include <wx/msgdlg.h>': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(46): warning C4627: '#include <wx/image.h>': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(47): warning C4627: '#include <wx/tipwin.h>': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(49): warning C4627: '#include <cmath>': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(50): warning C4627: '#include <cstdio>': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(51): warning C4627: '#include <ctime>': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\mathplot.cpp(3026): fatal error C1010: unexpected end of file while looking for precompiled header. Did you forget to add '#include "stdafx.h"' to your source?
+         gui.cpp
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\gui.cpp(2): warning C4627: '#include <iostream>': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\gui.cpp(3): warning C4627: '#include "gui.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\gui.cpp(4): warning C4627: '#include <wx/valnum.h>': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\gui.cpp(5): warning C4627: '#include "tabor.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\gui.cpp(6): warning C4627: '#include "mathplot.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\gui.cpp(549): fatal error C1010: unexpected end of file while looking for precompiled header. Did you forget to add '#include "stdafx.h"' to your source?
+         Generating Code...
+     1>Done Building Project "C:\Users\cpt\Desktop\JACOB\cpt_master_controller\visual_studio\TDC_MANAGER_2\TDC_MANAGER_2.vcxproj" (Build target(s)) -- FAILED.
 
-Build succeeded.
+Build FAILED.
 
-Time Elapsed 00:00:02.22
+Time Elapsed 00:00:00.37
