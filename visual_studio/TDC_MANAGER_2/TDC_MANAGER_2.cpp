@@ -1,20 +1,27 @@
 // TDC_MANAGER_2.cpp : Defines the entry point for the console application.
 //
+#define _CRT_SECURE_NO_WARNINGS 1
+
+
 
 #include "stdafx.h"
 #include <iostream> 
 
 #include <Windows.h>
+#include <WinBase.h> 
 #include <stdio.h> 
 #include <fstream>
 
-#define _CRT_SECURE_NO_WARNINGS 1
+// #include <numeric_limits>
+
+#include <bitset> 
+
+// SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
 
 
 #include "hptdc_driver_3.4.3_x86_c_wrap.h"
 
 using namespace std; 
-
 
 
 void print_all_params(C_TDC* c_tdc);
@@ -25,24 +32,195 @@ void test_batch_ReadTDCHit(C_TDC *c_tdc);
 void test_batch_Read(C_TDC *c_tdc);
 
 
+#define TDC_HIT_BUFFER_SIZE 1000
+const unsigned int TDC_MAX_COUNTS = 100000;
 
+
+
+
+
+
+
+
+// here is a relatively harmless implementation of the masks required to 
+// unpack data from the TDC.
+// const HIT RISING_MASK = 23;
+
+
+const HIT RISING_MASK = bitset<32>(          "10000000000000000000000000000000" ).to_ulong();
+//#define FALLING_MASK         0b01000000000000000000000000000000
+//#define CHANNEL_MASK         0b00111111000000000000000000000000
+//#define TRANSITION_TIME_MASK 0b00000000111111111111111111111111
+//
+//#define ERROR_HEADER_MASK    0b01000000000000000000000000000000
+//#define ERROR_MESSAGE_MASK   0b00000000111111110000000000000000
+//#define ERROR_COUNT_MASK     0b00000000000000001111111111111111
+////
+//#define 0b00000000000000000000000000000000
+//#define 0b00000000000000000000000000000000
+//#define 0b00000000000000000000000000000000
+//#define 0b00000000000000000000000000000000
+//#define 0b00000000000000000000000000000000
+//
+
+// #define CHANNEL_SHIFT 16
+// #define ERROR_MESSAGE_SHIFT 16
+
+// #define HIT_EDGE_MASK = ( 0b11 << 31 );
+//struct transition_bitfield
+//{
+//	unsigned char edge : 2;
+//	unsigned char channel : 6;
+//	unsigned int transition_time : 24;
+//};
+//
+//struct error_bitfield
+//{
+//	unsigned char header : 2;
+//	unsigned char channel : 6;
+//	unsigned char error : 8;
+//	unsigned int count : 16;
+//};
+//
+//struct group_bitfield
+//{
+//	unsigned char header : 4;
+//	unsigned char id : 4;
+//	unsigned int trigger_time : 24;
+//};
+//
+//struct rollover_bitfield
+//{
+//	unsigned char header : 8;
+//	unsigned int timestamp : 24;
+//};
+//
+//struct level_information_bitfield
+//{
+//	unsigned char header : 5;
+//	unsigned char n : 6;
+//	unsigned int level : 21;
+//};
+//
+//struct resolution_bitfield
+//{
+//	unsigned char header : 8;
+//	unsigned int bin_size : 24;  // in fs 
+//};
+
+
+
+class TDC
+{
+public :
+	TDC( void );
+	~TDC( void );
+
+	C_TDC *tdcmgr;
+	
+	unsigned int num_data_in_hit_buffer;
+	unsigned int num_data_in_channel_times;
+
+	HIT hit_buffer[ TDC_HIT_BUFFER_SIZE ]; 
+	double channel_times[6][ TDC_MAX_COUNTS ];
+
+	int read(void);
+
+	bool TDC::check_rollover( HIT hit );
+	// double TDC::check_hit_edge( Hit hit );
+	double TDC::hit_to_time(HIT hit, int *channel, double *time);
+	void process_hit_buffer();
+	int reset_channel_times( void );
+	int compute_mcp_position( double x1, double x2, double y1, double y2 );
+
+};
+
+
+TDC::TDC() 
+{
+	this->tdcmgr = TDCManager_New();
+	TDCManager_Init( this->tdcmgr );
+
+	this->num_data_in_hit_buffer = 0;
+	this->num_data_in_channel_times = 0;
+	// this->hit_buffer = new 
+}
+
+
+TDC::~TDC()
+{
+	TDCManager_CleanUp( this->tdcmgr );
+	TDCManager_Delete( this->tdcmgr );
+}
+
+
+int TDC::read()
+{
+	this->num_data_in_hit_buffer = TDCManager_Read( this->tdcmgr, this->hit_buffer, TDC_HIT_BUFFER_SIZE );
+	return this->num_data_in_hit_buffer;
+}
+
+//// when a rollover occurs, it is encoded as a hit 
+//// return true if rollover detecter 
+//bool TDC::check_rollover( HIT hit )
+//{
+//
+//}
+
+
+//double TDC::check_hit_edge( Hit hit ) 
+//{
+//
+//}
+
+
+double TDC::hit_to_time( HIT hit, int *channel, double *time )
+{
+	cout << sizeof( RISING_MASK ) << endl; 
+
+	if( hit & RISING_MASK ) 
+	{
+		cout << "rising" << endl;
+	}
+	else if( hit & FALLING_MASK ) 
+	{
+		cout << "falling" << endl;
+	}
+
+	// transition_bitfield x;
+
+//	unsigned int time = 
+	// first check for rising / falling transition or an error 
+	return 0;
+}
+//
+//void TDC::process_hit_buffer()
+//{
+//}
+//
+//int TDC::reset_channel_times(void)
+//{
+//}
+//
+//int TDC::compute_mcp_position(double x1, double x2, double y1, double y2)
+//{
+//}
+//
 
 int _tmain(int argc, _TCHAR* argv[])
 {
 	cout << "HELLO CPT" << endl;
 
-	C_TDC *tdcmgr = TDCManager_New();
-
-	TDCManager_Init(tdcmgr);
+	TDC *tdc = new TDC();
 
 	Sleep(1000);
 
 
-	int count = TDCManager_GetTDCCount(tdcmgr);
-	int driver_version = TDCManager_GetDriverVersion(tdcmgr);
-	int state = TDCManager_GetState(tdcmgr);
+	int count = TDCManager_GetTDCCount( tdc->tdcmgr);
+	int driver_version = TDCManager_GetDriverVersion( tdc->tdcmgr );
+	int state = TDCManager_GetState(tdc->tdcmgr );
 
-	const char * buf_size_bits_str = TDCManager_GetParameter( tdcmgr, "BufferSize");
+	const char * buf_size_bits_str = TDCManager_GetParameter( tdc->tdcmgr, "BufferSize");
 
 	//unsigned long buf_size; 
 	//sscanf( buf_size_bits_str, "%ul", &buf_size );
@@ -55,12 +233,11 @@ int _tmain(int argc, _TCHAR* argv[])
 	cout << "state: " << state << endl;
 
 	Sleep(1000);
-
-	TDCManager_Start(tdcmgr);
+	TDCManager_Start( tdc->tdcmgr );
 
 	Sleep(1000);
 
-	state = TDCManager_GetState(tdcmgr);
+	state = TDCManager_GetState( tdc->tdcmgr );
 	cout << "state: " << state << endl;
 
 
@@ -68,58 +245,37 @@ int _tmain(int argc, _TCHAR* argv[])
 
 
 
-
-	TDCManager_Pause(tdcmgr);
+/*
+	TDCManager_Pause( tdc->tdcmgr );
 
 	Sleep(1000);
 
-	state = TDCManager_GetState(tdcmgr);
+	state = TDCManager_GetState( tdc->tdcmgr );
 	cout << "state: " << state << endl;
 
 	Sleep(1000);
 
-	TDCManager_Continue(tdcmgr);
+	TDCManager_Continue( tdc->tdcmgr );
 
 	Sleep(1000);
 
 
-	state = TDCManager_GetState(tdcmgr);
+	state = TDCManager_GetState( tdc->tdcmgr );
 	cout << "state: " << state << endl;
-
-	// print_all_params(tdcmgr);
-	// print_TDCInfo(tdcmgr);
-
-	//// HIT *test_hit;
-	//char buf[128];
-	//strcpy( buf, TDCManager_GetParameter(tdcmgr, "GroupRangeStart") );
-	//cout << buf << endl;
-	
-	//strcpy(buf, TDCManager_GetParameter(tdcmgr, "GroupRangeStart"));
-	//cout << buf << endl;
-	
-	
-	/*for (int i = 0; i < 5; i++)
-	{
-		Sleep(1000);
-		test_read(tdcmgr);
-	}
 */
 
 	for (int i = 0; i < 10; i++)
 	{
-		// test_batch_ReadTDCHit(tdcmgr);
-		// Sleep(1);
-		test_batch_Read(tdcmgr);
-		Sleep( 1 );
-
+		int num_words = tdc->read();
+		cout << "num words: " << num_words << endl;
+		tdc->hit_to_time( tdc->hit_buffer[0], NULL, NULL );
+		Sleep(10);
 	}
 
 	// test_batch_read(tdcmgr);
 
 	Sleep(1000);
-
-	TDCManager_CleanUp(tdcmgr);
-	TDCManager_Delete(tdcmgr);
+	delete tdc;
 
 	return 0;
 }
@@ -269,5 +425,9 @@ void test_batch_Read(C_TDC *c_tdc)
 	//}
 
 	// return 0;
+
+
+
+
 
 

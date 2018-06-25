@@ -1,3 +1,6 @@
+#ifdef _WIN32
+#include "stdafx.h"
+#endif
 
 #include <iostream>
 #include "gui.h"
@@ -104,12 +107,12 @@ bool MyApp::OnInit()
 
     // wxPanel *panel = new wxPanel( frame, wxID_ANY);
     
-    wxButton *button = new wxButton(  frame, wxID_EXIT, wxT("Quit"), 
-				      wxPoint(20, 20));
-    Connect(wxID_EXIT, wxEVT_COMMAND_BUTTON_CLICKED, 
-	    wxCommandEventHandler(Button::OnQuit));
-    button->SetFocus();
-    button->Show();
+    // wxButton *button = new wxButton(  frame, wxID_EXIT, wxT("Quit"), 
+    // 				      wxPoint(20, 20));
+    // Connect(wxID_EXIT, wxEVT_COMMAND_BUTTON_CLICKED, 
+    // 	    wxCommandEventHandler(Button::OnQuit));
+    // button->SetFocus();
+    // button->Show();
 
     TaborTextCtrls tabor_text_ctrls;
     initTaborTextCtrls( frame, &tabor_text_ctrls ) ;

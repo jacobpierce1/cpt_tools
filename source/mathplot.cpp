@@ -10,6 +10,10 @@
 // Licence:         wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
+#ifdef _WIN32
+#include "stdafx.h"
+#endif
+
 #ifdef __GNUG__
 // #pragma implementation "plot.h"
 #pragma implementation "mathplot.h"
