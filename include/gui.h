@@ -10,6 +10,8 @@
 #include <Windows.h>
 #endif 
 
+#define TITLE_FONTSIZE 20
+
 #define DEFAULT_MAX_TEXT_FIELD_CHAR 100
 #define DEFAULT_TEXT_FIELD_LENGTH 30
 #define TABOR_TEXT_CTRLS_LABEL_SEP 120
@@ -21,6 +23,12 @@
 
 #define TDC_LABELS_Y_OFFSET 420 // below start of tabor settings 
 
+#define MCP_PLOT_TITLE_OFFSET 40
+#define MCP_PLOT_Y_OFFSET 100 
+#define MCP_PLOT_X_OFFSET 400
+#define MCP_PLOT_SIZE 400
+
+#define BUTTONS_DISTANCE 700
 
 /* class Gui */
 /* { */
@@ -99,7 +107,10 @@ struct TDCDataGui
 
 
 
-
+/* struct MCPPlot */
+/* { */
+    
+/* }; */
 
 
 /* class TextCtrl : public wxTextCtrl */

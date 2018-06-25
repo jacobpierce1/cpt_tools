@@ -11,6 +11,10 @@ void initTaborTextCtrls( wxFrame *frame, TaborTextCtrls *tabor_text_ctrls );
 
 void initTDCLabels( TDCDataGui *tdc_data_gui, wxFrame *frame );
 //void mpFXYVector::AddData(float x, float y, std::vector<double> &xs, std::vector<double> &ys);
+
+
+wxStaticText * make_title( wxFrame *frame, const char *label, int x, int y,
+			   int fontsize, long style = 0 );
     
 IMPLEMENT_APP(MyApp)
 
@@ -32,6 +36,35 @@ IMPLEMENT_APP(MyApp)
 // {
 //     ID_Hello = 1
 // };
+
+
+
+class MyLissajoux : public mpFXY
+{
+    double m_rad;
+    int    m_idx;
+public:
+    MyLissajoux(double rad) : mpFXY( wxT("Lissajoux")) { m_rad=rad; m_idx=0; m_drawOutsideMargins = false;}
+    virtual bool GetNextXY( double & x, double & y )
+    {
+        if (m_idx < 360)
+        {
+            x = m_rad * cos(m_idx / 6.283185*360);
+            y = m_rad * sin(m_idx / 6.283185*360*3);
+            m_idx++;
+            return TRUE;
+        }
+        else
+        {
+            return FALSE;
+        }
+    }
+    virtual void Rewind() { m_idx=0; }
+    virtual double GetMinX() { return -m_rad; }
+    virtual double GetMaxX() { return  m_rad; }
+    virtual double GetMinY() { return -m_rad; }
+    virtual double GetMaxY() { return  m_rad; }
+};
 
 
 
@@ -84,28 +117,128 @@ bool MyApp::OnInit()
     initTDCLabels( &tdc_data_gui, frame ) ;
 
 
-    mpFXYVector *m_Vector = new mpFXYVector();
-    mpWindow *m_plot = new mpWindow( frame, 0, wxPoint( 400, 100 ),
-				    wxSize( 400, 400 ) );
-    // mpLayer *layer = &mpFXY
-    m_Vector->SetVisible( true ) ;
+    make_title( frame, "MCP Hits",
+		MCP_PLOT_X_OFFSET + MCP_PLOT_SIZE / 2 - 40 ,
+		MCP_PLOT_Y_OFFSET - MCP_PLOT_TITLE_OFFSET,
+		TITLE_FONTSIZE, wxALIGN_RIGHT );
     
-    vector<double> vectorX;
-    vector<double> vectorY;
-    double xpos = 1.0;
-    double ypos = 2.0;
-    
-    m_Vector->AddData( xpos, ypos, vectorX, vectorY);
+    // MCPPlot mcp_plot;
+    // initMCPPlot( frame, &mcp_plot );
 
-    m_plot->AddLayer( m_Vector );
+
+    // mpFXYVector *m_Vector = new mpFXYVector();
+    // mpWindow *m_plot = new mpWindow( frame, 0, wxPoint( 400, 100 ),
+    // 				    wxSize( 400, 400 ) );
+    // // mpLayer *layer = &mpFXY
+    // m_Vector->SetVisible( true ) ;
     
+    // vector<double> vectorX;
+    // vector<double> vectorY;
+    // double xpos = 1.0;
+    // double ypos = 2.0;
+    
+    // m_Vector->AddData( xpos, ypos, vectorX, vectorY);
+
+    // m_plot->AddLayer( m_Vector );
+    
+    // m_plot->Fit();
+
+    mpInfoCoords *nfo; // mpInfoLayer* nfo;
+    
+    mpLayer* l;
+
+	// Create a mpFXYVector layer
+	mpFXYVector* vectorLayer = new mpFXYVector(_("Vector"));
+	// Create two vectors for x,y and fill them with data
+	std::vector<double> vectorx, vectory;
+	double xcoord;
+	for (unsigned int p = 0; p < 100; p++) {
+		xcoord = ((double)p-50.0)*5.0;
+		vectorx.push_back(xcoord);
+		vectory.push_back(0.0001*pow(xcoord, 3));
+	}
+	vectorLayer->SetData(vectorx, vectory);
+	vectorLayer->SetContinuity(true);
+	wxPen vectorpen(*wxBLUE, 2, wxSOLID);
+	vectorLayer->SetPen(vectorpen);
+	vectorLayer->SetDrawOutsideMargins(false);
+
+
+	wxFont graphFont(11, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
+	mpWindow *m_plot = new mpWindow( frame, -1,
+					 wxPoint( MCP_PLOT_X_OFFSET, MCP_PLOT_Y_OFFSET ),
+					 wxSize( MCP_PLOT_SIZE, MCP_PLOT_SIZE ),
+					 wxSUNKEN_BORDER );
+	
+	mpScaleX* xaxis = new mpScaleX(wxT("X"), mpALIGN_BOTTOM, true, mpX_NORMAL);
+    mpScaleY* yaxis = new mpScaleY(wxT("Y"), mpALIGN_LEFT, true);
+    xaxis->SetFont(graphFont);
+    yaxis->SetFont(graphFont);
+    xaxis->SetDrawOutsideMargins(false);
+    yaxis->SetDrawOutsideMargins(false);
+	// Fake axes formatting to test arbitrary format string
+	// xaxis->SetLabelFormat(wxT("%.2f €"));
+	// yaxis->SetLabelFormat(wxT("%p"));
+    m_plot->SetMargins(30, 30, 50, 100);
+//     m_plot->SetMargins(50, 50, 200, 150);
+    m_plot->AddLayer(     xaxis );
+    m_plot->AddLayer(     yaxis );
+    // m_plot->AddLayer(     new MySIN( 10.0, 220.0 ) );
+    // m_plot->AddLayer(     new MyCOSinverse( 10.0, 100.0 ) );
+    m_plot->AddLayer( l = new MyLissajoux( 125.0 ) );
+    m_plot->AddLayer(     vectorLayer );
+    m_plot->AddLayer(     new mpText(wxT("mpText sample"), 10, 10) );
+    wxBrush hatch(wxColour(200,200,200), wxSOLID);
+    //m_plot->AddLayer( nfo = new mpInfoLayer(wxRect(80,20,40,40), &hatch));
+    m_plot->AddLayer( nfo = new mpInfoCoords(wxRect(80,20,10,10), wxTRANSPARENT_BRUSH)); //&hatch));
+    nfo->SetVisible(false);
+    wxBrush hatch2(wxColour(163,208,212), wxSOLID);
+    mpInfoLegend* leg;
+    m_plot->AddLayer( leg = new mpInfoLegend(wxRect(200,20,40,40), wxTRANSPARENT_BRUSH)); //&hatch2));
+    leg->SetVisible(true);
+    
+    // m_plot->EnableCoordTooltip(true);
+    // set a nice pen for the lissajoux
+    wxPen mypen(*wxRED, 5, wxSOLID);
+    l->SetPen( mypen);
+
+    // m_log = new wxTextCtrl( this, -1, wxT("This is the log window.\n"), wxPoint(0,0), wxSize(100,100), wxTE_MULTILINE );
+    // wxLog *old_log = wxLog::SetActiveTarget( new wxLogTextCtrl( m_log ) );
+    // delete old_log;
+    
+    wxBoxSizer *topsizer = new wxBoxSizer( wxVERTICAL );
+
+    // topsizer->Add( m_plot, 1, wxEXPAND );
+    // // topsizer->Add( m_log, 0, wxEXPAND );
+
+    // SetAutoLayout( TRUE );
+    // SetSizer( topsizer );
+    // axesPos[0] = 0;
+    // axesPos[1] = 0;
+    // ticks = true;
+
+    m_plot->EnableDoubleBuffer(true);
+    m_plot->SetMPScrollbars(false);
     m_plot->Fit();
-
     
     return true;
 }
 
 
+
+wxStaticText * make_title( wxFrame *frame, const char *label, int x, int y,
+			   int fontsize, long style )
+{
+    wxPoint title_coords = wxPoint( x,y ) ;
+    
+    wxStaticText *title = new wxStaticText( frame, 0, label, title_coords,
+					    wxDefaultSize, style );
+    
+    wxFont title_font( fontsize, wxDEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+    title->SetFont( title_font );
+
+    return title;
+}
 
 
 
@@ -113,14 +246,10 @@ bool MyApp::OnInit()
 void initTaborTextCtrls( wxFrame *frame, TaborTextCtrls *tabor_text_ctrls )
 {
 
-    // create title for this section 
-    wxPoint title_coords = wxPoint( ( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP ) / 2,
-				    TABOR_TEXT_CTRLS_START_YPOS - TABOR_TITLE_OFFSET ) ;
-    wxSize title_size = wxSize( 100, 40 ) ;
-    wxStaticText *title = new wxStaticText( frame, 0, "Tabor Settings", title_coords, title_size );
-    wxFont title_font( 20, wxDEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
-    title->SetFont( title_font );
-
+    make_title( frame, "Tabor Settings",
+		( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP ) / 2,
+		TABOR_TEXT_CTRLS_START_YPOS - TABOR_TITLE_OFFSET,
+		20 );
 
     // add the labels 
 
