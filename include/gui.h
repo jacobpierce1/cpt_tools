@@ -1,3 +1,5 @@
+#include "constants.h"
+
 #if USE_GUI
 
 #ifndef GUI_H
