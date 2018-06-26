@@ -15,9 +15,11 @@ using namespace std;
 
 void initTaborTextCtrls( wxFrame *frame, TaborTextCtrls *tabor_text_ctrls );
 
-void initTDCLabels( TDCDataGui *tdc_data_gui, wxFrame *frame );
+void initTDCLabels( wxFrame *frame, TDCDataGui *tdc_data_gui );
 //void mpFXYVector::AddData(float x, float y, std::vector<double> &xs, std::vector<double> &ys);
 
+
+void initControlButtons( wxFrame *frame, ControlButtons control_buttons ) ;
 
 wxStaticText * make_title( wxFrame *frame, const char *label, int x, int y,
 			   int fontsize, long style = 0 );
@@ -34,19 +36,19 @@ class MyLissajoux : public mpFXY
 public:
     MyLissajoux(double rad) : mpFXY( wxT("Lissajoux")) { m_rad=rad; m_idx=0; m_drawOutsideMargins = false;}
     virtual bool GetNextXY( double & x, double & y )
-    {
-        if (m_idx < 360)
-        {
-            x = m_rad * cos(m_idx / 6.283185*360);
-            y = m_rad * sin(m_idx / 6.283185*360*3);
-            m_idx++;
-            return TRUE;
-        }
-        else
-        {
-            return FALSE;
-        }
-    }
+	{
+	    if (m_idx < 360)
+	    {
+		x = m_rad * cos(m_idx / 6.283185*360);
+		y = m_rad * sin(m_idx / 6.283185*360*3);
+		m_idx++;
+		return TRUE;
+	    }
+	    else
+	    {
+		return FALSE;
+	    }
+	}
     virtual void Rewind() { m_idx=0; }
     virtual double GetMinX() { return -m_rad; }
     virtual double GetMaxX() { return  m_rad; }
@@ -91,25 +93,18 @@ bool MyApp::OnInit()
 		MAIN_TITLE_Y_OFFSET,
 		MAIN_TITLE_FONTSIZE, wxALIGN_RIGHT );
 	
-    // Button *btnapp = new Button(wxT("Button"));
-    // btnapp->Show(true);
-
-    // wxPanel *panel = new wxPanel( frame, wxID_ANY);
-    
-    // wxButton *button = new wxButton(  frame, wxID_EXIT, wxT("Quit"), 
-    // 				      wxPoint(20, 20));
-    // Connect(wxID_EXIT, wxEVT_COMMAND_BUTTON_CLICKED, 
-    // 	    wxCommandEventHandler(Button::OnQuit));
-    // button->SetFocus();
-    // button->Show();
 
     TaborTextCtrls tabor_text_ctrls;
     initTaborTextCtrls( frame, &tabor_text_ctrls ) ;
 
     TDCDataGui tdc_data_gui;
-    initTDCLabels( &tdc_data_gui, frame ) ;
+    initTDCLabels( frame, &tdc_data_gui ) ;
+
+    ControlButtons control_buttons;
+    initControlButtons( frame, control_buttons );
 
 
+    
     make_title( frame, "MCP Hits",
 		MCP_PLOT_X_OFFSET + MCP_PLOT_SIZE / 2,
 		MCP_PLOT_Y_OFFSET - MCP_PLOT_TITLE_OFFSET,
@@ -140,38 +135,38 @@ bool MyApp::OnInit()
     
     mpLayer* l;
 
-	// Create a mpFXYVector layer
-	mpFXYVector* vectorLayer = new mpFXYVector(_("Vector"));
-	// Create two vectors for x,y and fill them with data
-	std::vector<double> vectorx, vectory;
-	double xcoord;
-	for (unsigned int p = 0; p < 100; p++) {
-		xcoord = ((double)p-50.0)*5.0;
-		vectorx.push_back(xcoord);
-		vectory.push_back(0.0001*pow(xcoord, 3));
-	}
-	vectorLayer->SetData(vectorx, vectory);
-	vectorLayer->SetContinuity(true);
-	wxPen vectorpen(*wxBLUE, 2, wxSOLID);
-	vectorLayer->SetPen(vectorpen);
-	vectorLayer->SetDrawOutsideMargins(false);
+    // Create a mpFXYVector layer
+    mpFXYVector* vectorLayer = new mpFXYVector(_("Vector"));
+    // Create two vectors for x,y and fill them with data
+    std::vector<double> vectorx, vectory;
+    double xcoord;
+    for (unsigned int p = 0; p < 100; p++) {
+	xcoord = ((double)p-50.0)*5.0;
+	vectorx.push_back(xcoord);
+	vectory.push_back(0.0001*pow(xcoord, 3));
+    }
+    vectorLayer->SetData(vectorx, vectory);
+    vectorLayer->SetContinuity(true);
+    wxPen vectorpen(*wxBLUE, 2, wxSOLID);
+    vectorLayer->SetPen(vectorpen);
+    vectorLayer->SetDrawOutsideMargins(false);
 
 
-	wxFont graphFont(11, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
-	mpWindow *m_plot = new mpWindow( frame, -1,
-					 wxPoint( MCP_PLOT_X_OFFSET, MCP_PLOT_Y_OFFSET ),
-					 wxSize( MCP_PLOT_SIZE, MCP_PLOT_SIZE ),
-					 wxSUNKEN_BORDER );
+    wxFont graphFont(11, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
+    mpWindow *m_plot = new mpWindow( frame, -1,
+				     wxPoint( MCP_PLOT_X_OFFSET, MCP_PLOT_Y_OFFSET ),
+				     wxSize( MCP_PLOT_SIZE, MCP_PLOT_SIZE ),
+				     wxSUNKEN_BORDER );
 	
-	mpScaleX* xaxis = new mpScaleX(wxT("X"), mpALIGN_BOTTOM, true, mpX_NORMAL);
+    mpScaleX* xaxis = new mpScaleX(wxT("X"), mpALIGN_BOTTOM, true, mpX_NORMAL);
     mpScaleY* yaxis = new mpScaleY(wxT("Y"), mpALIGN_LEFT, true);
     xaxis->SetFont(graphFont);
     yaxis->SetFont(graphFont);
     xaxis->SetDrawOutsideMargins(false);
     yaxis->SetDrawOutsideMargins(false);
-	// Fake axes formatting to test arbitrary format string
-	// xaxis->SetLabelFormat(wxT("%.2f €"));
-	// yaxis->SetLabelFormat(wxT("%p"));
+    // Fake axes formatting to test arbitrary format string
+    // xaxis->SetLabelFormat(wxT("%.2f €"));
+    // yaxis->SetLabelFormat(wxT("%p"));
     m_plot->SetMargins(30, 30, 50, 100);
 //     m_plot->SetMargins(50, 50, 200, 150);
     m_plot->AddLayer(     xaxis );
@@ -330,7 +325,7 @@ void initTaborTextCtrls( wxFrame *frame, TaborTextCtrls *tabor_text_ctrls )
 
 
 
-void initTDCLabels( TDCDataGui *tdc_data_gui, wxFrame *frame )
+void initTDCLabels( wxFrame *frame, TDCDataGui *tdc_data_gui )
 {
     // int xcoord = (int) ( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP ) / 2;
 
@@ -436,6 +431,41 @@ void mpFXYVector::AddData(float x, float y, std::vector<double> &xs, std::vector
 }
 
 
+// THE INBETWEENERS 
+
+void initControlButtons( wxFrame *frame, ControlButtons control_buttons )
+{
+
+    const int num_buttons = 4;
+
+    wxButton *buttons[4] = { control_buttons.save_button,
+			     control_buttons.save_and_run_next_button,
+			     control_buttons.start_pause_toggle_button,
+			     control_buttons.reload_caribu_config_button };
+    
+    char button_labels[ num_buttons ][ 64 ] = {
+	"save", "Save and Run Next", "Pause", "Reload Caribu Config" };
+
+    // functions = {}
+
+    const int xoffset = CONTROL_BUTTONS_X_START ;
+    
+    for( int i=0; i<num_buttons; i++ )
+    {
+	wxPoint position = wxPoint( xoffset,
+				    TABOR_TEXT_CTRLS_START_YPOS + i * CONTROL_BUTTONS_Y_DELTA ) ;
+
+	buttons[i] = new wxButton(  frame, 0, button_labels[i], position );
+	buttons[i]->SetFocus();
+	buttons[i]->Show();
+    }
+	    
+
+    // Connect(wxID_EXIT, wxEVT_COMMAND_BUTTON_CLICKED, 
+    // 	    wxCommandEventHandler(Button::OnQuit));
+    // button->SetFocus();
+    // button->Show();
+}
 
 // void Gui::main_loop( void )
 // {

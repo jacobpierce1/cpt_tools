@@ -17,8 +17,8 @@
 
 #define TITLE_FONTSIZE 20
 
-#define DEFAULT_MAX_TEXT_FIELD_CHAR 100
-#define DEFAULT_TEXT_FIELD_LENGTH 30
+// #define DEFAULT_MAX_TEXT_FIELD_CHAR 100
+// #define DEFAULT_TEXT_FIELD_LENGTH 30
 #define TABOR_TEXT_CTRLS_LABEL_SEP 120
 #define TABOR_TEXT_CTRLS_START_YPOS 100
 #define TABOR_TEXT_CTRLS_YPOS_DELTA 20
@@ -33,7 +33,8 @@
 #define MCP_PLOT_X_OFFSET 400
 #define MCP_PLOT_SIZE 400
 
-#define CONTROL_BUTTONS_DISTANCE 700
+#define CONTROL_BUTTONS_X_START 1000 // relative to the histogram
+#define CONTROL_BUTTONS_Y_DELTA 40
 
 
 
@@ -98,11 +99,11 @@ struct TDCDataGui
 
 struct ControlButtons
 {
-    wxButton *save;
+    wxButton *save_button;
     wxButton *save_and_run_next_button;
     wxButton *start_pause_toggle_button;
     wxButton *reload_caribu_config_button;
-    wxButton *tmp;
+    // wxButton *tmp;
 };
 
 /* struct MCPPlot */
@@ -124,6 +125,7 @@ public :
     ControlButtons control_buttons;
     TDCDataGui TDC_data_gui;
 
+    
     // pointers to corresponding array / int in TDC if it exists,
     // otherwise NULL
     double *mcp_positions[2][ TDC_MAX_COUNTS ];
