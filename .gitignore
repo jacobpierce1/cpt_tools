@@ -3,6 +3,6 @@
 *~
 *.o
 */gui.app/
-*/Debug/
+*/Debug/*
 */ipch/
 *.DS_Store

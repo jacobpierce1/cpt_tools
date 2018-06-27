@@ -4,6 +4,8 @@
 #include "stdafx.h"
 #endif
 
+#include "global.h" 
+
 #include <iostream>
 #include "gui.h"
 #include <wx/valnum.h>
@@ -12,9 +14,13 @@
 #include "histo_image.h" 
 #include <wx/wx.h>
 #include <math.h>
-
+#include <stdlib.h> 
+#include <thread> 
 
 using namespace std;
+
+
+
 
 
 void initTaborTextCtrls( wxFrame *frame, TaborTextCtrls *tabor_text_ctrls );
@@ -36,6 +42,9 @@ wxStaticText * make_title( wxFrame *frame, const char *label, int x, int y,
 template <size_t size_x, size_t size_y>
 void func( int (&arr)[size_x][size_y]);
 
+
+void tdc_thread_main( );
+
     
 // void test_image( wxFrame *frame, uint8_t a );
 
@@ -54,6 +63,9 @@ END_EVENT_TABLE()
 // }
 
 
+int data[ HISTO_DIMX ][ HISTO_DIMY ];
+
+
 
 bool MyApp::OnInit()
 {
@@ -69,7 +81,8 @@ bool MyApp::OnInit()
     				      wxPoint( 100, 100 ), wxSize( 400, 400   ) );
 
     bmp_panel->Show();
-    
+
+	
     // bmp_frame->Show();
     
     // then simply create like this
@@ -80,9 +93,12 @@ bool MyApp::OnInit()
     const int dimy = 32;
     int dimx_scale = 10;
     int dimy_scale = 10;
-    int data[ dimx ][ dimy ];
+    
 
+    // gui->data = data;
+    
     func( data );
+
     // gen_test_data( &data, dimx, dimy );
     
     wxImagePanel *drawPane = new wxImagePanel( bmp_panel, data, dimx, dimy,
@@ -99,11 +115,17 @@ bool MyApp::OnInit()
     		MAIN_TITLE_Y_OFFSET,
     		MAIN_TITLE_FONTSIZE, wxALIGN_RIGHT );
 
-    
-
-	    
  
     frame->Show();
+    
+    thread tdc_thread( tdc_thread_main );
+
+    
+    while(1)
+    {
+	mySleep(1000);
+    }
+    
     // frame->Refresh();
     return true;
 
@@ -147,11 +169,14 @@ bool MyApp::OnInit()
 template <size_t size_x, size_t size_y>
 void func(int (&arr)[size_x][size_y])
 {
+
+    int x_center = rand() % 32;
+    
     for( int i=0; i < size_x; i++ )
     {
 	for( int j=0; j < size_y; j++ )
 	{
-	    arr[i][j] = (int) 200 * exp( 0 - pow( 10 - i, 2 ) / 10 - pow( 10 - j, 2 ) / 10 );
+	    arr[i][j] = (int) 200 * exp( 0 - pow( x_center - i, 2 ) / 10 - pow( 10 - j, 2 ) / 10 );
 	}
     }
 }
@@ -304,6 +329,28 @@ void initTDCLabels( wxFrame *frame, TDCDataGui *tdc_data_gui )
 
 }
 
+
+
+
+void tdc_thread_main(  )
+{
+    
+        cout << "reached 5" << endl;
+#if USE_TDC
+    while(1)
+    {
+	mySleep( 1000 );
+	tdc->r
+    }
+#else
+    while(1)
+    {
+	mySleep( 1000 );
+	func( data );
+	// gen_sample_data( data );
+    }
+#endif
+}
 
 
 // Button::Button(const wxString& title)
