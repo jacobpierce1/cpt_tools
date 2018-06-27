@@ -44,11 +44,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\config\global.cfg">
-      <Filter>Resource Files</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="..\..\source\cpt_master_controller.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -58,5 +53,10 @@
     <ClCompile Include="..\..\source\tdc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="global.cfg">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -99,15 +99,15 @@
     <ClInclude Include="..\..\include\tdc.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\config\global.cfg" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="..\..\source\cpt_master_controller.cpp" />
     <ClCompile Include="..\..\source\stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="..\..\source\tdc.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="global.cfg" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

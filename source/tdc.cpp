@@ -19,8 +19,8 @@ using namespace std;
 // const HIT RISING_MASK = 23;
 
 
-const HIT RISING_MASK =          std::bitset<32>( "11000000000000000000000000000000" ).to_ulong();
-const HIT FALLING_MASK =         bitset<32>( "10000000000000000000000000000000" ).to_ulong();
+// const HIT RISING_MASK =          std::bitset<32>( "11000000000000000000000000000000" ).to_ulong();
+// const HIT FALLING_MASK =         bitset<32>( "10000000000000000000000000000000" ).to_ulong();
 //const HIT CHANNEL_MASK =         bitset<32>(  "00111111000000000000000000000000" ).to_ulong();
 //const HIT TRANSITION_TIME_MASK = bitset<32>( "00000000111111111111111111111111" ).to_ulong();
 //
@@ -74,25 +74,61 @@ int TDC_controller::read()
 
 
 
-double TDC_controller::hit_to_time( HIT hit, int *channel, double *time )
+double TDC_controller::process_hit( HIT hit, int *channel, double *time )
 {
-	cout << sizeof( RISING_MASK ) << endl; 
+	// cout << sizeof( RISING_MASK ) << endl; 
 
-	int edge;
+	int edge = -1;
+	int error = 0;
+
+	bitset<32> bits = bitset<32>( hit );
 	
-	if( hit & RISING_MASK ) 
+	cout << bits << endl;
+	
+	if( bits[0] && bits[1] )
 	{
-	    edge = 0;
 		cout << "rising" << endl;
+		edge = 0;
 	}
-	else if( hit & FALLING_MASK ) 
+	else if( bits[0] && ! bits[1] )
 	{
 		cout << "falling" << endl;
+		edge = 1;
 	}
+	else if( (! bits[0] ) && bits[1] )
+	{
+		cout << "error" << endl;
+	}
+	else if ( ! ( bits[0] && bits[1] && bits[2] && bits[3] ) )
+	{
+		cout << "group" << endl;
+	}
+
+	//if( hit & RISING_MASK ) 
+	//{
+	//    edge = 0;
+	//	cout << "rising" << endl;
+	//}
+	//else if( hit & FALLING_MASK ) 
+	//{
+	//	cout << "falling" << endl;
+	//}
 
 	// first check for rising / falling transition or an error 
 	return 0;
 }
+
+
+void TDC_controller::process_hit_buffer( )
+{
+	for( int i=0; i<this->num_data_in_hit_buffer; i++ )
+	{
+		process_hit( hit_buffer[i], NULL, NULL );
+	}
+
+	this->num_data_in_hit_buffer = 0;
+}
+
 
 
 

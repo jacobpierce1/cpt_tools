@@ -63,7 +63,7 @@ public :
 
 	// bool TDC::check_rollover( HIT hit );
 	// double TDC::check_hit_edge( Hit hit );
-	double hit_to_time(HIT hit, int *channel, double *time);
+	double process_hit(HIT hit, int *channel, double *time);
 	void process_hit_buffer();
 	int reset_channel_times( void );
 	int compute_mcp_position( double x1, double x2, double y1, double y2 );

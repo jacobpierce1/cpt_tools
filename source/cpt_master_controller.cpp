@@ -134,11 +134,11 @@ int _tmain( int argc, char **argp )
 	cout << "state: " << state << endl;
 */
 
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < 2; i++)
 	{
 		int num_words = tdc->read();
 		cout << "num words: " << num_words << endl;
-		tdc->hit_to_time( tdc->hit_buffer[0], NULL, NULL );
+		tdc->process_hit_buffer();
 		Sleep(10);
 	}
 
