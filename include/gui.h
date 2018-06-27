@@ -42,6 +42,7 @@
 class MyApp : public wxApp
 {
   public:
+    wxFrame *frame;
     virtual bool OnInit();
 };
 

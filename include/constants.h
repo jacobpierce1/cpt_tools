@@ -3,3 +3,5 @@
 #define TDC_MAX_COUNTS  100000
 
 
+#define HISTO_DIMX 32
+#define HISTO_DIMY 32

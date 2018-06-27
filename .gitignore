@@ -5,3 +5,4 @@
 */gui.app/
 */Debug/
 */ipch/
+*.DS_Store
