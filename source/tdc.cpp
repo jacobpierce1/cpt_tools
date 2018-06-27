@@ -14,6 +14,8 @@
 
 using namespace std;
 
+
+
 // here is a relatively harmless implementation of the masks required to 
 // unpack data from the TDC.
 // const HIT RISING_MASK = 23;
@@ -22,7 +24,7 @@ using namespace std;
 // const HIT RISING_MASK =          std::bitset<32>( "11000000000000000000000000000000" ).to_ulong();
 // const HIT FALLING_MASK =         bitset<32>( "10000000000000000000000000000000" ).to_ulong();
 //const HIT CHANNEL_MASK =         bitset<32>(  "00111111000000000000000000000000" ).to_ulong();
-//const HIT TRANSITION_TIME_MASK = bitset<32>( "00000000111111111111111111111111" ).to_ulong();
+const HIT TRANSITION_TIME_MASK = bitset<32>( "00000000111111111111111111111111" ).to_ulong();
 //
 //const HIT ERROR_HEADER_MASK =    bitset<32>( "01000000000000000000000000000000" ).to_ulong();
 //const HIT ERROR_MESSAGE_MASK =   bitset<32>( "00000000111111110000000000000000" ).to_ulong();
@@ -46,6 +48,7 @@ TDC_controller::TDC_controller()
 	Sleep(1000);
 
 	TDCManager_Init( this->tdcmgr );
+	TDCManager_ClearBuffer( this->tdcmgr );
 
 	this->num_data_in_hit_buffer = 0;
 	this->num_processed_data = 0;
@@ -85,24 +88,50 @@ double TDC_controller::process_hit( HIT hit, int *channel, double *time )
 	
 	cout << bits << endl;
 	
-	if( bits[0] && bits[1] )
+	if( bits[31] && bits[30] )
 	{
 		cout << "rising" << endl;
 		edge = 0;
 	}
-	else if( bits[0] && ! bits[1] )
+	else if( bits[31] && ! bits[30] )
 	{
 		cout << "falling" << endl;
 		edge = 1;
 	}
-	else if( (! bits[0] ) && bits[1] )
+	else if( (! bits[31] ) && bits[30] )
 	{
 		cout << "error" << endl;
+		error = 1;
 	}
-	else if ( ! ( bits[0] && bits[1] && bits[2] && bits[3] ) )
+	else if ( ! ( bits[31] | bits[30] | bits[29] | bits[28] ) )
 	{
 		cout << "group" << endl;
 	}
+	else if( ! ( bits[31] | bits[30] | bits[29] ) & bits[28] )
+	{
+		cout << "rollover" << endl;
+	}
+	else
+	{
+		cout << "?" << endl;
+	}
+
+	unsigned long tmp = 63;
+	bitset<32> mask( tmp );
+	// cout << "mask: " << mask << endl;
+
+	unsigned short tmpchannel = (( bits >> 24 ) & mask).to_ulong();
+
+	// bitset<32> tmpchannel = 
+	// unsigned long channel_int = tmpchannel.to_ulong();
+	unsigned long tmptime = TRANSITION_TIME_MASK & hit; 
+
+
+	//cout << "tmpchannel ulong " << tmpchannel.to_ulong() << endl;
+
+	//cout << "channel: " << channel << endl ;
+
+	cout << "tmpchannel: " << tmpchannel << endl << endl;
 
 	//if( hit & RISING_MASK ) 
 	//{
@@ -141,10 +170,17 @@ void TDC_controller::process_hit_buffer( )
 //{
 //}
 //
-//int TDC::compute_mcp_position(double x1, double x2, double y1, double y2)
-//{
-//}
-//
+int TDC_controller::compute_mcp_position(double x1, double x2, double y1, double y2)
+{
+	double pTPCalX = 1.29;
+	double pTPCalY = 1.31;
+
+	double center_x = -1.6;
+	double center_y = 3.0;
+	return 0 ;
+
+}
+
 
 
 
@@ -188,6 +224,7 @@ void test_read(C_TDC *c_tdc)
 	printf("type: %u \n", test_hit.type );
 	cout << "words read: " << num_words << endl << endl;
 }
+
 
 
 void test_batch_ReadTDCHit(C_TDC *c_tdc)

@@ -2,7 +2,7 @@
 #define CONSTANTS_H
 
 
-#define USE_GUI 0
+#define USE_GUI 1
 #define USE_TDC 1
 #define USE_CARIBU 0
 
@@ -12,7 +12,7 @@
 
 
 
-#define TDC_HIT_BUFFER_SIZE  1000
+#define TDC_HIT_BUFFER_SIZE  100
 #define TDC_MAX_COUNTS  100000
 
 

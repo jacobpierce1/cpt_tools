@@ -1,0 +1,11 @@
+﻿Build started 6/27/2018 4:44:23 PM.
+     1>Project "C:\Users\cpt\Desktop\JACOB\cpt_master_controller\visual_studio_gui\fractal_vc9.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /I.\..\..\lib\vc_lib\mswud /I.\..\..\include /I. /I.\..\..\samples /Zi /nologo /W4 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CRT_SECURE_NO_DEPRECATE=1 /D _CRT_NON_CONFORMING_SWPRINTFS=1 /D _SCL_SECURE_NO_WARNINGS=1 /D __WXMSW__ /D _UNICODE /D _WINDOWS /D NOPCH /D _UNICODE /D UNICODE /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /GR /Fo"vc_mswud\fractal\\" /Fd"vc_mswud\fractal.pdb" /Gd /TP /analyze- /errorReport:prompt /MP fractal.cpp
+         fractal.cpp
+     1>fractal.cpp(29): fatal error C1083: Cannot open include file: 'wx/wxprec.h': No such file or directory
+     1>Done Building Project "C:\Users\cpt\Desktop\JACOB\cpt_master_controller\visual_studio_gui\fractal_vc9.vcxproj" (Build target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:01.01

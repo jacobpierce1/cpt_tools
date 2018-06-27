@@ -1,9 +1,17 @@
-﻿Build started 6/27/2018 11:18:25 AM.
+﻿Build started 6/27/2018 5:14:15 PM.
      1>Project "C:\Users\cpt\Desktop\JACOB\cpt_master_controller\visual_studio\TDC_MANAGER_2\TDC_MANAGER_2.vcxproj" on node 2 (Build target(s)).
-     1>Link:
-         TDC_MANAGER_2.vcxproj -> C:\Users\cpt\Desktop\JACOB\cpt_master_controller\visual_studio\Debug\TDC_MANAGER_2.exe
-     1>Done Building Project "C:\Users\cpt\Desktop\JACOB\cpt_master_controller\visual_studio\TDC_MANAGER_2\TDC_MANAGER_2.vcxproj" (Build target(s)).
+     1>ClCompile:
+         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /IC:\Users\cpt\Desktop\JACOB\cpt_master_controller\visual_studio\TDC_MANAGER_2\/../../include/ /I"C:\wxWidgets-3.1.1\lib\vc_lib\mswud\wx" /I"C:\wxWidgets-3.1.1\lib\vc_dll\mswud\wx" /I"C:\wxWidgets-3.1.1\lib\vc_dll\mswud\wx\msw" /I"C:\wxWidgets-3.1.1\include" /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _CRT_SECURE_NO_WARNINGS /D WIN32 /D WIN32 /D _WINDOWS /D WINVER=0x0400 /D __WXMSW__ /D WXUSINGDLL /D wxUSE_GUI=1 /D _DEBUG /D __WXDEBUG__ /D _CRT_SECURE_NO_DEPRECATE /D _CRT_NONSTDC_NO_DEPRECATE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yc"stdafx.h" /Fp"Debug\TDC_MANAGER_2.pch" /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt ..\..\source\stdafx.cpp
+         stdafx.cpp
+         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /IC:\Users\cpt\Desktop\JACOB\cpt_master_controller\visual_studio\TDC_MANAGER_2\/../../include/ /I"C:\wxWidgets-3.1.1\lib\vc_lib\mswud\wx" /I"C:\wxWidgets-3.1.1\lib\vc_dll\mswud\wx" /I"C:\wxWidgets-3.1.1\lib\vc_dll\mswud\wx\msw" /I"C:\wxWidgets-3.1.1\include" /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _CRT_SECURE_NO_WARNINGS /D WIN32 /D WIN32 /D _WINDOWS /D WINVER=0x0400 /D __WXMSW__ /D WXUSINGDLL /D wxUSE_GUI=1 /D _DEBUG /D __WXDEBUG__ /D _CRT_SECURE_NO_DEPRECATE /D _CRT_NONSTDC_NO_DEPRECATE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yu"stdafx.h" /Fp"Debug\TDC_MANAGER_2.pch" /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt ..\..\source\cpt_master_controller.cpp ..\..\source\tdc.cpp
+         tdc.cpp
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\tdc.cpp(123): warning C4244: 'initializing' : conversion from 'unsigned long' to 'unsigned short', possible loss of data
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\source\tdc.cpp(153): warning C4018: '<' : signed/unsigned mismatch
+         cpt_master_controller.cpp
+     1>c:\wxwidgets-3.1.1\include\wx\platform.h(148): fatal error C1083: Cannot open include file: 'wx/setup.h': No such file or directory
+         Generating Code...
+     1>Done Building Project "C:\Users\cpt\Desktop\JACOB\cpt_master_controller\visual_studio\TDC_MANAGER_2\TDC_MANAGER_2.vcxproj" (Build target(s)) -- FAILED.
 
-Build succeeded.
+Build FAILED.
 
-Time Elapsed 00:00:00.43
+Time Elapsed 00:00:02.84
