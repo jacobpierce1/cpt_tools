@@ -2,8 +2,8 @@
 #define CONSTANTS_H
 
 
-#define USE_GUI 0
-#define USE_TDC 1
+#define USE_GUI 1
+#define USE_TDC 0
 #define USE_CARIBU 0
 
 #ifndef _WIN32
