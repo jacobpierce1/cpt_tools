@@ -5,11 +5,12 @@
 #ifndef GUI_H
 #define GUI_H
 
-
-#include "constants.h" 
+#include "histo_image.h"
 #include <iostream>
 #include <wx/wx.h>
 #include <chrono>
+#include <wx/timer.h>
+
 
 #define FRAME_WIDTH 1200
 #define FRAME_HEIGHT 800
@@ -31,7 +32,7 @@
 #define TDC_LABELS_Y_OFFSET 420 // below start of tabor settings 
 
 #define MCP_PLOT_TITLE_OFFSET 40
-#define MCP_PLOT_Y_OFFSET 100 
+#define MCP_PLOT_Y_OFFSET 100
 #define MCP_PLOT_X_OFFSET 400
 #define MCP_PLOT_SIZE 400
 
@@ -43,12 +44,30 @@
 
 class MyApp : public wxApp
 {
-  public:
-    wxFrame *frame;
-    virtual bool OnInit();
+    bool render_loop_on;
+    bool OnInit();
+    void onIdle(wxIdleEvent& evt);
+    wxImagePanel *drawPane;
+    
+public:
+    void activateRenderLoop(bool on);
+
+  /* public: */
+  /*   wxFrame *frame; */
+  /*   virtual bool OnInit(); */
 };
 
 
+
+
+class RenderTimer : public wxTimer
+{
+    wxImagePanel* pane;
+public:
+    RenderTimer( wxImagePanel* pane);
+    void Notify();
+    void start();
+};
 
 
 /* class Button : public wxFrame */

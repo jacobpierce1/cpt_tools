@@ -1,3 +1,12 @@
+INC = ../include/
+SRC = ../source/
+OBJ = ../obj/
+
+
+WX_INCLUDE = `wx-config --cxxflags --libs`
 
 all :
-	g++ -I ~/software_installs/include/opencv2 opencv_test.cpp -o opencv_test.exe
+	g++ -I ../include render_loop.cpp $(WX_INCLUDE) -o render_loop.exe
+
+
+

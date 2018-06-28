@@ -53,7 +53,7 @@ void tdc_thread_main( );
 
 BEGIN_EVENT_TABLE(wxImagePanel, wxPanel)
 EVT_PAINT(wxImagePanel::paintEvent)
-EVT_SIZE( wxImagePanel::refresh )
+//EVT_SIZE( wxImagePanel::refresh )
 END_EVENT_TABLE()
 
 
@@ -64,11 +64,61 @@ END_EVENT_TABLE()
 
 
 int data[ HISTO_DIMX ][ HISTO_DIMY ];
+thread *tdc_thread;
+
+
+
+
+RenderTimer::RenderTimer( wxImagePanel* pane) : wxTimer()
+{
+    RenderTimer::pane = pane;
+}
+ 
+void RenderTimer::Notify()
+{
+    pane->update_bmp();
+    pane->Refresh();
+    //pane->Update();
+    //pane->paintNow();
+}
+ 
+void RenderTimer::start()
+{
+    wxTimer::Start(1000);
+}
+
+
+
+
+// void MyApp::activateRenderLoop(bool on)
+// {
+//     if(on && !render_loop_on)
+//     {
+//         Connect( wxID_ANY, wxEVT_IDLE, wxIdleEventHandler(MyApp::onIdle) );
+//         render_loop_on = true;
+//     }
+//     else if(!on && render_loop_on)
+//     {
+//         Disconnect( wxEVT_IDLE, wxIdleEventHandler(MyApp::onIdle) );
+//         render_loop_on = false;
+//     }
+// }
+// void MyApp::onIdle(wxIdleEvent& evt)
+// {
+//     if(render_loop_on)
+//     {
+// 	cout << "onidle" << endl;
+// 	drawPane->update_bmp();
+//         drawPane->paintNow();
+//         evt.RequestMore(); // render continuously, not only once on idle
+//     }
+// }
 
 
 
 bool MyApp::OnInit()
 {
+    render_loop_on = false;
 
     wxInitAllImageHandlers();
 	         
@@ -78,7 +128,8 @@ bool MyApp::OnInit()
 
 
     wxPanel *bmp_panel = new wxPanel( frame, wxID_ANY, 
-    				      wxPoint( 100, 100 ), wxSize( 400, 400   ) );
+    				      wxPoint( MCP_PLOT_X_OFFSET, MCP_PLOT_Y_OFFSET ),
+				      wxSize( MCP_PLOT_SIZE, MCP_PLOT_SIZE   ) );
 
     bmp_panel->Show();
 
@@ -104,8 +155,9 @@ bool MyApp::OnInit()
     wxImagePanel *drawPane = new wxImagePanel( bmp_panel, data, dimx, dimy,
 					       dimx_scale, dimy_scale ); 
 
+    this->drawPane = drawPane;
     
-    drawPane->update_bmp(  ) ;
+    drawPane->update_bmp() ;
     //drawPane->Refresh();
     
     // cout << drawPane->bmp.IsOk() << endl;
@@ -117,45 +169,33 @@ bool MyApp::OnInit()
 
  
     frame->Show();
-    
-    thread tdc_thread( tdc_thread_main );
-
-    
-    while(1)
-    {
-	mySleep(1000);
-    }
-    
-    // frame->Refresh();
-    return true;
 
 
-    // TaborTextCtrls tabor_text_ctrls;
-    // initTaborTextCtrls( frame, &tabor_text_ctrls ) ;
-    
-    // TDCDataGui tdc_data_gui;
-    // initTDCLabels( frame, &tdc_data_gui ) ;
-
-    // ControlButtons control_buttons;
-    // initControlButtons( frame, control_buttons );
-
-    // // test_image( frame, 5 ) ;
-    
-    // make_title( frame, "MCP Hits",
-    // 		MCP_PLOT_X_OFFSET + MCP_PLOT_SIZE / 2,
-    // 		MCP_PLOT_Y_OFFSET - MCP_PLOT_TITLE_OFFSET,
-    // 		TITLE_FONTSIZE, wxALIGN_RIGHT );
-
-    
-    // // wxImagePanel *drawPane = new wxImagePanel( frame, "test.jpg", wxBITMAP_TYPE_JPEG );
-    // wxImagePanel *drawPane = new wxImagePanel( frame, "../gui_images/test.jpg",
-    // 					       wxBITMAP_TYPE_JPEG );
-    
-    // drawPane->fetch_new_data( 100 ) ;
-	    
+    RenderTimer *timer = new RenderTimer(drawPane);
     // frame->Show();
+    timer->start();
+
+	
+    cout << "reached" << endl;
+    
+    tdc_thread = new thread( tdc_thread_main );
+
+
+    TaborTextCtrls tabor_text_ctrls;
+    initTaborTextCtrls( frame, &tabor_text_ctrls ) ;
+    
+    TDCDataGui tdc_data_gui;
+    initTDCLabels( frame, &tdc_data_gui ) ;
+
+    ControlButtons control_buttons;
+    initControlButtons( frame, control_buttons );
+        
+    make_title( frame, "MCP Hits",
+    		MCP_PLOT_X_OFFSET + MCP_PLOT_SIZE / 2,
+    		MCP_PLOT_Y_OFFSET - MCP_PLOT_TITLE_OFFSET,
+    		TITLE_FONTSIZE, wxALIGN_RIGHT );
 	        
-    // return true;
+    return true;
 }
 
 
@@ -169,7 +209,7 @@ bool MyApp::OnInit()
 template <size_t size_x, size_t size_y>
 void func(int (&arr)[size_x][size_y])
 {
-
+    cout << "generating data " << endl;
     int x_center = rand() % 32;
     
     for( int i=0; i < size_x; i++ )
@@ -347,6 +387,7 @@ void tdc_thread_main(  )
     {
 	mySleep( 1000 );
 	func( data );
+	//wxCommandEvent( wxPaintEvent );
 	// gen_sample_data( data );
     }
 #endif

@@ -1,3 +1,13 @@
+#ifndef HISTO_IMAGE_H
+#define HISTO_IMAGE_H
+
+
+typedef struct {
+    double r,g,b;
+} COLOUR;
+
+
+
 #include <wx/wx.h>
 #include <wx/sizer.h>
 #include <wx/rawbmp.h>
@@ -33,10 +43,11 @@ public :
     void refresh( wxSizeEvent & evt );
     void paintEvent(wxPaintEvent & evt);
     void paintNow();
- 
     void render(wxDC& dc);
+
     void update_bmp();
- 
+    COLOUR apply_colormap( int v, int vmin, int vmax);
+    
     // some useful events
     /*
       void mouseMoved(wxMouseEvent& event);
@@ -57,3 +68,4 @@ public :
  
 
 
+#endif
