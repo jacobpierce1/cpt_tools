@@ -16,56 +16,31 @@
 #include <math.h>
 #include <stdlib.h> 
 #include <thread> 
+#include "tdc.h"
+
 
 using namespace std;
 
 
 
+#define SLEEP_TIME_MS 1000
 
 
-void initTaborTextCtrls( wxFrame *frame, TaborTextCtrls *tabor_text_ctrls );
-
-void initTDCLabels( wxFrame *frame, TDCDataGui *tdc_data_gui );
-//void mpFXYVector::AddData(float x, float y, std::vector<double> &xs, std::vector<double> &ys);
-
-
-void initControlButtons( wxFrame *frame, ControlButtons control_buttons ) ;
-
-wxStaticText * make_title( wxFrame *frame, const char *label, int x, int y,
-			   int fontsize, long style = 0 );
-
-
-// void gen_test_data( int dimy, int (*data)[dimy]);
-
-// void gen_test_data(int **data, int nrows, int ncols );
-
-template <size_t size_x, size_t size_y>
-void func( int (&arr)[size_x][size_y]);
-
-
-void tdc_thread_main( );
-
-    
-// void test_image( wxFrame *frame, uint8_t a );
-
-
+void test( wxCommandEvent &event );
 
 
 BEGIN_EVENT_TABLE(wxImagePanel, wxPanel)
 EVT_PAINT(wxImagePanel::paintEvent)
-//EVT_SIZE( wxImagePanel::refresh )
+// EVT_BUTTON ( START_PAUSE_TOGGLE_BUTTON_ID_, MainFrame::OnExit )
+// EVT_BUTTON ( LOAD_TABOR_ID, MainFrame::OnExit ) 
 END_EVENT_TABLE()
 
 
-// void refresh( )
-// {
-//     wxWindow.Refresh() ;
-// }
 
 
-int data[ HISTO_DIMX ][ HISTO_DIMY ];
+int histo[ HISTO_DIMX ][ HISTO_DIMY ];
 thread *tdc_thread;
-
+TDC_controller tdc;
 
 
 
@@ -76,43 +51,47 @@ RenderTimer::RenderTimer( wxImagePanel* pane) : wxTimer()
  
 void RenderTimer::Notify()
 {
+    pane->update_histo();
     pane->update_bmp();
     pane->Refresh();
-    //pane->Update();
-    //pane->paintNow();
 }
  
 void RenderTimer::start()
 {
-    wxTimer::Start(1000);
+    wxTimer::Start( SLEEP_TIME_MS );
 }
 
 
 
 
-// void MyApp::activateRenderLoop(bool on)
-// {
-//     if(on && !render_loop_on)
-//     {
-//         Connect( wxID_ANY, wxEVT_IDLE, wxIdleEventHandler(MyApp::onIdle) );
-//         render_loop_on = true;
-//     }
-//     else if(!on && render_loop_on)
-//     {
-//         Disconnect( wxEVT_IDLE, wxIdleEventHandler(MyApp::onIdle) );
-//         render_loop_on = false;
-//     }
-// }
-// void MyApp::onIdle(wxIdleEvent& evt)
-// {
-//     if(render_loop_on)
-//     {
-// 	cout << "onidle" << endl;
-// 	drawPane->update_bmp();
-//         drawPane->paintNow();
-//         evt.RequestMore(); // render continuously, not only once on idle
-//     }
-// }
+
+ 
+BEGIN_EVENT_TABLE ( MainFrame, wxFrame )
+EVT_BUTTON ( SAVE_BUTTON_ID, MainFrame::save_button_action )
+EVT_BUTTON( SAVE_AND_RUN_NEXT_BUTTON_ID, MainFrame::save_and_run_next_button_action )
+EVT_BUTTON( START_PAUSE_TOGGLE_BUTTON_ID, MainFrame::start_pause_toggle_button_action )
+EVT_BUTTON( LOAD_TABOR_BUTTON_ID, MainFrame::load_tabor_button_action )
+END_EVENT_TABLE() 
+
+
+
+
+MainFrame::MainFrame(const wxString &title, const wxPoint &pos, const wxSize
+		     &size) :
+wxFrame((wxFrame*)NULL,  -1, title, pos, size)
+{
+    
+}
+
+
+
+void MainFrame::OnExit( wxCommandEvent& event )
+{
+    Close(TRUE); // Tells the OS to quit running this process
+}
+
+
+
 
 
 
@@ -122,46 +101,40 @@ bool MyApp::OnInit()
 
     wxInitAllImageHandlers();
 	         
-    wxFrame *frame = new wxFrame(NULL, wxID_ANY, "CPT Master Controller",
-    				 wxDefaultPosition,
-    				 wxSize( FRAME_WIDTH, FRAME_HEIGHT  ) );
-
+    wxFrame *frame = new MainFrame( "CPT Master Controller",
+				    wxDefaultPosition,
+				    wxSize( FRAME_WIDTH, FRAME_HEIGHT  ) );
 
     wxPanel *bmp_panel = new wxPanel( frame, wxID_ANY, 
     				      wxPoint( MCP_PLOT_X_OFFSET, MCP_PLOT_Y_OFFSET ),
 				      wxSize( MCP_PLOT_SIZE, MCP_PLOT_SIZE   ) );
 
+    // wxButton *HelloWorld = new wxButton( frame, BUTTON_Hello, "Hello World",
+    // 			       wxDefaultPosition, wxDefaultSize, 0); 
+       
     bmp_panel->Show();
-
-	
-    // bmp_frame->Show();
-    
-    // then simply create like this
-// #define dimx 32
-// #define dimy 32
     
     const int dimx = 32;
     const int dimy = 32;
     int dimx_scale = 10;
     int dimy_scale = 10;
-    
+        
+    func( histo );
 
-    // gui->data = data;
-    
-    func( data );
+    tdc = TDC_controller();
 
-    // gen_test_data( &data, dimx, dimy );
+    //MainFrame *MainWin = new (_T("Hello World!"), wxPoint(1, 1), wxSize(300,200));
+
+    //MainWin->Show();
     
-    wxImagePanel *drawPane = new wxImagePanel( bmp_panel, data, dimx, dimy,
+    wxImagePanel *drawPane = new wxImagePanel( bmp_panel, histo, dimx, dimy,
 					       dimx_scale, dimy_scale ); 
 
     this->drawPane = drawPane;
-    
+
+    drawPane->update_histo();
     drawPane->update_bmp() ;
-    //drawPane->Refresh();
-    
-    // cout << drawPane->bmp.IsOk() << endl;
-    
+        
     make_title( frame, "CPT Master Controller",
     		FRAME_WIDTH / 2,
     		MAIN_TITLE_Y_OFFSET,
@@ -172,12 +145,9 @@ bool MyApp::OnInit()
 
 
     RenderTimer *timer = new RenderTimer(drawPane);
-    // frame->Show();
     timer->start();
 
-	
-    cout << "reached" << endl;
-    
+    // dispatch tdc data acquisition thread
     tdc_thread = new thread( tdc_thread_main );
 
 
@@ -202,10 +172,6 @@ bool MyApp::OnInit()
 
 // test data: gaussian spot 
 
-// void gen_test_data( const int dimy, int (*data)[dimy])
-
-// void gen_test_data(int **data, int nrows, int ncols )
-
 template <size_t size_x, size_t size_y>
 void func(int (&arr)[size_x][size_y])
 {
@@ -216,7 +182,8 @@ void func(int (&arr)[size_x][size_y])
     {
 	for( int j=0; j < size_y; j++ )
 	{
-	    arr[i][j] = (int) 200 * exp( 0 - pow( x_center - i, 2 ) / 10 - pow( 10 - j, 2 ) / 10 );
+	    arr[i][j] = (int) 200 * exp( 0 - pow( x_center - i, 2 ) / 10
+					 - pow( 10 - j, 2 ) / 10 );
 	}
     }
 }
@@ -374,25 +341,24 @@ void initTDCLabels( wxFrame *frame, TDCDataGui *tdc_data_gui )
 
 void tdc_thread_main(  )
 {
-    
-        cout << "reached 5" << endl;
-#if USE_TDC
+    // tdc.start();
     while(1)
     {
-	mySleep( 1000 );
-	tdc->r
+	cout << "reading tdc data" << endl;	
+	mySleep( SLEEP_TIME_MS );
+	tdc.read();
+	tdc.process_hit_buffer();
     }
-#else
-    while(1)
-    {
-	mySleep( 1000 );
-	func( data );
-	//wxCommandEvent( wxPaintEvent );
-	// gen_sample_data( data );
-    }
-#endif
 }
 
+
+
+
+
+void wxImagePanel::update_histo()
+{
+    func( ::histo );
+}
 
 // Button::Button(const wxString& title)
 //     : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(270, 150))
@@ -412,109 +378,63 @@ void tdc_thread_main(  )
 
 
 
-// void Button::OnQuit(wxCommandEvent & WXUNUSED(event))
-// {
-//     Close(true);
-// }
 
-
-
-// void mpFXYVector::AddData(float x, float y, std::vector<double> &xs, std::vector<double> &ys)
-// {
-//     // Check if the data vectora are of the same size
-//     if (xs.size() != ys.size()) {
-// 	wxLogError(_("wxMathPlot error: X and Y vector are not of the same length!"));
-// 	return;
-//     }
-
-//     //Delete first point if you need a filo buffer (i dont need it)
-//     //xs.erase(xs.begin());
-//     //xy.erase(xy.begin());
-
-//     //Add new Data points at the end
-//     xs.push_back(x);
-//     ys.push_back(y);
-
-
-//     // Copy the data:
-//     m_xs = xs;
-//     m_ys = ys;
-
-//     // Update internal variables for the bounding box.
-//     if (xs.size()>0)
-//     {
-// 	m_minX  = xs[0];
-// 	m_maxX  = xs[0];
-// 	m_minY  = ys[0];
-// 	m_maxY  = ys[0];
-
-// 	std::vector<double>::const_iterator  it;
-
-// 	for (it=xs.begin();it!=xs.end();it++)
-// 	{
-// 	    if (*it<m_minX) m_minX=*it;
-// 	    if (*it>m_maxX) m_maxX=*it;
-// 	}
-// 	for (it=ys.begin();it!=ys.end();it++)
-// 	{
-// 	    if (*it<m_minY) m_minY=*it;
-// 	    if (*it>m_maxY) m_maxY=*it;
-// 	}
-// 	m_minX-=0.5f;
-// 	m_minY-=0.5f;
-// 	m_maxX+=0.5f;
-// 	m_maxY+=0.5f;
-//     }
-//     else
-//     {
-// 	m_minX  = -1;
-// 	m_maxX  = 1;
-// 	m_minY  = -1;
-// 	m_maxY  = 1;
-//     }
-// }
-
-
-
-
-
-// THE INBETWEENERS 
 
 void initControlButtons( wxFrame *frame, ControlButtons control_buttons )
 {
 
     const int num_buttons = 4;
 
-    wxButton *buttons[4] = { control_buttons.save_button,
-			     control_buttons.save_and_run_next_button,
-			     control_buttons.start_pause_toggle_button,
-			     control_buttons.reload_caribu_config_button };
-    
     char button_labels[ num_buttons ][ 64 ] = {
-	"save", "Save and Run Next", "Pause", "Reload Caribu Config" };
+	"save", "Save and Run Next", "Pause", "Load Tabor" };
 
-    // functions = {}
-
+    int button_ids[ num_buttons ] = { SAVE_BUTTON_ID,
+				      START_PAUSE_TOGGLE_BUTTON_ID,
+				      LOAD_TABOR_BUTTON_ID };
+        
     const int xoffset = CONTROL_BUTTONS_X_START ;
-    
+
+    const wxSize size( CONTROL_BUTTONS_WIDTH, CONTROL_BUTTONS_HEIGHT );
+
     for( int i=0; i<num_buttons; i++ )
     {
-	wxPoint position = wxPoint( xoffset,
-				    TABOR_TEXT_CTRLS_START_YPOS + i * CONTROL_BUTTONS_Y_DELTA ) ;
+	const int yoffset = TABOR_TEXT_CTRLS_START_YPOS +
+	    i * CONTROL_BUTTONS_Y_DELTA;
 
-	buttons[i] = new wxButton(  frame, 0, button_labels[i], position );
-	buttons[i]->SetFocus();
-	buttons[i]->Show();
+	wxPoint pos( xoffset, yoffset );
+    
+	new wxButton( frame, button_ids[i], button_labels[i], pos, size );
+    		  
     }
-	    
-
-    // Connect(wxID_EXIT, wxEVT_COMMAND_BUTTON_CLICKED, 
-    // 	    wxCommandEventHandler(Button::OnQuit));
-    // button->SetFocus();
-    // button->Show();
 }
 
 
+
+
+
+
+void MainFrame::save_button_action( wxCommandEvent &event )
+{
+    cout << "test" << endl;
+}
+
+
+void MainFrame::save_and_run_next_button_action( wxCommandEvent &event )
+{
+    cout << "test" << endl;
+}
+
+
+void MainFrame::start_pause_toggle_button_action( wxCommandEvent &event )
+{
+    cout << "test" << endl;
+}
+
+
+void MainFrame::load_tabor_button_action( wxCommandEvent &event )
+{
+    cout << "test" << endl;
+}
 
 
 

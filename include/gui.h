@@ -38,6 +38,8 @@
 
 #define CONTROL_BUTTONS_X_START 1000 // relative to the histogram
 #define CONTROL_BUTTONS_Y_DELTA 40
+#define CONTROL_BUTTONS_WIDTH 100
+#define CONTROL_BUTTONS_HEIGHT 40
 
 
 
@@ -59,6 +61,35 @@ public:
 
 
 
+class MainFrame: public wxFrame // MainFrame is the class for our window,
+{
+    // It contains the window and all objects in it
+public:
+    MainFrame( const wxString &title, const wxPoint &pos, const wxSize &size );
+    //wxButton *save_button;
+    void OnExit( wxCommandEvent& event );
+
+    void save_button_action( wxCommandEvent &event );
+    void save_and_run_next_button_action( wxCommandEvent &event );
+    void start_pause_toggle_button_action( wxCommandEvent &event );
+    void load_tabor_button_action( wxCommandEvent &event );
+    
+    DECLARE_EVENT_TABLE()
+	};
+
+
+enum
+{
+    SAVE_BUTTON_ID = wxID_HIGHEST + 1,
+    SAVE_AND_RUN_NEXT_BUTTON_ID,
+    START_PAUSE_TOGGLE_BUTTON_ID,
+    LOAD_TABOR_BUTTON_ID,
+};
+
+
+
+
+
 
 class RenderTimer : public wxTimer
 {
@@ -77,6 +108,10 @@ public:
 
 /*     void OnQuit(wxCommandEvent & event); */
 /* }; */
+
+
+
+
 
 
 
@@ -157,6 +192,28 @@ public :
     void main_loop( void );
 };
 
+
+
+
+
+
+
+
+void initTaborTextCtrls( wxFrame *frame, TaborTextCtrls *tabor_text_ctrls );
+
+void initTDCLabels( wxFrame *frame, TDCDataGui *tdc_data_gui );
+
+
+void initControlButtons( wxFrame *frame, ControlButtons control_buttons ) ;
+
+wxStaticText * make_title( wxFrame *frame, const char *label, int x, int y,
+			   int fontsize, long style = 0 );
+
+template <size_t size_x, size_t size_y>
+void func( int (&arr)[size_x][size_y]);
+
+
+void tdc_thread_main( );
 
 
 

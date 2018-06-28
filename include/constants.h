@@ -1,10 +1,10 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-
+#define DEBUG 1
 
 #define USE_TDC 0
-
+#define USE_GUI 1
 #define USE_CARIBU 0
 
 #ifndef _WIN32

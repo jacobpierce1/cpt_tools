@@ -18,11 +18,15 @@ class wxImagePanel : public wxPanel
 {
     int dimx;
     int dimy;
-    int (*data)[ HISTO_DIMY];
+    int (*histo)[ HISTO_DIMY];
+    int *data;
     
     int dimx_scale;
     int dimy_scale;
-	
+
+    int current_max;
+    int current_min;
+    
     // wxFrame *frame;
     wxBitmap bmp;
 
@@ -46,7 +50,8 @@ public :
     void render(wxDC& dc);
 
     void update_bmp();
-    COLOUR apply_colormap( int v, int vmin, int vmax);
+    void apply_colormap( uint8_t buf[3], int v, int vmin, int vmax );
+    void update_histo();
     
     // some useful events
     /*

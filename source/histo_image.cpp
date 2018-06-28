@@ -14,7 +14,7 @@ typedef wxAlphaPixelData PixelData;
 
 
 
-void compute_max( int *arr_start, size_t size, int *max, int *min )
+// void compute_max( int *arr_start, size_t size, int *max, int *min );
 
     
 
@@ -28,11 +28,11 @@ wxImagePanel::wxImagePanel(wxWindow* parent, wxString file, wxBitmapType format)
 
 
 
-wxImagePanel::wxImagePanel( wxWindow *parent, int (*data)[ HISTO_DIMY], int dimx, int dimy,
+wxImagePanel::wxImagePanel( wxWindow *parent, int (*histo)[ HISTO_DIMY], int dimx, int dimy,
 	      int dimx_scale, int dimy_scale ) :
         wxPanel( parent, wxID_ANY, wxPoint( 0, 0 ), wxSize( 320, 320 ) )
 {
-    this->data = data;
+    this->histo = histo;
     this->dimx = dimx;
     this->dimy = dimy;
     this->dimx_scale = dimx_scale;
@@ -119,22 +119,24 @@ void wxImagePanel::render( wxDC&  dc)
 
 
 
+// reconstruct the tmp image from this->data
 void wxImagePanel::update_bmp( )
 {
     uint8_t buffer[ dimx * dimx_scale ][ dimy * dimy_scale ][3];
     memset( buffer, 0, dimx * dimx_scale * dimy * dimy_scale * 3 );
     // uint8_t tmp =
 
-    int max;
-    int min;
-    compute_max( &( this->data[0][0] ), dimx * dimy * 3, &max, &min );
+    // int max;
+    // int min;
+    // compute_max( &( this->data[0][0] ), dimx * dimy * 3, &max, &min );
 
+    uint8_t tmp_data[3];
     
     for( int x = 0; x < dimx; ++x)
     {
 	for( int y = 0; y < dimy; ++y)
 	{
-	    uint8_t tmp_data = apply_colormap( this->data[x][y], min, max );
+	    apply_colormap( tmp_data, this->histo[x][y], 0, 255 );
 
 	    for( int i=0; i < dimx_scale; ++i )
 	    {
@@ -142,37 +144,23 @@ void wxImagePanel::update_bmp( )
 		{
 		    int tmpx = x * dimx_scale + i;
 		    int tmpy = y * dimy_scale + j;
-		    buffer[ tmpx ][ tmpy ][0] = tmp_data;
+		    memcpy( buffer[ tmpx ][ tmpy ], tmp_data, 3 );
 		}
 	    }
 	}
     }
 
-    wxImage tmp_image( dimx * dimx_scale, dimy * dimy_scale, &buffer[0][0][0], 1 );
-    
-    
-    //tmp_image.Rescale( 320, 320, wxIMAGE_QUALITY_HIGH );
-        
+    wxImage tmp_image( dimx * dimx_scale, dimy * dimy_scale, &buffer[0][0][0], 1 );  
     this->bmp = wxBitmap( tmp_image, 3 );
-    // cout << this->bmp.GetScaleMode( ) << endl;
-
-    
-    // cout << "red: " << this->bmp.ConvertToImage().GetRed( 20, 10 ) << endl;
-    // cout << bmp.GetWidth() << endl;
-    
-    // this->Refresh();
-    // this->Update();
-    // this->paintNow();
-    //cout << bmp.GetHeight() << endl;
 }
 
 
 
-COLOUR wxImagePanel::apply_colormap(double v,double vmin,double vmax)
+void wxImagePanel::apply_colormap( uint8_t buf[3], int v, int vmin, int vmax )
 {
-   COLOUR c = {1.0,1.0,1.0}; // white
-   double dv;
-
+    COLOUR c = {1.0,1.0,1.0}; // white
+    double dv;
+   
    if (v < vmin)
       v = vmin;
    if (v > vmax)
@@ -193,24 +181,29 @@ COLOUR wxImagePanel::apply_colormap(double v,double vmin,double vmax)
       c.b = 0;
    }
 
-   return(c);
+   buf[0] = 255 * c.r;
+   buf[1] = 255 * c.g;
+   buf[2] = 255 * c.b;
+   
+   // return(c);
 }
 
 
-void compute_max( int *arr_start, size_t size, int *max, int *min )
-{
-    int tmp_max = *arr_start;
-    int tmp_min = *arr_start;
 
-    for( int i = 0; i < size; i++ )
-    {
-	if( arr_start[i] > tmp_max )
-	    tmp_max = arr_start[i];
+// void compute_max( int *arr_start, size_t size, int *max, int *min )
+// {
+//     int tmp_max = *arr_start;
+//     int tmp_min = *arr_start;
 
-	if( arr_start[i] > tmp_min )
-	    tmp_min = arr_start[i];
-    }
+//     for( int i = 0; i < size; i++ )
+//     {
+// 	if( arr_start[i] > tmp_max )
+// 	    tmp_max = arr_start[i];
 
-    *max = tmp_max;
-    *min = tmp_min;
-}
+// 	if( arr_start[i] > tmp_min )
+// 	    tmp_min = arr_start[i];
+//     }
+
+//     *max = tmp_max;
+//     *min = tmp_min;
+// }
