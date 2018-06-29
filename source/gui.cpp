@@ -17,6 +17,9 @@
 #include <stdlib.h> 
 #include <thread> 
 #include "tdc.h"
+#include <wx/filepicker.h>
+
+
 
 
 using namespace std;
@@ -164,7 +167,13 @@ bool MyApp::OnInit()
     		MCP_PLOT_X_OFFSET + MCP_PLOT_SIZE / 2,
     		MCP_PLOT_Y_OFFSET - MCP_PLOT_TITLE_OFFSET,
     		TITLE_FONTSIZE, wxALIGN_RIGHT );
-	        
+
+
+    wxDirPickerCtrl *dir_picker = new wxDirPickerCtrl( frame, wxID_ANY );
+
+
+
+    
     return true;
 }
 
@@ -413,6 +422,7 @@ void initControlButtons( wxFrame *frame, ControlButtons control_buttons )
 
 
 
+
 void MainFrame::save_button_action( wxCommandEvent &event )
 {
     cout << "test" << endl;
@@ -440,7 +450,7 @@ void MainFrame::load_tabor_button_action( wxCommandEvent &event )
 
 
 
-IMPLEMENT_APP(MyApp)
+IMPLEMENT_APP( MyApp )
 
 
 
