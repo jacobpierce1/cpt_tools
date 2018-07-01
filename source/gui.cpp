@@ -11,7 +11,7 @@
 #include <wx/valnum.h>
 #include "tabor.h"
 #include "mathplot.h"
-#include "histo_image.h" 
+#include "heatmap.h" 
 #include <wx/wx.h>
 #include <math.h>
 #include <stdlib.h> 
@@ -32,8 +32,8 @@ using namespace std;
 void test( wxCommandEvent &event );
 
 
-BEGIN_EVENT_TABLE(wxImagePanel, wxPanel)
-EVT_PAINT(wxImagePanel::paintEvent)
+BEGIN_EVENT_TABLE(Heatmap, wxPanel)
+EVT_PAINT(Heatmap::paintEvent)
 // EVT_BUTTON ( START_PAUSE_TOGGLE_BUTTON_ID_, MainFrame::OnExit )
 // EVT_BUTTON ( LOAD_TABOR_ID, MainFrame::OnExit ) 
 END_EVENT_TABLE()
@@ -41,24 +41,27 @@ END_EVENT_TABLE()
 
 
 
-int histo[ HISTO_DIMX ][ HISTO_DIMY ];
+// int histo[ HISTO_DIMX ][ HISTO_DIMY ];
 thread *tdc_thread;
-TDC_controller tdc;
+TDC_controller *tdc;
 
 
 
-RenderTimer::RenderTimer( wxImagePanel* pane) : wxTimer()
+RenderTimer::RenderTimer( Heatmap *heatmap ) : wxTimer()
 {
-    RenderTimer::pane = pane;
+    RenderTimer::heatmap = heatmap;
 }
  
 void RenderTimer::Notify()
 {
-    pane->update_histo();
-    pane->update_bmp();
-    pane->Refresh();
+    int num_data_to_add = tdc->num_processed_data - heatmap->num_data_in_histo;
+    heatmap->update_histo( num_data_to_add );
+    heatmap->update_colorbar_ticks();
+    heatmap->update_bmp();
+    heatmap->Refresh();
 }
- 
+
+
 void RenderTimer::start()
 {
     wxTimer::Start( SLEEP_TIME_MS );
@@ -74,6 +77,7 @@ EVT_BUTTON ( SAVE_BUTTON_ID, MainFrame::save_button_action )
 EVT_BUTTON( SAVE_AND_RUN_NEXT_BUTTON_ID, MainFrame::save_and_run_next_button_action )
 EVT_BUTTON( START_PAUSE_TOGGLE_BUTTON_ID, MainFrame::start_pause_toggle_button_action )
 EVT_BUTTON( LOAD_TABOR_BUTTON_ID, MainFrame::load_tabor_button_action )
+EVT_BUTTON( RESET_BUTTON_ID, MainFrame::reset_button_action )
 END_EVENT_TABLE() 
 
 
@@ -90,6 +94,7 @@ wxFrame((wxFrame*)NULL,  -1, title, pos, size)
 
 void MainFrame::OnExit( wxCommandEvent& event )
 {
+    delete tdc;
     Close(TRUE); // Tells the OS to quit running this process
 }
 
@@ -104,50 +109,50 @@ bool MyApp::OnInit()
 
     wxInitAllImageHandlers();
 	         
-    wxFrame *frame = new MainFrame( "CPT Master Controller",
+    MainFrame *frame = new MainFrame( "CPT Master Controller",
 				    wxDefaultPosition,
 				    wxSize( FRAME_WIDTH, FRAME_HEIGHT  ) );
 
     wxPanel *bmp_panel = new wxPanel( frame, wxID_ANY, 
     				      wxPoint( MCP_PLOT_X_OFFSET, MCP_PLOT_Y_OFFSET ),
-				      wxSize( MCP_PLOT_SIZE, MCP_PLOT_SIZE   ) );
-
-    // wxButton *HelloWorld = new wxButton( frame, BUTTON_Hello, "Hello World",
-    // 			       wxDefaultPosition, wxDefaultSize, 0); 
+				      wxSize( MCP_PLOT_SIZE + COLORBAR_WIDTH + COLORBAR_OFFSET,
+					      MCP_PLOT_SIZE   ) );
        
     bmp_panel->Show();
     
-    const int dimx = 32;
-    const int dimy = 32;
-    int dimx_scale = 10;
-    int dimy_scale = 10;
+    const int dimx = 64;
+    const int dimy = 64;
+    int dimx_scale = 5;
+    int dimy_scale = 5;
         
-    func( histo );
+    // func( histo );
 
-    tdc = TDC_controller();
+    tdc = new TDC_controller();
 
-    //MainFrame *MainWin = new (_T("Hello World!"), wxPoint(1, 1), wxSize(300,200));
+    int histo_bounds[2][2] = { {-10,10}, {-10,10} };
 
-    //MainWin->Show();
+    cout << "allocating heatmap" << endl;
     
-    wxImagePanel *drawPane = new wxImagePanel( bmp_panel, histo, dimx, dimy,
-					       dimx_scale, dimy_scale ); 
+    Heatmap *heatmap = new Heatmap( bmp_panel, tdc->mcp_positions,
+				    dimx, dimy,
+				    dimx_scale, dimy_scale,
+				    histo_bounds, "linear_bmw_5_95_c86" ); 
 
-    this->drawPane = drawPane;
-
-    drawPane->update_histo();
-    drawPane->update_bmp() ;
+    frame->heatmap = heatmap;
+    heatmap->update_bmp();
+    heatmap->make_colorbar();
+    cout << "reached" << endl;
         
     make_title( frame, "CPT Master Controller",
     		FRAME_WIDTH / 2,
     		MAIN_TITLE_Y_OFFSET,
-    		MAIN_TITLE_FONTSIZE, wxALIGN_RIGHT );
+    		MAIN_TITLE_FONTSIZE );
 
  
     frame->Show();
 
 
-    RenderTimer *timer = new RenderTimer(drawPane);
+    RenderTimer *timer = new RenderTimer(heatmap);
     timer->start();
 
     // dispatch tdc data acquisition thread
@@ -166,12 +171,9 @@ bool MyApp::OnInit()
     make_title( frame, "MCP Hits",
     		MCP_PLOT_X_OFFSET + MCP_PLOT_SIZE / 2,
     		MCP_PLOT_Y_OFFSET - MCP_PLOT_TITLE_OFFSET,
-    		TITLE_FONTSIZE, wxALIGN_RIGHT );
-
+    		TITLE_FONTSIZE );
 
     wxDirPickerCtrl *dir_picker = new wxDirPickerCtrl( frame, wxID_ANY );
-
-
 
     
     return true;
@@ -324,13 +326,11 @@ void initTDCLabels( wxFrame *frame, TDCDataGui *tdc_data_gui )
 {
     // int xcoord = (int) ( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP ) / 2;
 
-    wxPoint title_coords = wxPoint( ( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP ) / 2,
-				    TDC_LABELS_Y_OFFSET + TABOR_TITLE_OFFSET ) ;
-    wxSize title_size = wxSize( 100, 40 ) ;
-    wxStaticText *title = new wxStaticText( frame, 0, "TDC Data", title_coords, title_size );
-    wxFont title_font( 20, wxDEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
-    title->SetFont( title_font );
-
+    int xcoord = ( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP ) / 2;
+    int ycoord = TDC_LABELS_Y_OFFSET + TABOR_TITLE_OFFSET ;
+    
+    make_title( frame,  "TDC Info", xcoord, ycoord, TITLE_FONTSIZE );
+    
     int x1 = TABOR_LABEL_X_OFFSET;
     int x2 = TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP;
     int y1 = TDC_LABELS_Y_OFFSET + 2 * TABOR_TITLE_OFFSET;
@@ -348,42 +348,18 @@ void initTDCLabels( wxFrame *frame, TDCDataGui *tdc_data_gui )
 
 
 
-void tdc_thread_main(  )
+void tdc_thread_main()
 {
     // tdc.start();
     while(1)
     {
 	cout << "reading tdc data" << endl;	
 	mySleep( SLEEP_TIME_MS );
-	tdc.read();
-	tdc.process_hit_buffer();
+	tdc->read();
+	tdc->process_hit_buffer();
     }
 }
 
-
-
-
-
-void wxImagePanel::update_histo()
-{
-    func( ::histo );
-}
-
-// Button::Button(const wxString& title)
-//     : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(270, 150))
-// {
-//     wxPanel *panel = new wxPanel(this, wxID_ANY);
-    
-//     wxButton *button = new wxButton(panel, wxID_EXIT, wxT("Quit"), 
-// 				    wxPoint(20, 20));
-//     Connect(wxID_EXIT, wxEVT_COMMAND_BUTTON_CLICKED, 
-// 	    wxCommandEventHandler(Button::OnQuit));
-//     button->SetFocus();
-
-//     wxTextCtrl *text_ctrl = new wxTextCtrl( panel, wxID_EXIT, wxT("123") ) ;
-  
-//     Centre();
-// }
 
 
 
@@ -392,14 +368,16 @@ void wxImagePanel::update_histo()
 void initControlButtons( wxFrame *frame, ControlButtons control_buttons )
 {
 
-    const int num_buttons = 4;
+    const int num_buttons = 5;
 
     char button_labels[ num_buttons ][ 64 ] = {
-	"save", "Save and Run Next", "Pause", "Load Tabor" };
+	"Save", "Save and Run Next", "Pause", "Load Tabor", "Reset" };
 
     int button_ids[ num_buttons ] = { SAVE_BUTTON_ID,
+				      SAVE_AND_RUN_NEXT_BUTTON_ID,
 				      START_PAUSE_TOGGLE_BUTTON_ID,
-				      LOAD_TABOR_BUTTON_ID };
+				      LOAD_TABOR_BUTTON_ID,
+				      RESET_BUTTON_ID };
         
     const int xoffset = CONTROL_BUTTONS_X_START ;
 
@@ -416,6 +394,7 @@ void initControlButtons( wxFrame *frame, ControlButtons control_buttons )
     		  
     }
 }
+
 
 
 
@@ -444,6 +423,15 @@ void MainFrame::start_pause_toggle_button_action( wxCommandEvent &event )
 void MainFrame::load_tabor_button_action( wxCommandEvent &event )
 {
     cout << "test" << endl;
+}
+
+
+void MainFrame::reset_button_action( wxCommandEvent &event )
+{
+    cout << "INFO: clearing plots." << endl;
+    this->heatmap->reset();
+    cout << "current_max:  " << heatmap->current_max << endl;
+    this->heatmap->paintNow();
 }
 
 

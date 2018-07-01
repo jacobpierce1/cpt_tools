@@ -4,7 +4,7 @@ OBJ = ../obj/
 
 EXE_NAME = gui.exe
 
-OBJS = $(OBJ)histo_image.o $(OBJ)tdc.o $(OBJ)global.o
+OBJS = $(OBJ)heatmap.o $(OBJ)tdc.o $(OBJ)global.o $(OBJ)colormap.o
 
 DEFINES = -DUSE_GUI # -DUSE_TDC -DUSE_CARIBU
 WX_INCLUDE = `wx-config --cxxflags --libs`

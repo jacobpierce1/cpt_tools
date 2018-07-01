@@ -12,9 +12,13 @@
 #include <bitset> 
 #include <string>
 
+
 using namespace std;
 
 
+#if !( USE_TDC )
+#define TDC_SAMPLE_DATA_FILE "../data/sample_tdc_times.txt"
+#endif 
 
 // here is a relatively harmless implementation of the masks required to 
 // unpack data from the TDC.
@@ -52,6 +56,8 @@ TDC_controller::TDC_controller()
 	
     // this->hit_buffer = new 
     TDCManager_Start( this->tdcmgr );
+#else
+    this->infile.open( TDC_SAMPLE_DATA_FILE );
 #endif
 }
 
@@ -62,6 +68,8 @@ TDC_controller::~TDC_controller()
 #if USE_TDC
     TDCManager_CleanUp( this->tdcmgr );
     TDCManager_Delete( this->tdcmgr );
+#else
+    this->infile.close();
 #endif
 }
 
@@ -69,7 +77,8 @@ TDC_controller::~TDC_controller()
 int TDC_controller::read()
 {
 #if USE_TDC
-    this->num_data_in_hit_buffer = TDCManager_Read( this->tdcmgr, this->hit_buffer, TDC_HIT_BUFFER_SIZE );
+    this->num_data_in_hit_buffer = TDCManager_Read( this->tdcmgr, this->hit_buffer,
+						    TDC_HIT_BUFFER_SIZE );
     return this->num_data_in_hit_buffer;
 #else
     return 0;
@@ -147,9 +156,9 @@ double TDC_controller::process_hit( HIT hit, int *channel, long long *time )
     unsigned long tmp = 63;
     bitset<32> mask( tmp );
 
-    unsigned short tmpchannel = (( bits >> 24 ) & mask).to_ulong();
+    *channel = (( bits >> 24 ) & mask).to_ulong();
 
-    unsigned long tmptime = TRANSITION_TIME_MASK & hit; 
+    *time = TRANSITION_TIME_MASK & hit; 
 
     cout << "tmpchannel: " << tmpchannel << endl << endl;
     return 0;
@@ -161,76 +170,108 @@ double TDC_controller::process_hit( HIT hit, int *channel, long long *time )
 
 
 
-void TDC_controller::process_hit_buffer( )
-{
-#if USE_TDC
 
-    int channels[ TDC_HIT_BUFFER_SIZE ];
+
+int TDC_controller::process_hit_buffer()
+{
+    cout << "calling process_hit_buffer()" << endl;
+    
     long long times[ TDC_HIT_BUFFER_SIZE ];
 
-    long long valid_times[5];
-    int valid_channel_indices_set[5];
+    long long valid_times[6];
+    int valid_channel_indices_set[6];
 
-    int first_pass = 1;
+    // int first_pass = 1;
     
+#if USE_TDC
+    int channels[ TDC_HIT_BUFFER_SIZE ];
+
     // unpack all the data 
     for( int i=0; i < this->num_data_in_hit_buffer; i++ )
     {
 	process_hit( hit_buffer[i], &( channels[i] ), &( times[i] ) );
     }
+#else
+    this->num_data_in_hit_buffer = 6;
+    int tmp_channels[ TDC_HIT_BUFFER_SIZE ] = { 7, 0, 1, 2, 3, 6 };
+    int channels[ TDC_HIT_BUFFER_SIZE ];
+    memset( &channels, -1, TDC_HIT_BUFFER_SIZE * sizeof(int) );
 
-    // look for candidate channels for x1, x2, y1, y2
-    int hit_idx = 0;
-    int num_data_added = 0;
-    int channel_map[9] = { 0, 1, 2, 3, -1, -1, -1, -1, 4 };
-    
-    
-    while( hit_idx < this->num_data_in_hit_buffer )
+    for( int i=0; i<6; i++ )
     {
-	int valid_data = 1;
+	string tmp_str;
+
+	if( this->infile.eof() )
+	    break;
 	
-	// memcpy( valid_channel_indices, EMPTY_CHANNEL, 5 );
-	memcpy( valid_channel_indices_set, 0, 5 );
+	getline( this->infile, tmp_str );
+	times[i] = stoll( tmp_str );
+	channels[i] = tmp_channels[i];
+	cout << times[i] << endl;
+    }
+#endif
+
+    
+    // look for candidate channels for x1, x2, y1, y2
+    // int hit_idx = 0;
+    int num_data_added = 0;
+    int channel_map[9] = { 0, 1, 2, 3, -1, -1, 4, 5, -1 };
+    
+    cout << "entering processing loop" << endl;
+    
+    for( int hit_idx = 0; hit_idx < this->num_data_in_hit_buffer; )
+    {	
+	cout << "hit_idx: " << hit_idx << endl;
+    
+	memset( &valid_channel_indices_set, 0, 6 * sizeof(int) );
 	
 	// find next trigger channel
 	while( hit_idx < this->num_data_in_hit_buffer )
 	{
+	    cout << "searching for trigger_channel... " << channels[ hit_idx ] << endl;
 	    if( channels[ hit_idx ] == TRIGGER_CHANNEL )
 	    {
-		valid_data = 0;
-		break;
+		// intentionally don't increment hit_idx before breaking
+		// so that the trigger channel is processed in the next loop
+		cout << "found trigger on idx " << hit_idx << endl;
+		break; 
 	    }
-	    
-	    // always advance straight to first trigger on the first pass 
-	    if( ! first_pass && valid_data )
-	    {
-		channel = channels[ hit_idx ];
-		idx = channel_map[ channel ];
-		
-		if( valid_channel_indices_set[ idx ] )
-		{
-		    cout << "duplicate hit detected" << endl;
-		    valid_data = 0;
-		}
-		else
-		{
-		    valid_channel_indices_set[ idx ] = 1;
-		    valid_times[ idx ] = times[ hit_idx ];
-		}
-		
-	    }
-	    
 	    hit_idx++;
-	    continue;
 	}
 
-	// if this is reached, then we have completed at least one pass
-	first_pass = 0;
+	
+	// keep processing while there is data left and data is still valid
+	// ideally, this will only be 5 more data points if there are
+	// no rollovers or extra hits on the same channel
+	
+	int valid_data = 1;
 
-	// verify that all channels were detected
-	for( int i = 0; i<5; i++ )
+	while( hit_idx < this->num_data_in_hit_buffer && valid_data )
 	{
-	    valid_data &= valid_channel_indices_set[ idx ];
+	    cout << "found trigger. hit_idx: " << hit_idx << endl; 
+	    int channel = channels[ hit_idx ];
+	    int idx = channel_map[ channel ];
+
+	    cout << "channel / idx: " << channel << " "  << idx << endl;
+
+	    if( valid_channel_indices_set[ idx ] )
+	    {
+		cout << "duplicate hit detected" << endl;
+		valid_data = 0;
+	    }
+	    else
+	    {
+		valid_channel_indices_set[ idx ] = 1;
+		valid_times[ idx ] = times[ hit_idx ];
+	    }
+	    hit_idx++;
+	}
+	
+	// verify that all channels were detected
+	for( int i = 0; i<6; i++ )
+	{
+	    cout << "valid_channel_indices_set[i]" << i << " " << valid_channel_indices_set[ i ] << endl;
+	    valid_data &= valid_channel_indices_set[ i ];
 	}
 
 	if( ! valid_data )
@@ -238,7 +279,7 @@ void TDC_controller::process_hit_buffer( )
 	    cout << "not all channels were set" << endl;
 	}
 	else{
-	    cout << "adding data" << endl;
+	    cout << "adding valid data" << endl;
 	    int data_idx = this->num_processed_data;
 
 	    long long x1 = valid_times[0];
@@ -247,18 +288,18 @@ void TDC_controller::process_hit_buffer( )
 	    long long y2 = valid_times[3];
 	    long long t = valid_times[4];
 	    
-	    compute_tof_and_mcp_pos( mcp_pos[ data_idx ], &( tof[ data_idx ] ),
+	    compute_tof_and_mcp_pos( this->mcp_positions[ data_idx ],
+				     &( this->tof[ data_idx ] ),
 				     x1, x2, y1, y2, t );
 
 	    ++( this->num_processed_data );
 	}
+	cout << "end of loop hit_idx: " << hit_idx << endl;
 	
     }
     
     this->num_data_in_hit_buffer = 0;
     return num_data_added;
-    
-#endif
 }
 
 
@@ -275,6 +316,7 @@ void TDC_controller::reset_buffers()
 int TDC_controller::write_data( const char *path )
 {
     cout << "writing data" << endl;
+    return 1;
 }
 
 
@@ -289,16 +331,20 @@ int TDC_controller::compute_tof_and_mcp_pos( double mcp_pos[2], double *tofptr,
     double kx = 1.29;
     double ky = 1.31;
 
-    double center_x = -1.6;
-    double center_y = 3.0;
+    cout << "computing tof and mcp pos: " << x1 << " " << x2 << " " << y1 << " " << y1 << " " << endl;
+    // double center_x = -1.6;
+    // double center_y = 3.0;
 
     // double x = 0.5 * kx * (TDC[0] - TDC[1]) * 0.001;
     // double y = 0.5 * ky * (TDC[2] - TDC[3]) * 0.001; 
     // double tof = TDC[4] * 0.001;
     
     mcp_pos[0] = 0.5 * kx * ( x1 - x2 ) * 0.001;
-    mcp_pos[1] = 0.5 * ky * ( y1 - y2 ) * 0.001; 
+    mcp_pos[1] = 0.5 * ky * ( y1 - y2 ) * 0.001;
     *tofptr = t * 0.001;
+
+    cout << "mcp_pos[0]: " << mcp_pos[0] << endl;
+    cout << "mcp_pos[1]: " << mcp_pos[1] << endl;
     // timeStamp = eventTimeStamp * (1.0e-12);
 	
     return 0 ;

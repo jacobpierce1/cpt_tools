@@ -15,12 +15,14 @@
 #define X2_CHANNEL 1
 #define Y1_CHANNEL 2
 #define Y2_CHANNEL 3
-#define TRIGGER_CHANNEL 8
+#define TRIGGER_CHANNEL 7
 
 // these are not real channels, but are used to encode info
 #define ERROR_CHANNEL -1
 #define ROLLOVER_CHANNEL -2
 #define EMPTY_CHANNEL -3
+
+
 
 
 #if USE_TDC
@@ -57,13 +59,16 @@ public :
 	TDC_controller( void );
 	~TDC_controller( void );
 
+	
+// use either actual TDC or a file stream for the data 
 #if USE_TDC
 	C_TDC *tdcmgr;
+#else
+	ifstream infile;
 #endif
 	
 	unsigned int num_data_in_hit_buffer;
 	unsigned int num_processed_data;
-	// unsigned int num_data_in_
 	
 	HIT hit_buffer[ TDC_HIT_BUFFER_SIZE ]; 
 	long long channel_times[ TDC_MAX_COUNTS ][6];
@@ -72,7 +77,7 @@ public :
 	
 	int read(void);
 	double process_hit(HIT hit, int *channel, long long *time );
-	void process_hit_buffer();
+	int process_hit_buffer();
 
 	void start();
 	void stop();

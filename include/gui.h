@@ -5,7 +5,7 @@
 #ifndef GUI_H
 #define GUI_H
 
-#include "histo_image.h"
+#include "heatmap.h"
 #include <iostream>
 #include <wx/wx.h>
 #include <chrono>
@@ -33,15 +33,16 @@
 
 #define MCP_PLOT_TITLE_OFFSET 40
 #define MCP_PLOT_Y_OFFSET 100
-#define MCP_PLOT_X_OFFSET 400
+#define MCP_PLOT_X_OFFSET 600
 #define MCP_PLOT_SIZE 400
 
-#define CONTROL_BUTTONS_X_START 1000 // relative to the histogram
+#define CONTROL_BUTTONS_X_START 400 // relative to the histogram
 #define CONTROL_BUTTONS_Y_DELTA 40
 #define CONTROL_BUTTONS_WIDTH 100
-#define CONTROL_BUTTONS_HEIGHT 40
+#define CONTROL_BUTTONS_HEIGHT 50
 
 
+class MainFrame;
 
 
 class MyApp : public wxApp
@@ -49,7 +50,8 @@ class MyApp : public wxApp
     bool render_loop_on;
     bool OnInit();
     void onIdle(wxIdleEvent& evt);
-    wxImagePanel *drawPane;
+    MainFrame *main_frame;
+    
     
 public:
     void activateRenderLoop(bool on);
@@ -73,9 +75,12 @@ public:
     void save_and_run_next_button_action( wxCommandEvent &event );
     void start_pause_toggle_button_action( wxCommandEvent &event );
     void load_tabor_button_action( wxCommandEvent &event );
-    
+    void reset_button_action( wxCommandEvent &event );
+
+    Heatmap *heatmap;
+
     DECLARE_EVENT_TABLE()
-	};
+};
 
 
 enum
@@ -84,6 +89,7 @@ enum
     SAVE_AND_RUN_NEXT_BUTTON_ID,
     START_PAUSE_TOGGLE_BUTTON_ID,
     LOAD_TABOR_BUTTON_ID,
+    RESET_BUTTON_ID
 };
 
 
@@ -93,9 +99,9 @@ enum
 
 class RenderTimer : public wxTimer
 {
-    wxImagePanel* pane;
+    Heatmap *heatmap;
 public:
-    RenderTimer( wxImagePanel* pane);
+    RenderTimer( Heatmap* pane);
     void Notify();
     void start();
 };
@@ -160,7 +166,8 @@ struct ControlButtons
     wxButton *save_and_run_next_button;
     wxButton *start_pause_toggle_button;
     wxButton *reload_caribu_config_button;
-    // wxButton *tmp;
+    wxButton *reset_button;
+// wxButton *tmp;
 };
 
 /* struct MCPPlot */
@@ -175,22 +182,22 @@ struct ControlButtons
 
 
 
-class Gui
-{
-public :
-    TaborTextCtrls tabor_text_ctrls;
-    ControlButtons control_buttons;
-    TDCDataGui TDC_data_gui;
+/* class Gui */
+/* { */
+/* public : */
+/*     TaborTextCtrls tabor_text_ctrls; */
+/*     ControlButtons control_buttons; */
+/*     TDCDataGui TDC_data_gui; */
 
     
-    // pointers to corresponding array / int in TDC if it exists,
-    // otherwise NULL
-    double *mcp_positions[2][ TDC_MAX_COUNTS ];
-    int *num_processed_data_ptr;
+/*     // pointers to corresponding array / int in TDC if it exists, */
+/*     // otherwise NULL */
+/*     double *mcp_positions[2][ TDC_MAX_COUNTS ]; */
+/*     int *num_processed_data_ptr; */
 
-    void update( void );
-    void main_loop( void );
-};
+/*     void update( void ); */
+/*     void main_loop( void ); */
+/* }; */
 
 
 
@@ -215,6 +222,7 @@ void func( int (&arr)[size_x][size_y]);
 
 void tdc_thread_main( );
 
+void reset();
 
 
 
