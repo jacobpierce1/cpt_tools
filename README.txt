@@ -3,7 +3,7 @@ This software library implements data-acquisition and real-time data analysis fo
 
 system requirements :
 
-Qt5 (cross-platform gui)
+wxWidgets (cross-platform gui)
 
 
 
