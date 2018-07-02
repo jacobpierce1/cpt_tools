@@ -36,11 +36,13 @@ public :
 		  const char *cmap = "fire" );
 
     ~Heatmap();
+
+    bool needs_update;
     
     int dimx;
     int dimy;
     // int **histo;
-    vector< vector<int> > histo;
+    std::vector< std::vector<int> > histo;
     double (* data)[2];
     
     int dimx_scale;

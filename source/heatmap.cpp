@@ -38,12 +38,15 @@ Heatmap::Heatmap( wxWindow *parent, double (* data)[2], int dimx, int dimy,
     
     // always the same
     // memset( &(this->histo), 0, dimx * dimy * sizeof( int ) );
-    this->current_min_bins[0] = 0;
-    this->current_min_bins[1] = 0;
     this->histo_dims[0] = dimx;
     this->histo_dims[1] = dimy;
     this->num_data_in_histo = 0;
+    this->current_max = 0;
+    this->current_min = 0;
+    this->current_min_bins[0] = 0;
+    this->current_min_bins[1] = 0;
 
+    
     for( int i=0; i<NUM_TICKS; i++ )
     {
 	int xcoord = dimx * dimx_scale + COLORBAR_OFFSET + COLORBAR_WIDTH + TICKS_OFFSET;
@@ -52,15 +55,7 @@ Heatmap::Heatmap( wxWindow *parent, double (* data)[2], int dimx, int dimy,
 	this->colorbar_ticks[i] = new wxStaticText( parent, wxID_ANY, "", wxPoint( xcoord, ycoord ) );
     }
 
-    // init dynamic 2d histo
-    histo = new int *[ dimx ];
-    for(int i = 0; i < dimx; ++i)
-    {
-	histo[i] = new int[ dimy ];
-	// memset( &( histo[i] ), 0, dimy * sizeof( int ) ); 
-    }
-
-    cout << dimx_scale << endl;
+    histo.resize( dimx, vector<int>( dimy, 0 ) );
 }
 
 
@@ -68,12 +63,6 @@ Heatmap::~Heatmap()
 {
     delete this->cmap;
     
-    // init dynamic 2d histo
-    for( int i = 0; i < dimx; ++i )
-    {
-	delete [] histo[i];
-    }
-    delete [] histo;
 }
 
 
@@ -162,18 +151,14 @@ void Heatmap::render( wxDC&  dc)
 
 // reconstruct the tmp image from this->data
 void Heatmap::update_bmp( )
-{
-    
+{   
     cout << "updating bmp" << endl;
-    cout << dimx << endl;
-    cout << dimx_scale << endl;
+    cout << current_max << endl;
     
     uint8_t buffer[ dimx * dimx_scale ][ dimy * dimy_scale ][3];
-    cout << "made buffer"  << endl;
     
     memset( &buffer, 0, dimx * dimx_scale * dimy * dimy_scale * 3 );
 
-    cout << histo[0][0] << endl;
     
     uint8_t tmp_data[3];
     
@@ -241,6 +226,10 @@ void Heatmap::make_colorbar( )
 // update the number labels of the colorbar
 void Heatmap::update_colorbar_ticks()
 {
+    cout << "updating colorbar ticks " << endl;
+    cout << current_max << endl;
+    cout << current_min << endl;
+    
     for( int i=0; i<NUM_TICKS; i++ )
     {
 	int val = round( this->current_min
@@ -345,9 +334,12 @@ void Heatmap::reset()
     cout << "clearing histo" << endl;
     for( int i=0; i<dimx; i++ )
     {
-	memset( &( histo[i][0] ), 0, dimy * sizeof(int) ); 
+	for( int j=0; j<dimy; j++ )
+	{
+	    histo[i][j] = 0;
+	    // memset( &( histo[i][0] ), 0, dimy * sizeof(int) ); 
+	}
     }
-    cout << "cleared" << endl;
     num_data_in_histo = 0;
     current_max = 0;
     current_min = 0;

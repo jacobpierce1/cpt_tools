@@ -1,3 +1,6 @@
+#ifndef TABOR_H
+#define TABOR_H
+
 
 #define NUM_TABOR_SETTINGS 16
 
@@ -36,3 +39,9 @@ TaborSettings() : nsteps(5), wminus( 1600.0 ), wplus( 656252.0 ),
 //int tacc 55.21	// Load three arbitrary waveforms consecutively on all channels
 };
 
+
+
+int load_tabor( TaborSettings settings );
+
+
+#endif

@@ -3,8 +3,6 @@
 #include "constants.h"
 
 
-//#if USE_TDC 
-
 
 #include "tdc.h"
 #include <cstdlib>
@@ -16,13 +14,21 @@
 using namespace std;
 
 
+#if USE_TDC 
+void print_all_params(C_TDC* c_tdc);
+void print_TDCInfo(C_TDC* c_tdc);
+void test_read(C_TDC *c_tdc);
+void test_batch_read(C_TDC *c_tdc);
+void test_batch_ReadTDCHit(C_TDC *c_tdc);
+void test_batch_Read(C_TDC *c_tdc);
+#endif
+
+
+
+
 #if !( USE_TDC )
 #define TDC_SAMPLE_DATA_FILE "../data/sample_tdc_times.txt"
 #endif 
-
-// here is a relatively harmless implementation of the masks required to 
-// unpack data from the TDC.
-// const HIT RISING_MASK = 23;
 
 
 const HIT TRANSITION_TIME_MASK = bitset<32>( "00000000111111111111111111111111" ).to_ulong();
@@ -55,10 +61,11 @@ TDC_controller::TDC_controller()
     mySleep(1000);
 	
     // this->hit_buffer = new 
-    TDCManager_Start( this->tdcmgr );
+    //TDCManager_Start( this->tdcmgr );
 #else
     this->infile.open( TDC_SAMPLE_DATA_FILE );
 #endif
+    start();
 }
 
 
@@ -77,12 +84,14 @@ TDC_controller::~TDC_controller()
 int TDC_controller::read()
 {
 #if USE_TDC
-    this->num_data_in_hit_buffer = TDCManager_Read( this->tdcmgr, this->hit_buffer,
-						    TDC_HIT_BUFFER_SIZE );
-    return this->num_data_in_hit_buffer;
-#else
-    return 0;
+    if( collecting_data )
+    {
+	this->num_data_in_hit_buffer = TDCManager_Read( this->tdcmgr, this->hit_buffer,
+							TDC_HIT_BUFFER_SIZE );
+	return this->num_data_in_hit_buffer;
+    }
 #endif
+    return 0;
 }
 
 
@@ -93,7 +102,9 @@ void TDC_controller::start()
 #if USE_TDC
     TDCManager_Start( this->tdcmgr );
 #endif
+    this->collecting_data = 1;
 }
+
 
 
 void TDC_controller::stop()
@@ -101,6 +112,17 @@ void TDC_controller::stop()
 #if USE_TDC
     TDCManager_Stop( this->tdcmgr );
 #endif
+    this->collecting_data = 0;
+}
+
+
+
+void TDC_controller::pause()
+{
+#if USE_TDC
+    TDCManager_Pause( this->tdcmgr );
+#endif
+    this->collecting_data = 0;
 }
 
 
@@ -110,6 +132,7 @@ void TDC_controller::resume()
 #if USE_TDC
     TDCManager_Continue( this->tdcmgr );
 #endif
+    this->collecting_data = 1;
 }
 
 
@@ -171,9 +194,12 @@ double TDC_controller::process_hit( HIT hit, int *channel, long long *time )
 
 
 
-
+// return number of valid data added
 int TDC_controller::process_hit_buffer()
 {
+    if( ! collecting_data )
+	return 0;
+    
     cout << "calling process_hit_buffer()" << endl;
     
     long long times[ TDC_HIT_BUFFER_SIZE ];
@@ -351,6 +377,21 @@ int TDC_controller::compute_tof_and_mcp_pos( double mcp_pos[2], double *tofptr,
 }
 
 
+
+
+// reset the buffers. they don't actually have to be cleared,
+// we just tell the tdc that no data has been added so that
+// old data gets overwritten.
+void TDC_controller::reset()
+{
+    this->num_data_in_hit_buffer = 0;
+    this->num_processed_data = 0;
+}
+
+
+
+
+// void TDC_controller
 
 
 

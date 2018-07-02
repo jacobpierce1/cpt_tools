@@ -28,12 +28,6 @@
 #if USE_TDC
 #include "hptdc_driver_3.4.3_x86_c_wrap.h"
 
-void print_all_params(C_TDC* c_tdc);
-void print_TDCInfo(C_TDC* c_tdc);
-void test_read(C_TDC *c_tdc);
-void test_batch_read(C_TDC *c_tdc);
-void test_batch_ReadTDCHit(C_TDC *c_tdc);
-void test_batch_Read(C_TDC *c_tdc);
 
 #endif
 
@@ -69,6 +63,8 @@ public :
 	
 	unsigned int num_data_in_hit_buffer;
 	unsigned int num_processed_data;
+
+	bool collecting_data;
 	
 	HIT hit_buffer[ TDC_HIT_BUFFER_SIZE ]; 
 	long long channel_times[ TDC_MAX_COUNTS ][6];
@@ -81,8 +77,9 @@ public :
 
 	void start();
 	void stop();
+	void pause();
 	void resume();
-
+	
 	void reset_buffers();
 
 	int reset_channel_times( void );
@@ -92,6 +89,8 @@ public :
 				     long long t );
 	
 	int write_data( const char *path );
+
+	void reset();
 };
 
 

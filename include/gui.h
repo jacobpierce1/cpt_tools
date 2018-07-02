@@ -10,6 +10,10 @@
 #include <wx/wx.h>
 #include <chrono>
 #include <wx/timer.h>
+#include "tabor.h"
+
+
+
 
 
 #define FRAME_WIDTH 1200
@@ -23,24 +27,33 @@
 // #define DEFAULT_MAX_TEXT_FIELD_CHAR 100
 // #define DEFAULT_TEXT_FIELD_LENGTH 30
 #define TABOR_TEXT_CTRLS_LABEL_SEP 120
-#define TABOR_TEXT_CTRLS_START_YPOS 100
+#define TABOR_TEXT_CTRLS_START_YPOS 120
 #define TABOR_TEXT_CTRLS_YPOS_DELTA 20
 #define TABOR_LABEL_X_OFFSET 60
-#define TABOR_TITLE_OFFSET 40
+#define TABOR_TITLE_OFFSET 15
 
-
-#define TDC_LABELS_Y_OFFSET 420 // below start of tabor settings 
 
 #define MCP_PLOT_TITLE_OFFSET 40
-#define MCP_PLOT_Y_OFFSET 100
+#define MCP_PLOT_Y_OFFSET TABOR_TEXT_CTRLS_START_YPOS
 #define MCP_PLOT_X_OFFSET 600
 #define MCP_PLOT_SIZE 400
 
-#define CONTROL_BUTTONS_X_START 400 // relative to the histogram
-#define CONTROL_BUTTONS_Y_DELTA 40
-#define CONTROL_BUTTONS_WIDTH 100
-#define CONTROL_BUTTONS_HEIGHT 50
+#define CONTROL_BUTTONS_X_START 350 // relative to the histogram
+#define CONTROL_BUTTONS_Y_DELTA 30
+#define CONTROL_BUTTONS_WIDTH 200
+#define CONTROL_BUTTONS_HEIGHT 100
+#define BUTTON_FONTSIZE 20
 
+
+
+#define TDC_LABELS_Y_OFFSET 500 // below start of tabor settings 
+#define TDC_LABELS_Y_DELTA 20
+#define NUM_TDC_LABELS 3
+#define TDC_TITLE_OFFSET 15
+
+#define OUTPUT_CONTROLS_Y TDC_LABELS_Y_OFFSET 
+#define OUTPUT_CONTROLS_X CONTROL_BUTTONS_X_START
+#define OUTPUT_CONTROLS_SEP 40
 
 class MainFrame;
 
@@ -54,7 +67,7 @@ class MyApp : public wxApp
     
     
 public:
-    void activateRenderLoop(bool on);
+    // void activateRenderLoop(bool on);
 
   /* public: */
   /*   wxFrame *frame; */
@@ -77,7 +90,27 @@ public:
     void load_tabor_button_action( wxCommandEvent &event );
     void reset_button_action( wxCommandEvent &event );
 
+    void init_tabor_text_ctrls();
+    void init_tdc_labels();
+    void init_output_controls();
+    
+    void update_tdc_labels();
+    void update_tdc_state_label();
+
+    wxTextCtrl *tabor_text_ctrls[ NUM_TABOR_SETTINGS ];
     Heatmap *heatmap;
+
+    // tdc information
+    wxStaticText *tdc_state_label;
+    wxStaticText *tdc_success_counts;
+    wxStaticText *tdc_success_rate;
+    wxStaticText *tdc_fail_counts;
+
+    // output
+    wxDirPickerCtrl *output_dir_picker;
+    wxTextCtrl *project_name_text_ctrl;
+    wxTextCtrl *description_text_ctrl;
+    
 
     DECLARE_EVENT_TABLE()
 };
@@ -99,9 +132,9 @@ enum
 
 class RenderTimer : public wxTimer
 {
-    Heatmap *heatmap;
+    MainFrame *frame;
 public:
-    RenderTimer( Heatmap* pane);
+    RenderTimer( MainFrame *frame );
     void Notify();
     void start();
 };
@@ -121,41 +154,57 @@ public:
 
 
 
-struct TaborTextCtrls
-{
-    wxTextCtrl *nsteps; //  1 or 2 = wminus only, 3 or 4 = wminus + wplus, 5 = everything
+/* struct TaborCtrls */
+/* { */
+/*     /\* enum *\/ */
+/*     /\* { *\/ */
+/*     /\* 	NSTEPS_ID = wxID_MAX + 100, *\/ */
+/*     /\* 	WMINUS_ID, *\/ */
+/*     /\* 	WPLUS_ID, *\/ */
+/*     /\* 	WC_ID, *\/ */
+/*     /\* 	WMINUS_PHASE_ID, *\/ */
+/*     /\* 	WPLUS_PHASE_ID, *\/ */
+/*     /\* 	WC_PHASE_ID, *\/ */
+/*     /\* 	WMINUS_AMP_ID, *\/ */
+/*     /\* 	WPLUS_AMP_ID, *\/ */
+/*     /\* 	WC_AMP_ID, *\/ */
+/*     /\* 	WMINUS_LOOPS_ID, *\/ */
+/*     /\* 	WPLUS_LOOPS_ID, *\/ */
+/*     /\* 	WC_LOOPS_ID, *\/ */
+/*     /\* 	WMINUS_LENGTH_ID, *\/ */
+/*     /\* 	WPLUS_LENGTH_ID, *\/ */
+/*     /\* 	WC_LENGTH_ID, *\/ */
+/*     /\* 	TACC_ID *\/ */
+/*     /\* }; *\/ */
 
-    wxTextCtrl *wminus;
-    double wplus; // 130In //646445.9 135Te// 150Ce 1164702.5; // 1118649.8;// // //133Cs = 656250.0 //142Cs = 614447.6
-// double wc = 657844.5; //130I648038.4 135Te // 150Ce 1166293.3; // 1120240.8;//1797579.0;// 1181999.3;// 1121410.2;// 130In = 672935.5; // 616040.4; // 657844.5;// 133Cs = 657844.5; //// 142Cs = 616040.4
-
-    wxTextCtrl *wminus_phase;// -110.0;// 30.0;
-    wxTextCtrl *wplus_phase;
-    wxTextCtrl *wc_phase;
-
-    wxTextCtrl *wminus_amp;// 0.0035;// 0.003;//0.0045;// 0.0075
-    wxTextCtrl *wplus_amp;//0.22;  //0.11
-    wxTextCtrl *wc_amp;
     
-    wxTextCtrl *wminus_loops; // don't change
-    wxTextCtrl *wplus_loops;// 133Cs = 100;
-    wxTextCtrl *wc_loops;// 212;// 133Cs = 210
+/*     const int num_text_ctrls; */
     
-    wxTextCtrl * wminus_length;// 3 ; // 2
-    wxTextCtrl *wplus_length;
-    wxTextCtrl *wc_length; // don't change
+/*     wxTextCtrl *text_ctrls[ num_text_ctrls ]; */
+
     
-    wxTextCtrl *tacc;// 220040;// 234075; // 60008 18500; // time in us
-};
+/*     char labels[ NUM_TABOR_SETTINGS ][ 64 ]; = */
+/* 	{ "num steps", "wminus", "wplus", */
+/* 	  "wminus_phase", "wplus_phase", "wc_phase", */
+/* 	  "wminus_amp", "wplus_amp", "wc_amp", */
+/* 	  "wminus_loops", "wplus_loops", "wc_loops", */
+/* 	  "wminus_length", "wplus_length", "wc_length", */
+/* 	  "time acc"  */
+/* 	}; */
+    
+/* } tabor_ctrls; */
+
+/* tabor_ctrls.num_text_ctrls = 17; */
+/* tabor_ctrls.labels =  */
 
 
-
-struct TDCDataGui
-{
-    wxStaticText *counts;
-    wxStaticText *count_rate;
-    wxStaticText *filtered_event_counts;
-};
+/* struct TDCDataGui */
+/* { */
+/*     wxStaticText *tdc_state_label; */
+/*     wxStaticText *counts; */
+/*     wxStaticText *count_rate; */
+/*     wxStaticText *filtered_event_counts; */
+/* }; */
 
 
 
@@ -167,6 +216,8 @@ struct ControlButtons
     wxButton *start_pause_toggle_button;
     wxButton *reload_caribu_config_button;
     wxButton *reset_button;
+    
+	
 // wxButton *tmp;
 };
 
@@ -206,15 +257,12 @@ struct ControlButtons
 
 
 
-void initTaborTextCtrls( wxFrame *frame, TaborTextCtrls *tabor_text_ctrls );
-
-void initTDCLabels( wxFrame *frame, TDCDataGui *tdc_data_gui );
 
 
 void initControlButtons( wxFrame *frame, ControlButtons control_buttons ) ;
 
 wxStaticText * make_title( wxFrame *frame, const char *label, int x, int y,
-			   int fontsize, long style = 0 );
+			   int fontsize, long style = 0, bool shift = 0 );
 
 template <size_t size_x, size_t size_y>
 void func( int (&arr)[size_x][size_y]);

@@ -6,6 +6,7 @@
 #define USE_TDC 0
 #define USE_GUI 1
 #define USE_CARIBU 0
+#define USE_TABOR 0
 
 #ifndef _WIN32
 #define USE_TDC  0

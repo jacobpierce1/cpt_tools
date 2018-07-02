@@ -22,6 +22,11 @@ ColorMap::ColorMap( const char *type )
 	memcpy( values, linear_bmw_5_95_c86, 3 * 256 * sizeof( double ) );
 	this->size = 256;
     }
+    else if( strcmp( type, "linear_bmy_10_95_c71" ) == 0 )
+    {
+	memcpy( values, linear_bmy_10_95_c71, 3 * 256 * sizeof( double ) );
+	this->size = 256;
+    }
     else
     {
 	cout << "ERROR: unrecognized colormap name " << endl;
@@ -53,11 +58,6 @@ void ColorMap::apply_colormap( uint8_t buf[3], double v, double vmin, double vma
    dv = vmax - vmin;
 
    int bin = (int) ( 255 * ( v - vmin ) / dv );
-
-   
-   
-   
-   // cout <<   this->size * ( v - vmin ) / dv  << endl;
 	
    buf[0] =  255 * this->values[bin][0] ;
    buf[1] =  255 * this->values[bin][1] ;

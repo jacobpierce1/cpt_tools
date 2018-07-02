@@ -4,21 +4,25 @@
 #include "stdafx.h"
 #endif
 
-#include "global.h" 
 
 #include <iostream>
-#include "gui.h"
-#include <wx/valnum.h>
-#include "tabor.h"
-#include "mathplot.h"
-#include "heatmap.h" 
-#include <wx/wx.h>
-#include <math.h>
 #include <stdlib.h> 
 #include <thread> 
-#include "tdc.h"
-#include <wx/filepicker.h>
+#include <math.h>
 
+#include <wx/valnum.h>
+#include <wx/wx.h>
+#include <wx/filepicker.h>
+#include <wx/bannerwindow.h>
+#include <wx/window.h>
+
+
+#include "global.h" 
+#include "gui.h"
+#include "tabor.h"
+#include "tdc.h"
+#include "mathplot.h"
+#include "heatmap.h" 
 
 
 
@@ -47,19 +51,28 @@ TDC_controller *tdc;
 
 
 
-RenderTimer::RenderTimer( Heatmap *heatmap ) : wxTimer()
+RenderTimer::RenderTimer( MainFrame *frame ) : wxTimer()
 {
-    RenderTimer::heatmap = heatmap;
+    this->frame = frame;
 }
- 
+
+
 void RenderTimer::Notify()
 {
-    int num_data_to_add = tdc->num_processed_data - heatmap->num_data_in_histo;
-    heatmap->update_histo( num_data_to_add );
-    heatmap->update_colorbar_ticks();
-    heatmap->update_bmp();
-    heatmap->Refresh();
+    int num_data_to_add = tdc->num_processed_data - frame->heatmap->num_data_in_histo;
+    bool needs_update = this->frame->heatmap->needs_update;
+    needs_update |= ( num_data_to_add > 0 );
+    
+    if( needs_update )
+    {
+	frame->heatmap->update_histo( num_data_to_add );
+	frame->heatmap->update_colorbar_ticks();
+	frame->heatmap->update_bmp();
+	frame->heatmap->Refresh();
+	frame->update_tdc_labels();
+    }
 }
+
 
 
 void RenderTimer::start()
@@ -95,6 +108,8 @@ wxFrame((wxFrame*)NULL,  -1, title, pos, size)
 void MainFrame::OnExit( wxCommandEvent& event )
 {
     delete tdc;
+    delete this->heatmap;
+    delete tdc_thread;    
     Close(TRUE); // Tells the OS to quit running this process
 }
 
@@ -110,14 +125,21 @@ bool MyApp::OnInit()
     wxInitAllImageHandlers();
 	         
     MainFrame *frame = new MainFrame( "CPT Master Controller",
-				    wxDefaultPosition,
-				    wxSize( FRAME_WIDTH, FRAME_HEIGHT  ) );
+				      wxDefaultPosition,
+				      wxSize( FRAME_WIDTH, FRAME_HEIGHT  ) );
 
+// Create and initialize the banner.
+    wxBannerWindow* banner = new wxBannerWindow( frame, wxUP);
+    banner->SetText( "Phase Imaging Master Controller", "" );
+    // And position it along the left edge of the window.
+    wxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+    sizer->Add(banner, wxSizerFlags().Expand());
+    frame->SetSizer(sizer);
+    
     wxPanel *bmp_panel = new wxPanel( frame, wxID_ANY, 
     				      wxPoint( MCP_PLOT_X_OFFSET, MCP_PLOT_Y_OFFSET ),
 				      wxSize( MCP_PLOT_SIZE + COLORBAR_WIDTH + COLORBAR_OFFSET,
 					      MCP_PLOT_SIZE   ) );
-       
     bmp_panel->Show();
     
     const int dimx = 64;
@@ -130,50 +152,47 @@ bool MyApp::OnInit()
     tdc = new TDC_controller();
 
     int histo_bounds[2][2] = { {-10,10}, {-10,10} };
-
-    cout << "allocating heatmap" << endl;
     
     Heatmap *heatmap = new Heatmap( bmp_panel, tdc->mcp_positions,
 				    dimx, dimy,
 				    dimx_scale, dimy_scale,
-				    histo_bounds, "linear_bmw_5_95_c86" ); 
+				    histo_bounds, "linear_bmy_10_95_c71" ); 
 
+    
     frame->heatmap = heatmap;
     heatmap->update_bmp();
     heatmap->make_colorbar();
-    cout << "reached" << endl;
         
-    make_title( frame, "CPT Master Controller",
-    		FRAME_WIDTH / 2,
-    		MAIN_TITLE_Y_OFFSET,
-    		MAIN_TITLE_FONTSIZE );
+    // make_title( frame, "CPT Master Controller",
+    // 		FRAME_WIDTH / 2,
+    // 		MAIN_TITLE_Y_OFFSET,
+    // 		MAIN_TITLE_FONTSIZE );
 
  
     frame->Show();
 
 
-    RenderTimer *timer = new RenderTimer(heatmap);
+    RenderTimer *timer = new RenderTimer( frame );
     timer->start();
 
     // dispatch tdc data acquisition thread
     tdc_thread = new thread( tdc_thread_main );
 
 
-    TaborTextCtrls tabor_text_ctrls;
-    initTaborTextCtrls( frame, &tabor_text_ctrls ) ;
+    // TaborTextCtrls tabor_text_ctrls;
+    frame->init_tabor_text_ctrls() ;
+    frame->init_tdc_labels() ;
+    frame->init_output_controls();
     
-    TDCDataGui tdc_data_gui;
-    initTDCLabels( frame, &tdc_data_gui ) ;
 
     ControlButtons control_buttons;
     initControlButtons( frame, control_buttons );
         
     make_title( frame, "MCP Hits",
-    		MCP_PLOT_X_OFFSET + MCP_PLOT_SIZE / 2,
+    		MCP_PLOT_X_OFFSET + MCP_PLOT_SIZE / 2 - 75,
     		MCP_PLOT_Y_OFFSET - MCP_PLOT_TITLE_OFFSET,
-    		TITLE_FONTSIZE );
+    		TITLE_FONTSIZE, 0 );
 
-    wxDirPickerCtrl *dir_picker = new wxDirPickerCtrl( frame, wxID_ANY );
 
     
     return true;
@@ -181,30 +200,30 @@ bool MyApp::OnInit()
 
 
 
-// test data: gaussian spot 
+// // test data: gaussian spot 
 
-template <size_t size_x, size_t size_y>
-void func(int (&arr)[size_x][size_y])
-{
-    cout << "generating data " << endl;
-    int x_center = rand() % 32;
+// template <size_t size_x, size_t size_y>
+// void func(int (&arr)[size_x][size_y])
+// {
+//     cout << "generating data " << endl;
+//     int x_center = rand() % 32;
     
-    for( int i=0; i < size_x; i++ )
-    {
-	for( int j=0; j < size_y; j++ )
-	{
-	    arr[i][j] = (int) 200 * exp( 0 - pow( x_center - i, 2 ) / 10
-					 - pow( 10 - j, 2 ) / 10 );
-	}
-    }
-}
+//     for( int i=0; i < size_x; i++ )
+//     {
+// 	for( int j=0; j < size_y; j++ )
+// 	{
+// 	    arr[i][j] = (int) 200 * exp( 0 - pow( x_center - i, 2 ) / 10
+// 					 - pow( 10 - j, 2 ) / 10 );
+// 	}
+//     }
+// }
 
 
 
 
 
 wxStaticText * make_title( wxFrame *frame, const char *label, int x, int y,
-			   int fontsize, long style )
+			   int fontsize, long style, bool shift )
 {
     wxPoint title_coords = wxPoint( x,y ) ;
     
@@ -214,15 +233,15 @@ wxStaticText * make_title( wxFrame *frame, const char *label, int x, int y,
     wxFont title_font( fontsize, wxDEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
     title->SetFont( title_font );
 
-
-    int tmpx;
-    int tmpy;
-    title->GetSize( &tmpx, &tmpy );
-
-    wxPoint shift = wxPoint( tmpx / 2, 0 );
+    // if( shift )
+    // {
+    // 	int tmpx;
+    // 	int tmpy;
+    // 	title->GetBestSize( &tmpx, &tmpy );
+    // 	wxPoint shift = wxPoint( tmpx / 2, 0 );
+    // 	title->Move( title->GetPosition() - shift );
+    // }
     
-    title->Move( title->GetPosition() - shift );
-
     return title;
 }
 
@@ -230,91 +249,137 @@ wxStaticText * make_title( wxFrame *frame, const char *label, int x, int y,
 
 
 
-void initTaborTextCtrls( wxFrame *frame, TaborTextCtrls *tabor_text_ctrls )
+
+
+void MainFrame::init_tabor_text_ctrls()
 {
 
-    make_title( frame, "Tabor Settings",
-		( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP ) / 2,
-		TABOR_TEXT_CTRLS_START_YPOS - TABOR_TITLE_OFFSET,
-		20 );
+    make_title( this, "Tabor Settings", TABOR_LABEL_X_OFFSET,
+		TABOR_TEXT_CTRLS_START_YPOS - TABOR_TITLE_OFFSET, 20 );
 
-    // add the labels 
+    // wxPoint textctrl_positions[ NUM_TABOR_SETTINGS ];
 
-    wxPoint textctrl_positions[ NUM_TABOR_SETTINGS ];
-
-    char labels[ NUM_TABOR_SETTINGS ][ 64 ] =
-	{ "num steps", "wminus", "wplus",
+    const char *labels[ NUM_TABOR_SETTINGS + 1 ] =
+	{ "num steps",
+	  "wminus", "wplus", "wc",
 	  "wminus_phase", "wplus_phase", "wc_phase",
 	  "wminus_amp", "wplus_amp", "wc_amp",
 	  "wminus_loops", "wplus_loops", "wc_loops",
 	  "wminus_length", "wplus_length", "wc_length",
 	  "time acc" 
 	};
+
+    const char *default_vals[ NUM_TABOR_SETTINGS + 1 ] =
+	{
+	    "1",
+	    "2", "3", "4",
+	    "5", "6", "7",
+	    "8", "9", "10",
+	    "11", "12", "13",
+	    "14", "15", "16",
+	    "17"
+	};
+
+    // 0->int, 1->double
+    const int validator_types[ NUM_TABOR_SETTINGS + 1 ] =
+	{
+	    0,
+	    1, 1, 1,
+	    1, 1, 1,
+	    1, 1, 1,
+	    0, 0, 0,
+	    1, 1, 1,
+	    1
+	};
+
+    const double upper_bounds[ NUM_TABOR_SETTINGS + 1 ] =
+	{
+	    100,
+	    1e8, 1e8, 1e8,
+	    360, 360, 360,
+	    100, 100, 100,
+	    100, 100, 100,
+	    100, 100, 100,
+	    100
+	};
     
     for( int i = 0; i < NUM_TABOR_SETTINGS; i++ )
     {
-	textctrl_positions[i] = wxPoint( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP,
-					 TABOR_TEXT_CTRLS_START_YPOS
-					 + i * TABOR_TEXT_CTRLS_YPOS_DELTA ) ;
-
+	wxPoint text_ctrl_position = wxPoint( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP,
+					      TABOR_TEXT_CTRLS_START_YPOS
+					      + (i+1) * TABOR_TEXT_CTRLS_YPOS_DELTA ) ;
+	
 	wxPoint label_position = wxPoint( TABOR_LABEL_X_OFFSET,
 					  TABOR_TEXT_CTRLS_START_YPOS
-					  + i * TABOR_TEXT_CTRLS_YPOS_DELTA ) ;
+					  + (i+1) * TABOR_TEXT_CTRLS_YPOS_DELTA ) ;
 	
-	new wxStaticText( frame, 0, labels[i], label_position ) ;
+	new wxStaticText( this, 0, labels[i], label_position ) ;
 
+	if( validator_types[i] == 0 )
+	{	    
+	    wxIntegerValidator<signed char> int_validator;
+	    int_validator.SetRange( 0, upper_bounds[i] );
+	    this->tabor_text_ctrls[i] = new wxTextCtrl( this, 0, default_vals[i], text_ctrl_position,
+							wxDefaultSize, 0, int_validator );
+
+	}
+	else
+	{
+	    wxFloatingPointValidator<signed char> int_validator;
+	    int_validator.SetRange( 0, upper_bounds[i] );
+	    this->tabor_text_ctrls[i] = new wxTextCtrl( this, 0, default_vals[i], text_ctrl_position,
+							wxDefaultSize, 0, int_validator );
+	}
     }
 
 
-    // now add all text controls 
+    // // now add all text controls 
 
-    TaborSettings default_tabor_settings;
-
-    wxIntegerValidator<signed char> nsteps_validator;
-    nsteps_validator.SetRange(1, 10);
-
-    string default_nsteps = to_string( default_tabor_settings.nsteps );
-    tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0,
-						default_nsteps.c_str(), 
-						textctrl_positions[0],
-						wxDefaultSize, 0,
-						nsteps_validator ) ;
-
-    string default_wminus = to_string( default_tabor_settings.wminus );
-    tabor_text_ctrls->wminus = new wxTextCtrl(  frame, 0, default_wminus.c_str(),
-						textctrl_positions[1],
-						wxDefaultSize, 0,
-						nsteps_validator ) ;
+    // TaborSettings default_tabor_settings;
 
 
-    tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[2],
-						wxDefaultSize, 0,
-						nsteps_validator ) ;
+    // string default_nsteps = to_string( default_tabor_settings.nsteps );
+    // tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0,
+    // 						default_nsteps.c_str(), 
+    // 						textctrl_positions[0],
+    // 						wxDefaultSize, 0,
+    // 						nsteps_validator ) ;
+
+    // string default_wminus = to_string( default_tabor_settings.wminus );
+    // tabor_text_ctrls->wminus = new wxTextCtrl(  frame, 0, default_wminus.c_str(),
+    // 						textctrl_positions[1],
+    // 						wxDefaultSize, 0,
+    // 						nsteps_validator ) ;
 
 
-    tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[3],
-						wxDefaultSize, 0,
-						nsteps_validator ) ;
+    // tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[2],
+    // 						wxDefaultSize, 0,
+    // 						nsteps_validator ) ;
 
 
-    tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[4],
-						wxDefaultSize, 0,
-						nsteps_validator ) ;
+    // tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[3],
+    // 						wxDefaultSize, 0,
+    // 						nsteps_validator ) ;
 
 
-    tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[5],
-						wxDefaultSize, 0,
-						nsteps_validator ) ;
+    // tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[4],
+    // 						wxDefaultSize, 0,
+    // 						nsteps_validator ) ;
 
 
-    tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[6],
-						wxDefaultSize, 0,
-						nsteps_validator ) ;
+    // tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[5],
+    // 						wxDefaultSize, 0,
+    // 						nsteps_validator ) ;
 
 
-    tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[7],
-						wxDefaultSize, 0,
-						nsteps_validator ) ;
+    // tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[6],
+    // 						wxDefaultSize, 0,
+    // 						nsteps_validator ) ;
+
+
+    // tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[7],
+    // 						wxDefaultSize, 0,
+    // 						nsteps_validator ) ;
     
 }
 
@@ -322,29 +387,74 @@ void initTaborTextCtrls( wxFrame *frame, TaborTextCtrls *tabor_text_ctrls )
 
 
 
-void initTDCLabels( wxFrame *frame, TDCDataGui *tdc_data_gui )
+void MainFrame::init_tdc_labels()
 {
     // int xcoord = (int) ( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP ) / 2;
 
     int xcoord = ( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP ) / 2;
     int ycoord = TDC_LABELS_Y_OFFSET + TABOR_TITLE_OFFSET ;
     
-    make_title( frame,  "TDC Info", xcoord, ycoord, TITLE_FONTSIZE );
-    
-    int x1 = TABOR_LABEL_X_OFFSET;
-    int x2 = TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP;
-    int y1 = TDC_LABELS_Y_OFFSET + 2 * TABOR_TITLE_OFFSET;
-    int y2 = TDC_LABELS_Y_OFFSET + 2 * TABOR_TITLE_OFFSET
-	+ TABOR_TEXT_CTRLS_YPOS_DELTA;
+    make_title( this,  "TDC Info", xcoord, ycoord - TDC_TITLE_OFFSET, TITLE_FONTSIZE );
 
-    new wxStaticText( frame, 0, "Counts", wxPoint( x1, y1 ) );
-    new wxStaticText( frame, 0, "Count Rate", wxPoint( x1, y2 ) );
+    const int x_label = TABOR_LABEL_X_OFFSET;
+    const int x_data = TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP;
     
-    tdc_data_gui->counts = new wxStaticText( frame, 0, "0", wxPoint( x2, y1 ) );
-    tdc_data_gui->count_rate = new wxStaticText( frame, 0, "0", wxPoint( x2, y2 ) );
+    int y = TDC_LABELS_Y_OFFSET + 2 * TABOR_TITLE_OFFSET;
+    
+    this->tdc_state_label = new wxStaticText( this, 0, "", wxPoint( x_label, y ) );
+    this->update_tdc_state_label();
+    y += TDC_LABELS_Y_DELTA;
+    
+    wxStaticText **static_texts[ NUM_TDC_LABELS + 1 ] =
+	{
+	    &( this->tdc_success_counts ),
+	    &( this->tdc_success_rate ),
+	    &( this->tdc_fail_counts )
+	};
 
+    const char *labels[ NUM_TDC_LABELS + 1 ] =
+	{
+	    "Counts",
+	    "Count Rate (Hz)",
+	    "Invalid Counts"
+	};
+    
+    for( int i=0; i < NUM_TDC_LABELS; i++ )
+    {	
+	new wxStaticText( this, 0, labels[i], wxPoint( x_label, y ) );
+	*(static_texts[i]) = new wxStaticText( this, 0, "", wxPoint( x_data, y ) );
+	y += TDC_LABELS_Y_DELTA;
+    }
 }
 
+
+
+
+void MainFrame::init_output_controls()
+{
+    
+    const int x = OUTPUT_CONTROLS_X ; 
+    int y = OUTPUT_CONTROLS_Y;
+    
+    make_title( this, "Output", x, y, 20 );
+    y += OUTPUT_CONTROLS_SEP;
+    
+    this->output_dir_picker = new wxDirPickerCtrl( this, wxID_ANY, "output_dir",
+						   "Choose Directory for Data Output",
+						   wxPoint( x, y ),
+						   wxDefaultSize );
+
+    y += OUTPUT_CONTROLS_SEP;
+
+    this->project_name_text_ctrl = new wxTextCtrl( this, wxID_ANY, "project_name",
+						   wxPoint( x, y ), wxDefaultSize );
+    y += OUTPUT_CONTROLS_SEP;
+    
+    this->description_text_ctrl = new wxTextCtrl( this, wxID_ANY, "Name: \nDate: \nIsobar: \nNotes: ",
+						  wxPoint( x, y ), wxSize( 300, 140 ),
+						  wxTE_MULTILINE );
+
+}
 
 
 
@@ -370,28 +480,54 @@ void initControlButtons( wxFrame *frame, ControlButtons control_buttons )
 
     const int num_buttons = 5;
 
-    char button_labels[ num_buttons ][ 64 ] = {
-	"Save", "Save and Run Next", "Pause", "Load Tabor", "Reset" };
-
-    int button_ids[ num_buttons ] = { SAVE_BUTTON_ID,
-				      SAVE_AND_RUN_NEXT_BUTTON_ID,
-				      START_PAUSE_TOGGLE_BUTTON_ID,
-				      LOAD_TABOR_BUTTON_ID,
-				      RESET_BUTTON_ID };
-        
-    const int xoffset = CONTROL_BUTTONS_X_START ;
-
+    char button_labels[ num_buttons ][ 64 ] =
+	{
+	    "Save",
+	    "Save and Run Next",
+	    "Pause",
+	    "Load Tabor",
+	    "Reset"
+	};
+    
+    int button_ids[ num_buttons ] =
+	{
+	    SAVE_BUTTON_ID,
+	    SAVE_AND_RUN_NEXT_BUTTON_ID,
+	    START_PAUSE_TOGGLE_BUTTON_ID,
+	    LOAD_TABOR_BUTTON_ID,
+	    RESET_BUTTON_ID
+	};
+    
+    const int x_offset = CONTROL_BUTTONS_X_START ;
     const wxSize size( CONTROL_BUTTONS_WIDTH, CONTROL_BUTTONS_HEIGHT );
+    const wxFont font( wxFontInfo( BUTTON_FONTSIZE ) );
 
+    int y_offset = TABOR_TEXT_CTRLS_START_YPOS;
+
+    
+    make_title( frame,  "Actions", x_offset, y_offset, TITLE_FONTSIZE );
+    
+    y_offset += CONTROL_BUTTONS_Y_DELTA;
+    
+    //wxBoxSizer *sizer = new wxBoxSizer( wxVERTICAL );
+    
     for( int i=0; i<num_buttons; i++ )
     {
-	const int yoffset = TABOR_TEXT_CTRLS_START_YPOS +
-	    i * CONTROL_BUTTONS_Y_DELTA;
-
-	wxPoint pos( xoffset, yoffset );
+	wxPoint pos( x_offset, y_offset );
     
-	new wxButton( frame, button_ids[i], button_labels[i], pos, size );
-    		  
+	wxButton *button = new wxButton( frame, button_ids[i], button_labels[i], pos ); //, size );
+	//button->SetFont( font );
+
+	// sizer->Add( button );
+
+	y_offset += CONTROL_BUTTONS_Y_DELTA;
+	 
+	// //const wxSize size = button->GetBestSize ();
+// 	// button->SetSize( size );
+// 	wxSizer* sizer = new wxBoxSizer( wxHORIZONTAL );
+// 	sizer->Add( button, 1, wxEXPAND, 0 );
+// //	sizer->SetAutoLayout(true);
+// 	frame->SetSizer(sizer);
     }
 }
 
@@ -416,21 +552,69 @@ void MainFrame::save_and_run_next_button_action( wxCommandEvent &event )
 
 void MainFrame::start_pause_toggle_button_action( wxCommandEvent &event )
 {
-    cout << "test" << endl;
+    if( tdc->collecting_data )
+    {
+	tdc->pause();
+	// wxFont title_font( fontsize, wxDEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+	//title->SetFont( title_font );
+	//this->tdc_state_label->SetFont( 
+    }
+    else
+	tdc->resume();
+
+    this->update_tdc_state_label();
 }
+
+
+
+
+
+void MainFrame::update_tdc_labels()
+{
+    tdc_success_counts->SetLabel( to_string( tdc->num_processed_data ) );
+    //tdc_success_rate.SetLabel( 
+}
+
+
+
+
+
+void MainFrame::update_tdc_state_label()
+{
+    if( tdc->collecting_data )
+    {
+	this->tdc_state_label->SetLabel( "Collecting Data" );
+	this->tdc_state_label->SetForegroundColour( wxColour( 0, 200,0 ));
+    }
+    else
+    {
+	this->tdc_state_label->SetLabel( "Data Collection Paused" );
+	this->tdc_state_label->SetForegroundColour( wxColour( 255, 0,0 ));
+    }
+}
+
+
+
 
 
 void MainFrame::load_tabor_button_action( wxCommandEvent &event )
 {
     cout << "test" << endl;
+    //load_tabor();
 }
+
+
+
+
 
 
 void MainFrame::reset_button_action( wxCommandEvent &event )
 {
     cout << "INFO: clearing plots." << endl;
     this->heatmap->reset();
+    tdc->reset();
     cout << "current_max:  " << heatmap->current_max << endl;
+    this->heatmap->needs_update = 1;
     this->heatmap->paintNow();
 }
 
