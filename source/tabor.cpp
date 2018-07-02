@@ -140,7 +140,7 @@ int load_tabor( TaborSettings settings )
 
     double wminus = settings.wminus;
     double wplus = settings.wplus; 
-    double wmins = settings.wminus;
+    double wc = settings.wc;
 
     double wminus_phase = settings.wminus_phase;
     double wplus_phase = settings.wplus_phase;

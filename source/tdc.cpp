@@ -70,6 +70,7 @@ TDC_controller::TDC_controller()
 
 
 
+
 TDC_controller::~TDC_controller()
 {
 #if USE_TDC
@@ -79,6 +80,7 @@ TDC_controller::~TDC_controller()
     this->infile.close();
 #endif
 }
+
 
 
 int TDC_controller::read()
@@ -146,17 +148,17 @@ double TDC_controller::process_hit( HIT hit, int *channel, long long *time )
 
     bitset<32> bits = bitset<32>( hit );
 	
-    cout << bits << endl;
+    // cout << bits << endl;
 	
     if( bits[31] && bits[30] )
     {
-	cout << "rising" << endl;
-	edge = 0;
+	// cout << "rising" << endl;
+	// edge = 0;
     }
     else if( bits[31] && ! bits[30] )
     {
-	cout << "falling" << endl;
-	edge = 1;
+	// cout << "falling" << endl;
+	// edge = 1;
     }
     else if( (! bits[31] ) && bits[30] )
     {
@@ -200,7 +202,6 @@ int TDC_controller::process_hit_buffer()
     if( ! collecting_data )
 	return 0;
     
-    cout << "calling process_hit_buffer()" << endl;
     
     long long times[ TDC_HIT_BUFFER_SIZE ];
 
@@ -233,7 +234,7 @@ int TDC_controller::process_hit_buffer()
 	getline( this->infile, tmp_str );
 	times[i] = stoll( tmp_str );
 	channels[i] = tmp_channels[i];
-	cout << times[i] << endl;
+	// cout << times[i] << endl;
     }
 #endif
 
@@ -243,23 +244,23 @@ int TDC_controller::process_hit_buffer()
     int num_data_added = 0;
     int channel_map[9] = { 0, 1, 2, 3, -1, -1, 4, 5, -1 };
     
-    cout << "entering processing loop" << endl;
+    // cout << "entering processing loop" << endl;
     
     for( int hit_idx = 0; hit_idx < this->num_data_in_hit_buffer; )
     {	
-	cout << "hit_idx: " << hit_idx << endl;
+	// cout << "hit_idx: " << hit_idx << endl;
     
 	memset( &valid_channel_indices_set, 0, 6 * sizeof(int) );
 	
 	// find next trigger channel
 	while( hit_idx < this->num_data_in_hit_buffer )
 	{
-	    cout << "searching for trigger_channel... " << channels[ hit_idx ] << endl;
+	    // cout << "searching for trigger_channel... " << channels[ hit_idx ] << endl;
 	    if( channels[ hit_idx ] == TRIGGER_CHANNEL )
 	    {
 		// intentionally don't increment hit_idx before breaking
 		// so that the trigger channel is processed in the next loop
-		cout << "found trigger on idx " << hit_idx << endl;
+		// cout << "found trigger on idx " << hit_idx << endl;
 		break; 
 	    }
 	    hit_idx++;
@@ -274,11 +275,11 @@ int TDC_controller::process_hit_buffer()
 
 	while( hit_idx < this->num_data_in_hit_buffer && valid_data )
 	{
-	    cout << "found trigger. hit_idx: " << hit_idx << endl; 
+	    // cout << "found trigger. hit_idx: " << hit_idx << endl; 
 	    int channel = channels[ hit_idx ];
 	    int idx = channel_map[ channel ];
 
-	    cout << "channel / idx: " << channel << " "  << idx << endl;
+	    // cout << "channel / idx: " << channel << " "  << idx << endl;
 
 	    if( valid_channel_indices_set[ idx ] )
 	    {
@@ -296,7 +297,7 @@ int TDC_controller::process_hit_buffer()
 	// verify that all channels were detected
 	for( int i = 0; i<6; i++ )
 	{
-	    cout << "valid_channel_indices_set[i]" << i << " " << valid_channel_indices_set[ i ] << endl;
+	    // cout << "valid_channel_indices_set[i]" << i << " " << valid_channel_indices_set[ i ] << endl;
 	    valid_data &= valid_channel_indices_set[ i ];
 	}
 
@@ -305,7 +306,6 @@ int TDC_controller::process_hit_buffer()
 	    cout << "not all channels were set" << endl;
 	}
 	else{
-	    cout << "adding valid data" << endl;
 	    int data_idx = this->num_processed_data;
 
 	    long long x1 = valid_times[0];
@@ -320,8 +320,7 @@ int TDC_controller::process_hit_buffer()
 
 	    ++( this->num_processed_data );
 	}
-	cout << "end of loop hit_idx: " << hit_idx << endl;
-	
+		
     }
     
     this->num_data_in_hit_buffer = 0;
@@ -339,10 +338,40 @@ void TDC_controller::reset_buffers()
 
 
 
-int TDC_controller::write_data( const char *path )
+int TDC_controller::write_data( string dir_path, string session_key )
 {
-    cout << "writing data" << endl;
-    return 1;
+    ofstream channel_file;
+    channel_file.open( dir_path + "/" + session_key + "_channels.bin",
+		       ios::out | ios::binary );
+    channel_file.write( (char *) channels, sizeof(uint8_t) * num_processed_data );
+    channel_file.close();
+
+    ofstream times_file;
+    times_file.open( dir_path + "/" + session_key + "_times.bin",
+		     ios::out | ios::binary );
+    times_file.write( (char *) channel_times, sizeof(long long) * 6 * num_processed_data );
+    times_file.close();
+
+    ofstream tof_file;
+    tof_file.open( dir_path + "/" + session_key + "_tof.txt", ios::out );
+    // tof_file.write( (char *) tof, sizeof(double) * num_processed_data );
+    for( int i=0; i < num_processed_data; i++ )
+    {
+	tof_file << tof[i] << endl;
+    }
+    tof_file.close();
+    
+    ofstream mcp_positions_file;
+    mcp_positions_file.open( dir_path + "/" + session_key + "_mcp_positions.txt", ios::out );
+    // mcp_positions_file.write( (char *) mcp_positions,
+    // 			      sizeof(double) * 2 * num_processed_data );
+    for( int i=0; i < num_processed_data; i++ )
+    {
+	mcp_positions_file << mcp_positions[i][0] << " " << mcp_positions[i][1] << endl;
+    }
+    mcp_positions_file.close();
+
+    return num_processed_data;
 }
 
 
@@ -357,20 +386,13 @@ int TDC_controller::compute_tof_and_mcp_pos( double mcp_pos[2], double *tofptr,
     double kx = 1.29;
     double ky = 1.31;
 
-    cout << "computing tof and mcp pos: " << x1 << " " << x2 << " " << y1 << " " << y1 << " " << endl;
     // double center_x = -1.6;
     // double center_y = 3.0;
-
-    // double x = 0.5 * kx * (TDC[0] - TDC[1]) * 0.001;
-    // double y = 0.5 * ky * (TDC[2] - TDC[3]) * 0.001; 
-    // double tof = TDC[4] * 0.001;
     
     mcp_pos[0] = 0.5 * kx * ( x1 - x2 ) * 0.001;
     mcp_pos[1] = 0.5 * ky * ( y1 - y2 ) * 0.001;
     *tofptr = t * 0.001;
 
-    cout << "mcp_pos[0]: " << mcp_pos[0] << endl;
-    cout << "mcp_pos[1]: " << mcp_pos[1] << endl;
     // timeStamp = eventTimeStamp * (1.0e-12);
 	
     return 0 ;
@@ -391,8 +413,6 @@ void TDC_controller::reset()
 
 
 
-// void TDC_controller
-
 
 
 
@@ -400,13 +420,17 @@ void TDC_controller::reset()
 void print_all_params(C_TDC* c_tdc)
 {
     const int num_params = 23;
-    char *all_params[num_params] = { "RisingEnable", "FallingEnable", "TriggerEdge",
-				     "TriggerChannel", "OutputLevel", "GroupingEnable",
-				     "AllowOverlap", "TriggerDeadTime",
-				     "GroupRangeStart", "GroupRangeEnd", "ExternalClock", "OutputRollovers", "VHR", "UseFineINL",
-				     "GroupTimeout", "BufferSize", "DllTapAdjust:0", "DelayTap:0", "INL:0", "UseClock80",
-				     "MMXEnable", "DMAEnable", "SSEEnable" };
-
+    char *all_params[num_params] =
+	{ "RisingEnable", "FallingEnable", "TriggerEdge",
+	  "TriggerChannel", "OutputLevel", "GroupingEnable",
+	  "AllowOverlap", "TriggerDeadTime",
+	  "GroupRangeStart", "GroupRangeEnd", "ExternalClock",
+	  "OutputRollovers", "VHR", "UseFineINL",
+	  "GroupTimeout", "BufferSize", "DllTapAdjust:0",
+	  "DelayTap:0", "INL:0", "UseClock80",
+	  "MMXEnable", "DMAEnable", "SSEEnable"
+	};
+    
     char buf[256];
 
     for (int i = 0; i < num_params; i++)

@@ -9,12 +9,16 @@
 #include <stdlib.h> 
 #include <thread> 
 #include <math.h>
+#include <limits.h>
+#include <ctime>
 
 #include <wx/valnum.h>
 #include <wx/wx.h>
 #include <wx/filepicker.h>
 #include <wx/bannerwindow.h>
 #include <wx/window.h>
+#include <wx/tooltip.h>
+
 
 
 #include "global.h" 
@@ -33,7 +37,6 @@ using namespace std;
 #define SLEEP_TIME_MS 1000
 
 
-void test( wxCommandEvent &event );
 
 
 BEGIN_EVENT_TABLE(Heatmap, wxPanel)
@@ -136,11 +139,14 @@ bool MyApp::OnInit()
     sizer->Add(banner, wxSizerFlags().Expand());
     frame->SetSizer(sizer);
     
-    wxPanel *bmp_panel = new wxPanel( frame, wxID_ANY, 
-    				      wxPoint( MCP_PLOT_X_OFFSET, MCP_PLOT_Y_OFFSET ),
-				      wxSize( MCP_PLOT_SIZE + COLORBAR_WIDTH + COLORBAR_OFFSET,
-					      MCP_PLOT_SIZE   ) );
-    bmp_panel->Show();
+    frame->heatmap_panel = new wxPanel( frame, wxID_ANY, 
+					wxPoint( MCP_PLOT_X_OFFSET,
+						 MCP_PLOT_Y_OFFSET + TITLE_OFFSET ),
+					wxSize( 1000, 1000 ) );
+    // wxSize( MCP_PLOT_SIZE*2 + COLORBAR_WIDTH
+    // 	+ COLORBAR_OFFSET,
+    // 	MCP_PLOT_SIZE   ) );
+    frame->heatmap_panel->Show();
     
     const int dimx = 64;
     const int dimy = 64;
@@ -153,7 +159,7 @@ bool MyApp::OnInit()
 
     int histo_bounds[2][2] = { {-10,10}, {-10,10} };
     
-    Heatmap *heatmap = new Heatmap( bmp_panel, tdc->mcp_positions,
+    Heatmap *heatmap = new Heatmap( frame->heatmap_panel, tdc->mcp_positions,
 				    dimx, dimy,
 				    dimx_scale, dimy_scale,
 				    histo_bounds, "linear_bmy_10_95_c71" ); 
@@ -190,10 +196,8 @@ bool MyApp::OnInit()
         
     make_title( frame, "MCP Hits",
     		MCP_PLOT_X_OFFSET + MCP_PLOT_SIZE / 2 - 75,
-    		MCP_PLOT_Y_OFFSET - MCP_PLOT_TITLE_OFFSET,
+    		MCP_PLOT_Y_OFFSET - TITLE_OFFSET,
     		TITLE_FONTSIZE, 0 );
-
-
     
     return true;
 }
@@ -331,55 +335,6 @@ void MainFrame::init_tabor_text_ctrls()
 							wxDefaultSize, 0, int_validator );
 	}
     }
-
-
-    // // now add all text controls 
-
-    // TaborSettings default_tabor_settings;
-
-
-    // string default_nsteps = to_string( default_tabor_settings.nsteps );
-    // tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0,
-    // 						default_nsteps.c_str(), 
-    // 						textctrl_positions[0],
-    // 						wxDefaultSize, 0,
-    // 						nsteps_validator ) ;
-
-    // string default_wminus = to_string( default_tabor_settings.wminus );
-    // tabor_text_ctrls->wminus = new wxTextCtrl(  frame, 0, default_wminus.c_str(),
-    // 						textctrl_positions[1],
-    // 						wxDefaultSize, 0,
-    // 						nsteps_validator ) ;
-
-
-    // tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[2],
-    // 						wxDefaultSize, 0,
-    // 						nsteps_validator ) ;
-
-
-    // tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[3],
-    // 						wxDefaultSize, 0,
-    // 						nsteps_validator ) ;
-
-
-    // tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[4],
-    // 						wxDefaultSize, 0,
-    // 						nsteps_validator ) ;
-
-
-    // tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[5],
-    // 						wxDefaultSize, 0,
-    // 						nsteps_validator ) ;
-
-
-    // tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[6],
-    // 						wxDefaultSize, 0,
-    // 						nsteps_validator ) ;
-
-
-    // tabor_text_ctrls->nsteps = new wxTextCtrl(  frame, 0, wxT("5"), textctrl_positions[7],
-    // 						wxDefaultSize, 0,
-    // 						nsteps_validator ) ;
     
 }
 
@@ -391,7 +346,7 @@ void MainFrame::init_tdc_labels()
 {
     // int xcoord = (int) ( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP ) / 2;
 
-    int xcoord = ( TABOR_LABEL_X_OFFSET + TABOR_TEXT_CTRLS_LABEL_SEP ) / 2;
+    int xcoord = TABOR_LABEL_X_OFFSET;
     int ycoord = TDC_LABELS_Y_OFFSET + TABOR_TITLE_OFFSET ;
     
     make_title( this,  "TDC Info", xcoord, ycoord - TDC_TITLE_OFFSET, TITLE_FONTSIZE );
@@ -438,22 +393,44 @@ void MainFrame::init_output_controls()
     
     make_title( this, "Output", x, y, 20 );
     y += OUTPUT_CONTROLS_SEP;
+
+    char abs_path[ PATH_MAX + 1 ];
+    get_abs_path( "../output/", abs_path );
+    //cout << abs_path << endl;
     
-    this->output_dir_picker = new wxDirPickerCtrl( this, wxID_ANY, "output_dir",
+    this->output_dir_picker = new wxDirPickerCtrl( this, wxID_ANY, wxString( abs_path ) + "/",
 						   "Choose Directory for Data Output",
 						   wxPoint( x, y ),
 						   wxDefaultSize );
-
+    wxToolTip *tooltip = new wxToolTip( "output directory" );
+    output_dir_picker->SetToolTip( tooltip );
     y += OUTPUT_CONTROLS_SEP;
 
-    this->project_name_text_ctrl = new wxTextCtrl( this, wxID_ANY, "project_name",
-						   wxPoint( x, y ), wxDefaultSize );
+    this->session_name_text_ctrl = new wxTextCtrl( this, wxID_ANY, "133Cs",
+						   wxPoint( x, y ), wxSize( 100, 20 ) );
+    
+    tooltip = new wxToolTip( "Session Name" );
+    session_name_text_ctrl->SetToolTip( tooltip );
+    y += OUTPUT_CONTROLS_SEP;
+
+    this->data_description_text_ctrl = new wxTextCtrl( this, wxID_ANY, "",
+						       wxPoint( x, y ), wxSize( 100, 20 ) );
+    
+    tooltip = new wxToolTip( "Data Description" );
+    data_description_text_ctrl->SetToolTip( tooltip );
+    y += OUTPUT_CONTROLS_SEP;
+
+    this->time_in_trap_text_ctrl = new wxTextCtrl( this, wxID_ANY, "260ms",
+						       wxPoint( x, y ), wxSize( 100, 20 ) );
+    
+    tooltip = new wxToolTip( "Time in Trap" );
+    time_in_trap_text_ctrl->SetToolTip( tooltip );
     y += OUTPUT_CONTROLS_SEP;
     
-    this->description_text_ctrl = new wxTextCtrl( this, wxID_ANY, "Name: \nDate: \nIsobar: \nNotes: ",
+    this->description_text_ctrl = new wxTextCtrl( this, wxID_ANY,
+						  "Name: \nDate: \nIsobar: \nNotes: ",
 						  wxPoint( x, y ), wxSize( 300, 140 ),
 						  wxTE_MULTILINE );
-
 }
 
 
@@ -463,7 +440,6 @@ void tdc_thread_main()
     // tdc.start();
     while(1)
     {
-	cout << "reading tdc data" << endl;	
 	mySleep( SLEEP_TIME_MS );
 	tdc->read();
 	tdc->process_hit_buffer();
@@ -505,7 +481,7 @@ void initControlButtons( wxFrame *frame, ControlButtons control_buttons )
     int y_offset = TABOR_TEXT_CTRLS_START_YPOS;
 
     
-    make_title( frame,  "Actions", x_offset, y_offset, TITLE_FONTSIZE );
+    make_title( frame,  "Actions", x_offset, y_offset - TITLE_OFFSET, TITLE_FONTSIZE );
     
     y_offset += CONTROL_BUTTONS_Y_DELTA;
     
@@ -540,14 +516,50 @@ void initControlButtons( wxFrame *frame, ControlButtons control_buttons )
 
 void MainFrame::save_button_action( wxCommandEvent &event )
 {
-    cout << "test" << endl;
+    TaborSettings tabor_settings = this->read_tabor_settings();
+    
+    string dir_path = this->output_dir_picker->GetPath().ToStdString();
+    string session_name = this->session_name_text_ctrl->GetValue().ToStdString();
+    string data_description = this->data_description_text_ctrl->GetValue().ToStdString();
+    string description = this->description_text_ctrl->GetValue().ToStdString();
+    string time_in_trap = this->time_in_trap_text_ctrl->GetValue().ToStdString();
+    
+    string tacc;
+    if( tabor_settings.tacc == 0 )
+	tacc = string( "ref" );
+    else
+	tacc = to_string( tabor_settings.tacc );
+
+    time_t current_time = time(0);
+    char timebuf[128];
+    strftime( timebuf, 128, "%Y-%m-%d", localtime( & current_time ) );
+    string date_str = string( timebuf );
+        
+    string session_key = session_name + "_" + tacc + "mswc_" + date_str
+	+ "_" + time_in_trap;
+
+    if( ! data_description.empty() )
+	session_key += "_" + data_description;
+    
+    ofstream description_file;
+    description_file.open( dir_path + "/description.txt", ios::out );
+    description_file << description;
+    description_file.close();
+    
+    tdc->write_data( dir_path, session_key );
+        
+    string plot_path = dir_path + "/" + session_key + "_plot.jpg" ;    
+    this->save_screenshot( plot_path );
 }
+
 
 
 void MainFrame::save_and_run_next_button_action( wxCommandEvent &event )
 {
     cout << "test" << endl;
 }
+
+
 
 
 void MainFrame::start_pause_toggle_button_action( wxCommandEvent &event )
@@ -596,7 +608,6 @@ void MainFrame::update_tdc_state_label()
 
 
 
-
 void MainFrame::load_tabor_button_action( wxCommandEvent &event )
 {
     cout << "test" << endl;
@@ -621,6 +632,77 @@ void MainFrame::reset_button_action( wxCommandEvent &event )
 
 
 
+
+void get_abs_path( const char *rel_path, char buf[] )
+{
+    // char buf[ PATH_MAX + 1 ];
+#ifdef _WIN32
+    GetFullPathName( rel_path, MAX_PATH, buf, NULL );
+#else
+    realpath( rel_path, buf );
+#endif
+}
+
+
+
+
+void MainFrame::save_screenshot( string path )
+{    
+    wxWindowDC dcScreen( this->heatmap_panel );
+
+    wxCoord screenWidth, screenHeight;
+    this->heatmap_panel->GetSize( &screenWidth, &screenHeight );
+
+    wxBitmap screenshot(screenWidth, screenHeight,-1);
+
+    wxMemoryDC memDC;
+    memDC.SelectObject(screenshot);
+    memDC.Blit( 0, //Copy to this X coordinate
+		0, //Copy to this Y coordinate
+		screenWidth, //Copy this width
+		screenHeight, //Copy this height
+		&dcScreen, //From where do we copy?
+		0, //What's the X offset in the original DC?
+		0  //What's the Y offset in the original DC?
+	);
+
+    memDC.SelectObject( wxNullBitmap );
+    screenshot.SaveFile( path, wxBITMAP_TYPE_JPEG );
+}
+
+
+
+
+TaborSettings MainFrame::read_tabor_settings()
+{
+    TaborSettings settings;
+
+    settings.nsteps = atoi( this->tabor_text_ctrls[ NSTEPS_IDX ]->GetValue() );
+
+    settings.wminus = atoi( this->tabor_text_ctrls[ WMINUS_IDX ]->GetValue() );
+    settings.wplus = atoi( this->tabor_text_ctrls[ WPLUS_IDX ]->GetValue() );
+    settings.wc = atoi( this->tabor_text_ctrls[ WC_IDX ]->GetValue() );
+
+    settings.wminus_phase = atoi( this->tabor_text_ctrls[ WMINUS_PHASE_IDX ]->GetValue() );
+    settings.wplus_phase = atoi( this->tabor_text_ctrls[ WPLUS_PHASE_IDX ]->GetValue() );
+    settings.wc_phase = atoi( this->tabor_text_ctrls[ WC_PHASE_IDX ]->GetValue() );
+
+    settings.wminus_amp = atoi( this->tabor_text_ctrls[ WMINUS_AMP_IDX ]->GetValue() );
+    settings.wplus_amp = atoi( this->tabor_text_ctrls[ WPLUS_AMP_IDX ]->GetValue() );
+    settings.wc_amp = atoi( this->tabor_text_ctrls[ WC_AMP_IDX ]->GetValue() );
+
+    settings.wminus_loops = atoi( this->tabor_text_ctrls[ WMINUS_LOOPS_IDX ]->GetValue() );
+    settings.wplus_loops = atoi( this->tabor_text_ctrls[ WPLUS_LOOPS_IDX ]->GetValue() );
+    settings.wc_loops = atoi( this->tabor_text_ctrls[ WC_LOOPS_IDX ]->GetValue() );
+
+    settings.wminus_length = atoi( this->tabor_text_ctrls[ WMINUS_LENGTH_IDX ]->GetValue() );
+    settings.wplus_length = atoi( this->tabor_text_ctrls[ WPLUS_LENGTH_IDX ]->GetValue() );
+    settings.wc_length = atoi( this->tabor_text_ctrls[ WC_LENGTH_IDX ]->GetValue() );
+
+    settings.tacc = atoi( this->tabor_text_ctrls[ TACC_IDX ]->GetValue() );
+    
+    return settings;
+}
 
 IMPLEMENT_APP( MyApp )
 

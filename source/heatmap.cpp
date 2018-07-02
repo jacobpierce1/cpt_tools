@@ -103,7 +103,6 @@ Heatmap::~Heatmap()
 
 void Heatmap::refresh( wxSizeEvent & evt )
 {
-    cout << "refresh called" << endl;
     this->Refresh();
     this->Update();
     evt.Skip();
@@ -139,11 +138,9 @@ void Heatmap::paintNow()
  */
 void Heatmap::render( wxDC&  dc)
 {
-    cout << "rendering" << endl;
     dc.DrawBitmap( this->bmp, 0, 0, false );
 
     int colorbar_x = COLORBAR_OFFSET + this->dimx_scale * this->dimx;
-    cout << "colorbar_x: " << colorbar_x << endl;
     dc.DrawBitmap( this->colorbar_bmp, colorbar_x, 0, false );
 }
 
@@ -151,15 +148,13 @@ void Heatmap::render( wxDC&  dc)
 
 // reconstruct the tmp image from this->data
 void Heatmap::update_bmp( )
-{   
-    cout << "updating bmp" << endl;
-    cout << current_max << endl;
-    
+{           
     uint8_t buffer[ dimx * dimx_scale ][ dimy * dimy_scale ][3];
     
     memset( &buffer, 0, dimx * dimx_scale * dimy * dimy_scale * 3 );
 
-    
+
+    // update the histogram portion 
     uint8_t tmp_data[3];
     
     for( int x = 0; x < dimx; ++x)
@@ -183,7 +178,6 @@ void Heatmap::update_bmp( )
 
     wxImage tmp_image( dimx * dimx_scale, dimy * dimy_scale, &buffer[0][0][0], 1 );  
     this->bmp = wxBitmap( tmp_image, 3 );
-    cout << "updated bmp" << endl;
 }
 
 
@@ -225,11 +219,7 @@ void Heatmap::make_colorbar( )
 
 // update the number labels of the colorbar
 void Heatmap::update_colorbar_ticks()
-{
-    cout << "updating colorbar ticks " << endl;
-    cout << current_max << endl;
-    cout << current_min << endl;
-    
+{        
     for( int i=0; i<NUM_TICKS; i++ )
     {
 	int val = round( this->current_min
@@ -246,9 +236,7 @@ void Heatmap::update_colorbar_ticks()
 
 
 void Heatmap::update_histo( int num_data )
-{
-    cout << "calling update_histo" << endl;
-    
+{    
     int bins[2];
     
     for( int i=0; i<num_data; i++ )
@@ -260,12 +248,10 @@ void Heatmap::update_histo( int num_data )
 	for( int j=0; j<2; j++ )
 	{
 	    double current_data = this->data[ data_idx ][j];
-	    cout << "current_data: " << current_data << endl;
-	    
+	    	    
 	    if( current_data < histo_bounds[j][0]
 		or current_data > histo_bounds[j][1] )
 	    {
-		cout << "data outside histo range " << endl;
 		add_data = 0;
 		continue;
 	    }
@@ -287,10 +273,8 @@ void Heatmap::update_histo( int num_data )
 		//++( this->current_min );
 		this->find_new_min();
 	    }
-	    cout << "setting histo" << endl;
 	    int newval = ++( this->histo[ bins[0] ][ bins[1] ] );
-	    cout << "set" << endl;
-	    
+	    	    
 	    if( newval > this->current_max )
 		++( this->current_max );
 	}
@@ -331,7 +315,6 @@ void Heatmap::find_new_min()
 
 void Heatmap::reset()
 {
-    cout << "clearing histo" << endl;
     for( int i=0; i<dimx; i++ )
     {
 	for( int j=0; j<dimy; j++ )
@@ -343,6 +326,12 @@ void Heatmap::reset()
     num_data_in_histo = 0;
     current_max = 0;
     current_min = 0;
+}
+
+
+void Heatmap::save()
+{
+    
 }
 
 // void compute_max( int *arr_start, size_t size, int *max, int *min )

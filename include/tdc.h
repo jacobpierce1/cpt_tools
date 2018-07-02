@@ -10,6 +10,8 @@
 #include <fstream>
 #include <bitset> 
 
+#define TDC_HIT_BUFFER_SIZE  10000
+#define TDC_MAX_COUNTS  100000
 
 #define X1_CHANNEL 0
 #define X2_CHANNEL 1
@@ -66,7 +68,8 @@ public :
 
 	bool collecting_data;
 	
-	HIT hit_buffer[ TDC_HIT_BUFFER_SIZE ]; 
+	HIT hit_buffer[ TDC_HIT_BUFFER_SIZE ];
+	uint8_t channels[ TDC_MAX_COUNTS ];
 	long long channel_times[ TDC_MAX_COUNTS ][6];
 	double tof[ TDC_MAX_COUNTS ]; 
 	double mcp_positions[ TDC_MAX_COUNTS ][2];
@@ -88,7 +91,7 @@ public :
 				     long long y1, long long y2,
 				     long long t );
 	
-	int write_data( const char *path );
+	int write_data( string dir_path, string session_key );
 
 	void reset();
 };

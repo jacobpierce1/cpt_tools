@@ -64,6 +64,7 @@ public :
     wxBitmap colorbar_bmp;
     wxStaticText *colorbar_ticks[ NUM_TICKS ];
 
+    int background_color[3];
 		
     // Heatmap( wxWindow *frame );
 
@@ -79,7 +80,8 @@ public :
     void update_colorbar_ticks();
 
     void reset();
-    
+
+    void save();
     
     // some useful events
     /*
