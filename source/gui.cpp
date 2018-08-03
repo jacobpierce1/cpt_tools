@@ -94,6 +94,7 @@ EVT_BUTTON( SAVE_AND_RUN_NEXT_BUTTON_ID, MainFrame::save_and_run_next_button_act
 EVT_BUTTON( START_PAUSE_TOGGLE_BUTTON_ID, MainFrame::start_pause_toggle_button_action )
 EVT_BUTTON( LOAD_TABOR_BUTTON_ID, MainFrame::load_tabor_button_action )
 EVT_BUTTON( RESET_BUTTON_ID, MainFrame::reset_button_action )
+EVT_BUTTON( LOAD_PYTHON_BUTTON_ID, MainFrame::load_python_button_action )
 END_EVENT_TABLE() 
 
 
@@ -201,26 +202,6 @@ bool MyApp::OnInit()
     
     return true;
 }
-
-
-
-// // test data: gaussian spot 
-
-// template <size_t size_x, size_t size_y>
-// void func(int (&arr)[size_x][size_y])
-// {
-//     cout << "generating data " << endl;
-//     int x_center = rand() % 32;
-    
-//     for( int i=0; i < size_x; i++ )
-//     {
-// 	for( int j=0; j < size_y; j++ )
-// 	{
-// 	    arr[i][j] = (int) 200 * exp( 0 - pow( x_center - i, 2 ) / 10
-// 					 - pow( 10 - j, 2 ) / 10 );
-// 	}
-//     }
-// }
 
 
 
@@ -443,6 +424,8 @@ void tdc_thread_main()
 	mySleep( SLEEP_TIME_MS );
 	tdc->read();
 	tdc->process_hit_buffer();
+	tdc->send_data();
+	// cout << "wrote
     }
 }
 
@@ -454,7 +437,7 @@ void tdc_thread_main()
 void initControlButtons( wxFrame *frame, ControlButtons control_buttons )
 {
 
-    const int num_buttons = 5;
+    const int num_buttons = 6;
 
     char button_labels[ num_buttons ][ 64 ] =
 	{
@@ -462,7 +445,8 @@ void initControlButtons( wxFrame *frame, ControlButtons control_buttons )
 	    "Save and Run Next",
 	    "Pause",
 	    "Load Tabor",
-	    "Reset"
+	    "Reset",
+	    "Load Python"
 	};
     
     int button_ids[ num_buttons ] =
@@ -471,7 +455,8 @@ void initControlButtons( wxFrame *frame, ControlButtons control_buttons )
 	    SAVE_AND_RUN_NEXT_BUTTON_ID,
 	    START_PAUSE_TOGGLE_BUTTON_ID,
 	    LOAD_TABOR_BUTTON_ID,
-	    RESET_BUTTON_ID
+	    RESET_BUTTON_ID,
+	    LOAD_PYTHON_BUTTON_ID
 	};
     
     const int x_offset = CONTROL_BUTTONS_X_START ;
@@ -479,13 +464,27 @@ void initControlButtons( wxFrame *frame, ControlButtons control_buttons )
     const wxFont font( wxFontInfo( BUTTON_FONTSIZE ) );
 
     int y_offset = TABOR_TEXT_CTRLS_START_YPOS;
-
     
     make_title( frame,  "Actions", x_offset, y_offset - TITLE_OFFSET, TITLE_FONTSIZE );
     
     y_offset += CONTROL_BUTTONS_Y_DELTA;
     
     //wxBoxSizer *sizer = new wxBoxSizer( wxVERTICAL );
+
+    
+    wxPanel *panel = new wxPanel( frame, wxID_ANY, 
+				  wxPoint( 100, 100 ),
+				  wxSize( 1000, 1000 ) );
+    
+//     wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
+// // Second button takes the full space
+//     sizer->Add(new wxButton( panel, -1, "A Really Really Big Button"), 0, 0, 10 );
+//     sizer->Add(new wxButton( panel, -1, "Tiny Button"), 0, wxALL | wxEXPAND );
+//     panel->SetSizer( sizer );
+//     sizer->setLayout();
+    // sizer->SetSizeHints( frame );
+    // SetSizer(sizer);
+    // 
     
     for( int i=0; i<num_buttons; i++ )
     {
@@ -630,6 +629,11 @@ void MainFrame::reset_button_action( wxCommandEvent &event )
 }
 
 
+
+void MainFrame::load_python_button_action( wxCommandEvent &event )
+{
+    system( "python ../python_gui/cpt_master_controller.py &" );
+}
 
 
 

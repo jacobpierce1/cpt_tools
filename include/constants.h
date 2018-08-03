@@ -8,6 +8,10 @@
 #define USE_CARIBU 0
 #define USE_TABOR 0
 
+#define STREAM_TDC 0   // stream tdc using a fifo
+#define USE_ZMQ 1
+ 
+
 #ifndef _WIN32
 #define USE_TDC  0
 #endif

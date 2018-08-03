@@ -10,6 +10,14 @@
 #include <bitset> 
 #include <string>
 
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+
+#include <iostream>
+#include <fstream>
+
+
 
 using namespace std;
 
@@ -59,13 +67,36 @@ TDC_controller::TDC_controller()
     this->num_processed_data = 0;
 
     mySleep(1000);
+
+    cout << "reached" << endl;
 	
     // this->hit_buffer = new 
     //TDCManager_Start( this->tdcmgr );
 #else
     this->infile.open( TDC_SAMPLE_DATA_FILE );
 #endif
-    start();
+    
+// #if STREAM_TDC
+//     cout << "making fifo " << endl;
+//     mkfifo( FIFO_PATH, 0666);
+//     cout << "reached" << endl;
+//     this->fifo_fd = open( FIFO_PATH, O_WRONLY );
+// #endif
+
+#if USE_ZMQ
+    // this->zmq_context = zmq::context_t( 1 ) ;
+    // this->zmq_publisher = zmq::socket_t( this->zmq_context, ZMQ_PUB );
+    // this->zmq_publisher.bind("tcp://*:5556");
+    this->zmq_context = zmq_ctx_new();
+    this->zmq_publisher = zmq_socket( this->zmq_context, ZMQ_PUB );
+    int rc = zmq_bind( this->zmq_publisher, ZMQ_TCP_ADDR );
+    if( rc )
+    {
+	cout << "ERROR: ZMQ bind failed!!!!!!!!" << endl;
+    }
+#endif 
+    
+    this->start();
 }
 
 
@@ -78,6 +109,11 @@ TDC_controller::~TDC_controller()
     TDCManager_Delete( this->tdcmgr );
 #else
     this->infile.close();
+#endif
+
+#if USE_ZMQ
+    zmq_close( this->zmq_publisher );
+    zmq_ctx_destroy( this->zmq_context );
 #endif
 }
 
@@ -317,7 +353,7 @@ int TDC_controller::process_hit_buffer()
 	    compute_tof_and_mcp_pos( this->mcp_positions[ data_idx ],
 				     &( this->tof[ data_idx ] ),
 				     x1, x2, y1, y2, t );
-
+	    
 	    ++( this->num_processed_data );
 	}
 		
@@ -398,6 +434,20 @@ int TDC_controller::compute_tof_and_mcp_pos( double mcp_pos[2], double *tofptr,
     return 0 ;
 }
 
+
+
+// send data using ZMQ to be recevied in python program 
+int TDC_controller::send_data( void )
+{
+    cout << "Sending data to zmq socket" << endl;
+    // //  Send message to all subscribers
+    char message[ 5 * sizeof(int) ];
+    int buf[5] = {1,2,3,4,5};
+    memcpy( message, buf, 5 * sizeof(int) );
+    // this->zmq_publisher.send( message );
+    int x = zmq_send( this->zmq_publisher, message, 5, 0 );
+    cout << x << endl;
+}
 
 
 

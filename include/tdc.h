@@ -9,6 +9,7 @@
 #include <iostream> 
 #include <fstream>
 #include <bitset> 
+#include "constants.h"
 
 #define TDC_HIT_BUFFER_SIZE  10000
 #define TDC_MAX_COUNTS  100000
@@ -23,6 +24,23 @@
 #define ERROR_CHANNEL -1
 #define ROLLOVER_CHANNEL -2
 #define EMPTY_CHANNEL -3
+
+
+#if STREAM_TDC
+#define FIFO_PATH "/tmp/cpt_fifo"
+#endif 
+
+
+#if USE_ZMQ
+#define ZMQ_TCP_ADDR "tcp://*:5556"
+// cross-platform IPC library 
+// #include <zmq.hpp>
+#include "zmq.h"
+#if (defined (WIN32))
+#include <zhelpers.hpp>
+#endif
+#endif
+
 
 
 
@@ -94,6 +112,14 @@ public :
 	int write_data( string dir_path, string session_key );
 
 	void reset();
+
+#if USE_ZMQ
+	/* zmq::context_t zmq_context; */
+	/* zmq::socket_t zmq_publisher; */
+	void *zmq_context;
+	void *zmq_publisher;
+	int send_data( void );
+#endif
 };
 
 

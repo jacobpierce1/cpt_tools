@@ -85,7 +85,8 @@ public:
     void start_pause_toggle_button_action( wxCommandEvent &event );
     void load_tabor_button_action( wxCommandEvent &event );
     void reset_button_action( wxCommandEvent &event );
-
+    void load_python_button_action( wxCommandEvent &event );
+    
     // initializations 
     void init_tabor_text_ctrls();
     void init_tdc_labels();
@@ -153,7 +154,8 @@ enum
     SAVE_AND_RUN_NEXT_BUTTON_ID,
     START_PAUSE_TOGGLE_BUTTON_ID,
     LOAD_TABOR_BUTTON_ID,
-    RESET_BUTTON_ID
+    RESET_BUTTON_ID,
+    LOAD_PYTHON_BUTTON_ID
 };
 
 
