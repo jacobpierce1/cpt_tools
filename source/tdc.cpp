@@ -436,17 +436,19 @@ int TDC_controller::compute_tof_and_mcp_pos( double mcp_pos[2], double *tofptr,
 
 
 
-// send data using ZMQ to be recevied in python program 
+
+// send data using ZMQ socket, to be recevied in python program 
 int TDC_controller::send_data( void )
 {
-    cout << "Sending data to zmq socket" << endl;
+    // cout << "Sending data to zmq socket" << endl;
     // //  Send message to all subscribers
-    char message[ 5 * sizeof(int) ];
-    int buf[5] = {1,2,3,4,5};
-    memcpy( message, buf, 5 * sizeof(int) );
+    char message[ 10 * sizeof(long long) ];
+    long long buf[10] = {1,2,3,4,5,1,2,3,4,5};
+    memcpy( message, buf, 10 * sizeof(long long) );
     // this->zmq_publisher.send( message );
-    int x = zmq_send( this->zmq_publisher, message, 5, 0 );
-    cout << x << endl;
+    // int nbytes = zmq_send( this->zmq_publisher, message, 10 * sizeof(long long), 0 );
+    // cout << "sent "  << nbytes << endl;
+    // return nbytes;
 }
 
 

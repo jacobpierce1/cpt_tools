@@ -8,14 +8,10 @@ import scipy.stats as st
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import struct 
 # import multiprocessing 
-import zmq
+# import zmq
 
 
-USE_ZMQ = 1
-
-
-
-# fifo_path = '../ipc/fifo'
+USE_ZMQ = 0
 
 
 from PyQt4 import QtCore
@@ -49,19 +45,27 @@ class TDCDataHandler( object ) :
         self.data_path = data_path
         self.mcp_positions = [ [], [] ]
         self.tof_data = []
-        # self.current_file_line = 0
-        self.filepos = 0
-
-        if USE_ZMQ :
-            zmq_context = zmq.Context()
+        self.r = []
+        self.theta = []
         
+
+        # if USE_ZMQ :
+        #     self.zmq_context = zmq.Context()
+        #     print( 'reached' )
+        #     self.zmq_socket = self.zmq_context.socket( zmq.SUB )
+        #     print( 'reached' )
+        #     self.zmq_socket.connect( "tcp://localhost:5556" )
+        #     self.zmq_socket.setsockopt_string( zmq.SUBSCRIBE, '' )
+
+            
         try:
-            self.infile = open( data_path ) 
+            self.infile = open( data_path )
+            self.filepos = 0 
         except :
             print( 'ERROR: the input file does not exist: %s' % data_path )
             sys.exit(1)
 
-        self.fifo_fd = open( fifo_path, 'rb' ) 
+        # self.fifo_fd = open( fifo_path, 'rb' ) 
 
 
         
@@ -72,34 +76,53 @@ class TDCDataHandler( object ) :
     
     
     def read_data( self ) :
-        tmp = self.fifo_fd.read(5)
-
-        print( tmp ) 
+        # tmp = self.fifo_fd.read(5)
+        # raw_data = self.zmq_socket.recv()
+        # raw_data = self.zmq_socket.recv_multipart()
         
+        # # numbers of sets of (x1, x2, y1, y2 )
+        # ndata = len( raw_data )
+        # for i in range( ndata ) :
+        #      x1, x2, y1, y2, t = struct.unpack( 'qqqqq', raw_data[i] )
+        #      self.process_data( x1, x2, y1, y2, t )
+        with open( self.data_path ) as f :
+            f.seek( self.filepos )
+
+            if not stream_fake_data : 
+                for line in f :
+                    print( line )
+
+            else :
+                for i in range( 5 ) :
+                    line = f.readline().strip().split( '\t' )
+                    # print( line )
+                    self.mcp_positions[0].append( float( line[0] ) )
+                    self.mcp_positions[1].append( float( line[1] ) )
+                    self.tof_data.append( float( line[2] ) )
+  
+            self.filepos = f.tell() 
+        
+
+             
+    def process_data( self, x1, x2, y1, y2, t ) :
+        absent_data = np.array( [ x2, x2, y1, y2, t ] ) == 0
+        if np.sum( absent_data ) > 0 :
+            return 
+
+        else :
+            x = 0.5 * 1.29 * ( x1 - x2 ) * 0.001
+            y = 0.5 * 1.31 * ( y1 - y2 ) * 0.001
+            tof = 0.001 * t
+
+            self.mcp_positions.append( [x,y] )
+            self.tof_data.append( tof ) 
+             
 
         # if self.infile_was_reset() :
         #     self.reset()
         #     return
 
-        # with open( self.data_path ) as f :
-        #     f.seek( self.filepos )
-
-        #     if not stream_fake_data : 
-        #         for line in f :
-        #             print( line )
-
-        #     else :
-        #         for i in range( 5 ) :
-        #             # line = f.readline().strip().split( '\t' )
-        #             # # print( line )
-        #             # self.mcp_positions[0].append( float( line[0] ) )
-        #             # self.mcp_positions[1].append( float( line[1] ) )
-        #             # self.tof_data.append( float( line[2] ) )
-        #             tmp = 
-  
-        #     self.filepos = f.tell() 
         
-
     def reset( self ) :
         self.current_file_line = 0
         self.mcp_positions = [ [], [] ]
@@ -186,6 +209,7 @@ class TDCPlotter( object ) :
         
         
     def update_mcp_hitmap( self ) :
+
         # print( self.tdc_data_handler.mcp_positions ) 
         # self.mcp_hitmap_plot.clear()
         self.mcp_hitmap_plot.clear()
