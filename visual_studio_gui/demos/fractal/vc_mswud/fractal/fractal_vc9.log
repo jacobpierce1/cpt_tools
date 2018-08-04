@@ -1,7 +1,7 @@
-﻿Build started 6/28/2018 9:33:06 AM.
+﻿Build started 8/3/2018 5:19:14 PM.
      1>Project "C:\Users\cpt\Desktop\JACOB\cpt_master_controller\visual_studio_gui\demos\fractal\fractal_vc9.vcxproj" on node 2 (Build target(s)).
      1>ClCompile:
-         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /I"C:\wxWidgets-3.1.1\include" /I"c:\wxWidgets-3.1.1\lib\vc_lib\mswud\\" /I"C:\wxWidgets-3.1.1\include\wx\msw" /I.\..\..\lib\vc_lib\mswud /I.\..\..\include /I. /I.\..\..\samples /Zi /nologo /W4 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CRT_SECURE_NO_DEPRECATE=1 /D _CRT_NON_CONFORMING_SWPRINTFS=1 /D _SCL_SECURE_NO_WARNINGS=1 /D __WXMSW__ /D _UNICODE /D _WINDOWS /D NOPCH /D _UNICODE /D UNICODE /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /GR /Fo"vc_mswud\fractal\\" /Fd"vc_mswud\fractal.pdb" /Gd /TP /analyze- /errorReport:prompt /MP fractal.cpp
+         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /I"C:\wxWidgets-3.1.1\include" /I"c:\wxWidgets-3.1.1\lib\vc_lib\mswud\\" /I"C:\wxWidgets-3.1.1\include\wx\msw" /I"C:\wxWidgets-3.1.1\include\wx\msw" /Zi /nologo /W4 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CRT_SECURE_NO_DEPRECATE=1 /D _CRT_NON_CONFORMING_SWPRINTFS=1 /D _SCL_SECURE_NO_WARNINGS=1 /D __WXMSW__ /D _UNICODE /D _WINDOWS /D NOPCH /D _UNICODE /D UNICODE /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /GR /Fo"vc_mswud\fractal\\" /Fd"vc_mswud\fractal.pdb" /Gd /TP /analyze- /errorReport:prompt /MP fractal.cpp
          fractal.cpp
        ResourceCompile:
          C:\Program Files\Windows Kits\8.1\bin\x86\rc.exe /D _DEBUG /D _CRT_SECURE_NO_DEPRECATE=1 /D _CRT_NON_CONFORMING_SWPRINTFS=1 /D _SCL_SECURE_NO_WARNINGS=1 /D __WXMSW__ /D _UNICODE /D _WINDOWS /D NOPCH /D _UNICODE /D UNICODE /l"0x0409" /I.\..\..\lib\vc_lib\mswud /I.\..\..\include /I. /I.\..\..\samples /nologo /fo"vc_mswud\fractal\fractal.res" fractal.rc 
@@ -11,4 +11,4 @@
 
 Build FAILED.
 
-Time Elapsed 00:00:04.41
+Time Elapsed 00:00:06.08

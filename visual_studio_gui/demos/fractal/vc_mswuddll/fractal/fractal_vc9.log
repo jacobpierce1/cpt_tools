@@ -1,0 +1,19 @@
+﻿Build started 6/29/2018 11:09:18 AM.
+     1>Project "C:\Users\cpt\Desktop\JACOB\cpt_master_controller\visual_studio_gui\demos\fractal\fractal_vc9.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /I"C:\wxWidgets-3.1.1\include\wx\msw" /I"C:\wxWidgets-3.1.1\include" /I"C:\wxWidgets-3.1.1\include\wx" /I"C:\wxWidgets-3.1.1\lib\vc_lib\mswud\\" /I"C:\wxWidgets-3.1.1\include\wx\msw" /I.\..\..\lib\vc_dll\mswud /I.\..\..\include /I. /I.\..\..\samples /Zi /nologo /W4 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CRT_SECURE_NO_DEPRECATE=1 /D _CRT_NON_CONFORMING_SWPRINTFS=1 /D _SCL_SECURE_NO_WARNINGS=1 /D __WXMSW__ /D _UNICODE /D WXUSINGDLL /D _WINDOWS /D NOPCH /D _UNICODE /D UNICODE /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /GR /Fo"vc_mswuddll\fractal\\" /Fd"vc_mswuddll\fractal.pdb" /Gd /TP /analyze- /errorReport:prompt /MP fractal.cpp
+         fractal.cpp
+       ResourceCompile:
+         C:\Program Files\Windows Kits\8.1\bin\x86\rc.exe /D _DEBUG /D _CRT_SECURE_NO_DEPRECATE=1 /D _CRT_NON_CONFORMING_SWPRINTFS=1 /D _SCL_SECURE_NO_WARNINGS=1 /D __WXMSW__ /D _UNICODE /D WXUSINGDLL /D _WINDOWS /D NOPCH /D _UNICODE /D UNICODE /l"0x0409" /I.\..\..\lib\vc_dll\mswud /I.\..\..\include /I. /I.\..\..\samples /nologo /fo"vc_mswuddll\fractal\wx.res" ..\..\..\..\..\..\..\..\wxWidgets-3.1.1\include\wx\msw\wx.rc 
+         C:\Program Files\Windows Kits\8.1\bin\x86\rc.exe /D _DEBUG /D _CRT_SECURE_NO_DEPRECATE=1 /D _CRT_NON_CONFORMING_SWPRINTFS=1 /D _SCL_SECURE_NO_WARNINGS=1 /D __WXMSW__ /D _UNICODE /D WXUSINGDLL /D _WINDOWS /D NOPCH /D _UNICODE /D UNICODE /l"0x0409" /I.\..\..\lib\vc_dll\mswud /I.\..\..\include /I. /I.\..\..\samples /nologo /fo"vc_mswuddll\fractal\fractal.res" fractal.rc 
+       Link:
+         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"vc_mswuddll\fractal.exe" /INCREMENTAL /NOLOGO /LIBPATH:"C:\wxWidgets-3.1.1\lib\vc_lib" /LIBPATH:.\..\..\lib\vc_dll wxmsw31ud_core.lib wxbase31ud.lib wxtiffd.lib wxjpegd.lib wxpngd.lib wxzlibd.lib wxregexud.lib wxexpatd.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib winspool.lib winmm.lib shell32.lib shlwapi.lib comctl32.lib ole32.lib oleaut32.lib uuid.lib rpcrt4.lib advapi32.lib version.lib wsock32.lib wininet.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"vc_mswuddll\fractal.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"vc_mswuddll\fractal.lib" /MACHINE:X86 /SAFESEH vc_mswuddll\fractal\wx.res
+         vc_mswuddll\fractal\fractal.res
+         vc_mswuddll\fractal\fractal.obj
+     1>CVTRES : fatal error CVT1100: duplicate resource.  type:MENU, name:WXWINDOWMENU, language:0x0409
+     1>LINK : fatal error LNK1123: failure during conversion to COFF: file invalid or corrupt
+     1>Done Building Project "C:\Users\cpt\Desktop\JACOB\cpt_master_controller\visual_studio_gui\demos\fractal\fractal_vc9.vcxproj" (Build target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:01.91
