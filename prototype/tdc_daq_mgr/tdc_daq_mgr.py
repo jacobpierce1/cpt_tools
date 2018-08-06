@@ -78,5 +78,6 @@ class TDC_Mgr( object ) :
 		self.num_data_in_buf = 0 
 		
 tdc_mgr = TDC_Mgr()
-time.sleep(0.0)
+time.sleep(5.0)
 tdc_mgr.read()
+np.save('test_data_tabor_on', tdc_mgr.data_buf )
