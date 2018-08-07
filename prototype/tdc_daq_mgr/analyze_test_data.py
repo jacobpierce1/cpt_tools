@@ -1,6 +1,6 @@
 import numpy as np
 
-data = np.load( 'test_data_tabor_on.npy' )
+data = np.load( 'test_data_tabor_on_grouping.npy' )
 
 print( data ) 
 
@@ -37,10 +37,10 @@ for i in range( 10000 ) :
         # print( 'falling' )
         channel =  get_channel( data[i] )
         if channel == 7 or channel == 6 :
-            print()
+            print( '' )
             
-        print( channel, end = ' ' )
-        
+        # print( channel, end = ' ' )
+        print( channel )
 
     elif ( data[i] & rollover_mask ) == rollover_mask :
         continue

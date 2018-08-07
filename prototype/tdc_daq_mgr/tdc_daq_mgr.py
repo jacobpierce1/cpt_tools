@@ -63,21 +63,43 @@ class TDC_Mgr( object ) :
 		return state
 		
 	def read( self ) :
-		print( self.data_buf )
-		self.num_data_in_buf = self.tdc_driver_lib.TDCManager_Read( 
+		# print( self.data_buf )
+		data_read = self.tdc_driver_lib.TDCManager_Read( 
 			self.tdc_ctx, self.data_buf.ctypes.data_as( ctypes.POINTER( ctypes.c_uint ) ), 
 				_max_tdc_buf_size );
-		print( self.data_buf )
 		
-		for i in range( self.num_data_in_buf ) :
-			print( bin( self.data_buf[i+3] ) )
-		print( self.num_data_in_buf )
-		return self.num_data_in_buf
+		self.num_data_in_buf += data_read
+		
+		# print( 'data_read: ', data_read )
+		# print( self.data_buf )
+		
+		# for i in range( self.num_data_in_buf ) :
+			# print( bin( self.data_buf[i] ) )
+		# print( self.num_data_in_buf )
+		return data_read
+			
 			
 	def clear_buf( self ) :
 		self.num_data_in_buf = 0 
 		
 tdc_mgr = TDC_Mgr()
-time.sleep(5.0)
-tdc_mgr.read()
-np.save('test_data_tabor_on', tdc_mgr.data_buf )
+# time.sleep(0.02)
+# tdc_mgr.read()
+# print( 'next read' )
+# time.sleep( 0.02 )
+# tdc_mgr.read()
+
+time.sleep(2.0)
+
+# read 20 groups 
+# for i in range(100) :
+	# tdc_mgr.read()
+	# print( 'reading again...' )
+
+for i in range(3) : 
+	time.sleep(1)
+	while( tdc_mgr.read() != 0 ) :
+		pass
+
+	print( 	'caught up' )
+# np.save('test_data_tabor_on_grouping', tdc_mgr.data_buf )
