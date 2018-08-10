@@ -3,20 +3,27 @@ import tdc_daq_mgr
 import phase_im_processing
 import gui
 
+import sys 
+import scipy.stats as st
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import struct 
+import multiprocessing
+import threading
 
 import os
 import numpy as np
 import scipy
-from PyQt4 import QtGui
-import sys 
-import colorcet
-import scipy.stats as st
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-import struct 
-# import multiprocessing 
+import time
 
-# import matplotlib.style as mplstyle
-# mplstyle.use('fast')
+import colorcet
+
+from PyQt4 import QtGui
+from PyQt4 import QtCore
+
+
+
+import matplotlib.style as mplstyle
+mplstyle.use('fast')
 
 
 
@@ -39,27 +46,29 @@ mcp_hitmap_cmap = colorcet.m_rainbow
 mcp_center_coords = np.array( [ 5., 5. ] ) 
 
 
-use_kde = 1 # use kernel density estimation 
+use_kde = 0 # use kernel density estimation 
 kde_min = -5
 kde_max = 5
 n_kde_data = 100
-
+n_cbar_ticks = 5
 
 
 class TDCPlotter( object ) :
 
     def __init__( self, tdc_data_handler ) :
-
         self.tdc_data_handler = tdc_data_handler
         self.mcp_hitmap_plot = None
         self.tof_plot= None
+
         
     def update_tof_plot( self ) :
         # print( self.tdc_data_handler.tof_data )
 
+        data = self.tdc_data_handler.candidate_tofs[ : self.tdc_data_handler.num_candidate_data ]
+
         # self.current_tof_plot_data = self.tof_plot.hist( self.tdc_data_handler.tof_data )
         self.tof_plot.clear() 
-        self.tof_plot.hist( self.tdc_data_handler.candidate_tofs, bins = 'fd', log = 1  ) 
+        self.tof_plot.hist( data, bins = 'fd', log = 1  ) 
         # hist, bins = np.histogram( self.tdc_data_handler.tof_data, bins = 'auto' )
         # self.tof_plot.plot( bins[:-1], hist, ls = 'steps-mid' ) 
         self.tof_plot.set_title( 'TOF histogram'  )
@@ -79,55 +88,38 @@ class TDCPlotter( object ) :
         # self.mcp_hitmap_plot.clear()
         # self.mcp_hitmap_plot.clear()
         # self.mcp_hitmap_fig
+
+        data = self.tdc_data_handler.processed_mcp_positions[ : self.tdc_data_handler.num_processed_data ] 
+
+        # print( data[:,0] )
         
         if not use_kde :
-            image, xedges, yedges = np.histogram2d( self.tdc_data_handler.candidate_mcp_positions[0],
-                                                    self.tdc_data_handler.candidate_mcp_positions[1] )
-            # print( image )
-            im = self.mcp_hitmap_plot.imshow( image, cmap = mcp_hitmap_cmap, origin = 'lower' )
-            # self.mcp_hitmap_plot.set_yticklabels( yedges )
-            # self.mcp_hitmap_plot.set_xticklabels( xedges ) 
+            image, xedges, yedges = np.histogram2d( data[:,0], data[:,1], bins = 20 )
+            im = self.mcp_hitmap_im.set_data( image )
 
         else :
-            # kernel = scipy.stats.gaussian_kde( self.tdc_data_handler.candidate_mcp_positions )
-            kernel = scipy.stats.gaussian_kde( self.tdc_data_handler.candidate_mcp_positions, bw_method = 0.01 )
+            # kernel = scipy.stats.gaussian_kde( [ [1]*4, [1]*4 ], bw_method = 0.005 )
+            kernel = scipy.stats.gaussian_kde( data, bw_method = 0.003 )
             x = np.linspace( kde_min, kde_max, n_kde_data + 1 )
             y = np.linspace( kde_min, kde_max, n_kde_data + 1 )
-
-            # print( x )
             
             xx, yy = np.meshgrid( x, y )
             positions = np.vstack([xx.ravel(), yy.ravel()])
-            f = np.reshape( kernel( positions ).T, xx.shape)
-            print(f ) 
-            im = self.mcp_hitmap_plot.imshow( f , cmap = mcp_hitmap_cmap ) 
-
-            tick_spacing = n_kde_data // 5
-            ticks = np.arange( 0, n_kde_data + 1, tick_spacing )
-            tick_labels = [ '%.2f' % x[ tick ] for tick in ticks ]
-
-            self.mcp_hitmap_plot.set_xticks( ticks )
-            self.mcp_hitmap_plot.set_xticklabels( tick_labels )
+            image = ( np.reshape( kernel( positions ).T, xx.shape)
+                      * len( self.tdc_data_handler.candidate_mcp_positions[0] ) )
             
-            # self.mcp_hitmap_plot.set_xticklabels( x )
-            # self.mcp_hitmap_plot.set_yticks( ticks )
-
+            self.mcp_hitmap_im.set_data( image ) 
             
-        divider = make_axes_locatable( self.mcp_hitmap_plot ) 
-        cax = divider.append_axes("right", size="5%", pad=0.05)
-        self.mcp_hitmap_f.colorbar( im, cax = cax )
-        
+        image_min = np.min( image )
+        image_max = np.max( image ) 
+        ticks = np.linspace( image_min, image_max, n_cbar_ticks, dtype = int )
+            
+        self.mcp_hitmap_cbar.set_clim( image_min, image_max )
+        self.mcp_hitmap_cbar.set_ticks( ticks )
+        self.mcp_hitmap_cbar.draw_all()
 
-        title = 'MCP Hitmap'
-        if use_kde :
-            title += ': KDE'
-        else :
-            title += ' : binned'
-        self.mcp_hitmap_plot.set_title( title )
-        self.mcp_hitmap_plot.set_xlabel( 'X' )
-        self.mcp_hitmap_plot.set_ylabel( 'Y' ) 
-        
-        
+            # print( len( self.tdc_data_handler.candidate_mcp_positions) )
+            
         
     def init_mcp_hitmap( self, ax, f ) :
         self.mcp_hitmap_plot = ax
@@ -137,11 +129,37 @@ class TDCPlotter( object ) :
         if use_kde :
             title += ': KDE'
         else :
-            title += ' : binned'
+            title += ': binned'
 
         ax.set_title( title )
         ax.set_xlabel( 'X' )
         ax.set_ylabel( 'Y' ) 
+
+        self.mcp_hitmap_im = self.mcp_hitmap_plot.imshow( np.zeros( ( n_kde_data, n_kde_data ) ),
+                                                          cmap = mcp_hitmap_cmap,
+                                                          # interpolation = 'nearest',
+                                                          origin = 'lower' )
+        
+        divider = make_axes_locatable( self.mcp_hitmap_plot ) 
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        self.mcp_hitmap_cbar = self.mcp_hitmap_f.colorbar( self.mcp_hitmap_im, cax = cax )
+
+        tick_spacing = n_kde_data // 5
+        ticks = np.arange( 0, n_kde_data + 1, tick_spacing )
+        x = np.linspace( kde_min, kde_max, n_kde_data + 1 )
+        tick_labels = [ '%.2f' % x[ tick ] for tick in ticks ]
+
+        self.mcp_hitmap_plot.set_xticks( ticks )
+        self.mcp_hitmap_plot.set_xticklabels( tick_labels )
+        self.mcp_hitmap_plot.set_yticks( ticks )
+        self.mcp_hitmap_plot.set_yticklabels( tick_labels )
+
+        self.mcp_hitmap_cbar.set_ticks( np.arange( n_cbar_ticks ) )
+        self.mcp_hitmap_cbar.set_clim( 0, 0 )
+
+        # print( self.mcp_hitmap_cbar.get_ticks() )
+        
+        # self.mcp_hitmap_cbar.set_xticklabels( np.zeros( n_cbar_ticks, dtype = int ) )
         
         # im = self.mcp_hitmap.imshow( self.tdc_data_handler.mcp_positions, cmap = mcp_hitmap_cmap ) 
         # self.update_mcp_hitmap() 
@@ -152,8 +170,13 @@ class TDCPlotter( object ) :
     def init_r_plot( self, ax ) :
         self.r_plot = ax 
 
+        
     def update_r_plot( self ) :
+        self.r_plot.clear() 
         self.r_plot.set_title( 'r' )
+        data = self.tdc_data_handler.processed_r[ : self.tdc_data_handler.num_processed_data ]
+        self.r_plot.hist( data, bins = 'fd' ) 
+        
         # r = np.linalg.norm( self.tdc_data_handler.candidate_mcp_positions - mcp_center_coords,
         #                     axis = 0 ) 
 
@@ -161,9 +184,12 @@ class TDCPlotter( object ) :
     def init_theta_plot( self, ax ) :
         self.theta_plot = ax 
 
+        
     def update_theta_plot( self ) :
+        self.theta_plot.clear() 
+        data = self.tdc_data_handler.processed_angles[ : self.tdc_data_handler.num_processed_data ] 
         self.theta_plot.set_title( r'Angle (deg)' ) 
-
+        self.theta_plot.hist( data, bins = 'fd' )
     
         
     def init_coords_plots( self, axarr ) :
@@ -181,10 +207,12 @@ class TDCPlotter( object ) :
                 
         
 
+                
         
 class tabdemo( QtGui.QTabWidget ):
+
     def __init__(self, parent = None):
-        super(tabdemo, self).__init__(parent)
+        super(tabdemo, self).__init__( parent )
 
         self.tdc_mgr = tdc_daq_mgr.TDC_Mgr()
         # time.sleep(5.0)
@@ -211,27 +239,33 @@ class tabdemo( QtGui.QTabWidget ):
         self.tab1UI()
         self.tab2UI()
         self.tab3UI()
-        self.setWindowTitle("tab demo")
-        self.resize( 1200, 800 )
-
-        # self.tab1_axarr = None
-        # self.canvas = None
-        # self.toolbar = None
-        # self.button = None
+        self.setWindowTitle("Phase Imaging DAQ and Real-Time Analysis")
+        self.resize( 1300, 900 )
+                
+        self.kill_update_thread = 0
+        self.update_thread = threading.Thread( target = self.update_loop )
+        self.update_thread.start()
         
-        # self.tab1_updaters = []
-        # self.tab2_updaters = []
-        # self.tab3_updaters = []
+
+    # automatically is called when the window is closed.
+    def closeEvent(self, event): 
+        print( "Closing" )
+        self.kill_update_thread = 1 # self.destroy()
         
-        current_tab = self.currentIndex()
-        print( 'current_tab', current_tab )
-
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.update)
-        self.timer.start(1000) #trigger every second.
-
-
         
+    def tab0UI( self ) :
+
+        tabor_layout = QtGui.QFormLayout()
+        tabor_layout.addRow( "Tabor Controls" ) 
+
+        daq_layout = QtGui.QFormLayout()
+        daq_Layout.addRow( "DAQ Controls" )
+
+        grid_layout = QtGui.QGridLayout()
+        grid_layout.addLayout( tabor_layout, 0, 0, 1, 1 )
+        grid_layout.addLayout( daq_layout, 0, 1, 1, 1 ) 
+        
+        self.tab0.setLayout( grid_layout )
         
       
     def tab1UI( self ):
@@ -264,13 +298,34 @@ class tabdemo( QtGui.QTabWidget ):
         # self.button = QtGui.QPushButton('Plot')
         # self.button.clicked.connect( self.update )
 
-        # set the layout
-        layout = QtGui.QVBoxLayout()
-        # layout.addWidget(self.toolbar)
-        layout.addWidget(self.canvases[0])
-        # layout.addWidget(self.button)
-        self.tab1.setLayout(layout)
+        mcp_hitmap_buttons = QtGui.QHBoxLayout()
+        mcp_hitmap_buttons.addWidget( QtGui.QRadioButton( "KDE" ) )
+        mcp_hitmap_buttons.addWidget( QtGui.QRadioButton( "Hist" ) )
 
+        # controls_layout = QtGui.QVBoxLayout()
+        # controls_layout.addLayout( mcp_hitmap_buttons )
+
+        controls_layout = QtGui.QFormLayout()
+        controls_layout.addRow( "Hitmap Display:", mcp_hitmap_buttons ) 
+        
+        # controls_groupbox = QGroupBox()
+
+        # controls_groupbox.setLayout(
+
+        grid_layout = QtGui.QGridLayout()
+        grid_layout.addLayout( controls_layout, 0, 0, 0, 1, QtCore.Qt.AlignLeft )
+        grid_layout.setColumnStretch( 0, 0.5 ) 
+        grid_layout.addWidget( self.canvases[0], 0, 1, 1, 1 )
+        grid_layout.setColumnStretch( 1, 1 ) 
+        
+        # set the layout
+        # layout = QtGui.QHBoxLayout()
+        # layout.addWidget( controls_layout )
+        # layout.addWidget( self.canvases[0] )
+        
+        # self.tab1.setLayout(layout)
+        # self.tab1.addWidget( self.canvases[0] ) 
+        self.tab1.setLayout( grid_layout ) 
         
         
     def tab2UI( self ):
@@ -295,8 +350,6 @@ class tabdemo( QtGui.QTabWidget ):
         # layout.addRow("Date of Birth", QtGui.QLineEdit() )
         # self.setTabText(1,"Personal Details")
         # self.tab2.setLayout(layout)
-   
-        
         
         
     def tab3UI( self ):
@@ -307,28 +360,6 @@ class tabdemo( QtGui.QTabWidget ):
         self.setTabText( 2, "Education Details" )
         self.tab3.setLayout(layout)
 
-
-    # def update_tab_1( self ) :
-    #     print( 'updating tab 1 ' )
-    #     data = [random.random() for i in range(10)]
-    #     ax = self.tab1_axarr[0,0]
-        
-    #     # discards the old graph
-    #     ax.clear()
-
-    #     # plot data
-    #     ax.plot(data, '*-')
-
-    #     # refresh canvas
-    #     self.canvas.draw()
-
-
-    # def update_tab_2( self ) :
-    #     print( 'updating tab 2' )
-        
-
-    # def update_tab_3( self ) :
-    #     print( 'updating tab 3' ) 
         
     def update( self ) :
 
@@ -339,15 +370,22 @@ class tabdemo( QtGui.QTabWidget ):
         self.tdc_mgr.read()
         self.tdc_data_processor.extract_candidates()
     
-        
         print( 'updating tab: ', current_tab ) 
 
         for updater in self.tab_updaters[ current_tab ] :
             updater() 
-
+                
         self.canvases[ current_tab ].draw() 
 
         
+    def update_loop( self ) :
+        while( not self.kill_update_thread ) :
+            time.sleep(1)
+            self.update()
+
+        else :
+            print( 'INFO: successfully killed update thread.' ) 
+
       
 def main():
    app = QtGui.QApplication(sys.argv)

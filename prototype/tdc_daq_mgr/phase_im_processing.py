@@ -8,6 +8,13 @@ MCP_CAL_X = 1.29
 MCP_CAL_Y = 1.31
 
 
+# allow maximum storage of 4,194,304 hits
+tdc_processor_buf_size = 2 ** 22 
+
+mcp_center_coords = np.array( [ -1.6, 3.0 ] )
+
+
+
     
 class tdc_processor( object ) :
 
@@ -17,29 +24,31 @@ class tdc_processor( object ) :
         self.first_pass = 1
         self.current_trig_time = 0
 
-        self.candidate_mcp_positions = [ [], [] ]
-        self.candidate_tofs = []
+        # record how much of the buffers have been filled 
+        self.num_processed_data = 0
+        self.num_candidate_data = 0
+        
+        # self.candidate_mcp_positions = np.zeros( tdc_processor_buf_size )
+        self.candidate_tofs = np.zeros( tdc_processor_buf_size )
 
         # this will be populated after applying cuts to the data.
         # as cuts may change in real time (e.g. tof) the original candidate data is
         # preserved for reprocessing
-        self.num_candidates_processed = 0 
-        self.processed_mcp_positions = [ [], [] ]
-        self.processed_tofs = []
-
+        self.processed_mcp_positions = np.zeros( ( tdc_processor_buf_size, 2 ) )
+        self.processed_tofs = np.zeros( tdc_processor_buf_size )
+        self.processed_r = np.zeros( tdc_processor_buf_size )
+        self.processed_angles = np.zeros( tdc_processor_buf_size )
+        
         self.tof_cut_bounds = None
 
         
     def reset( self ) :
         self.first_pass = 1
 
-        self.candidate_mcp_positions = [ [], [] ]
-        self.candidate_tofs = []
+        self.num_processed_data = 0
+        self.num_candidate_data = 0
 
-        self.num_candidates_processed = 0 
-        self.processed_mcp_positions = [ [], [] ]
-        self.processed_tofs = []
-
+        # to be set by user
         self.tof_cut_bounds = None
         
         
@@ -64,15 +73,6 @@ class tdc_processor( object ) :
         while( i < len( channel_indices ) ) :         
             idx = channel_indices[i]
 
-        # i = 0
-        # while( i < self.tdc_daq_mgr.num_data_in_buf ) :
-
-        #     if rollovers[i] :
-        #         print( 'rollover' )
-        #         i += 1 
-        #         continue      
-            # idx = i 
-        
             chan = self.tdc_daq_mgr.channels[ idx ]
             time = self.tdc_daq_mgr.times[ idx ]
 
@@ -99,6 +99,9 @@ class tdc_processor( object ) :
                 mcp_trigger_time = time
                 tof = self.compute_tof( self.current_trig_time, mcp_trigger_time )
 
+                self.candidate_tofs[ self.num_candidate_data ] = tof 
+                self.num_candidate_data += 1 
+
                 # print( 'mcp trig reached' )
                 # print( time ) 
                 # print( 'tof: ', tof )
@@ -108,8 +111,6 @@ class tdc_processor( object ) :
                     num_pos_channels_detected = 0
                     mcp_trigger_reached = 1
                     
-                    self.candidate_tofs.append( tof ) 
-
                 else :
                     pass
                     # print( 'failed tof_cut' )
@@ -129,11 +130,24 @@ class tdc_processor( object ) :
 
                         mcp_positions = self.compute_mcp_positions( pos_channel_buf )
 
-                        for k in range(2) : 
-                            self.candidate_mcp_positions[k].append( mcp_positions[k] )
-                        
-                        print( 'mcp_positions: ', mcp_positions )
-                        
+                        centered_mcp_positions = mcp_positions - mcp_center_coords 
+
+                        r = np.linalg.norm( centered_mcp_positions )
+
+                        if self.satisfies_r_cut( r ) :
+
+                            angle = np.degrees( np.arctan2( centered_mcp_positions[1], centered_mcp_positions[0] ) )
+
+                            self.processed_angles[ self.num_processed_data ] = angle
+                            self.processed_r[ self.num_processed_data ] = r
+                            self.processed_mcp_positions[ self.num_processed_data ] = mcp_positions
+                                                    
+                            # print( 'mcp_positions: ', mcp_positions )
+                            # print( 'r: ', r )
+                            # print( 'angle: ', angle ) 
+
+                            self.num_processed_data += 1
+
                         # sums = self.compute_sums( pos_channel_buf ) 
                         # print( sums ) 
                         
@@ -239,7 +253,10 @@ class tdc_processor( object ) :
     # check if tof of the data point falls in range of a tof 
     def satisfies_tof_cut( self, tof ) :
         return 1 
-        if tof > 20 and tof < 40 :
-            return 1
-        return 0 
+        # if tof > 20 and tof < 40 :
+        #     return 1
+        # return 0 
 
+    def satisfies_r_cut( self, r ) :
+        if r < 40 :
+            return 1 
