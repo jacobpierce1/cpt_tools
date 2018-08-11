@@ -38,9 +38,12 @@ class tdc_processor( object ) :
         self.processed_tofs = np.zeros( tdc_processor_buf_size )
         self.processed_r = np.zeros( tdc_processor_buf_size )
         self.processed_angles = np.zeros( tdc_processor_buf_size )
-        
-        self.tof_cut_bounds = None
 
+        self.tof_cut_lower = 0
+        self.tof_cut_upper = 40
+
+        self.r_cut_upper = 40
+        
         
     def reset( self ) :
         self.first_pass = 1
@@ -50,8 +53,20 @@ class tdc_processor( object ) :
 
         # to be set by user
         self.tof_cut_bounds = None
+
         
+    def set_tof_cut_lower( self, x ) :
+        self.tof_cut_lower = x 
+
         
+    def set_tof_cut_upper( self, x ) :
+        self.tof_cut_upper = x 
+
+
+    def set_r_cut_upper( self, x ) :
+        self.r_cut_upper = x 
+
+    
     def extract_candidates( self ) :
 
         rollovers = self.tdc_daq_mgr.rollovers[ : self.tdc_daq_mgr.num_data_in_buf ] 
@@ -151,7 +166,6 @@ class tdc_processor( object ) :
                         # sums = self.compute_sums( pos_channel_buf ) 
                         # print( sums ) 
                         
-
                         mcp_trigger_reached = 0 
 
             i += 1
@@ -183,13 +197,11 @@ class tdc_processor( object ) :
             # print( start ) 
 
             # print( times[ start - 1 : end + 1 ] )
-
             
             sort_indices = start + np.argsort( times[ start : end ] )
             times[ start : end ] = times[ sort_indices ]
             channels[ start : end ] = channels[ sort_indices ]
 
-            
             # print( times[ start - 1 : end + 1 ] )
             
             
@@ -251,12 +263,13 @@ class tdc_processor( object ) :
 
 
     # check if tof of the data point falls in range of a tof 
-    def satisfies_tof_cut( self, tof ) :
-        return 1 
-        # if tof > 20 and tof < 40 :
-        #     return 1
-        # return 0 
+    def satisfies_tof_cut( self, tof ) :        
+        if tof > self.tof_cut_lower and tof < self.tof_cut_upper :
+            return 1
+        return 0 
 
+    
     def satisfies_r_cut( self, r ) :
-        if r < 40 :
-            return 1 
+        if r < self.r_cut_upper : 
+            return 1
+        return 0 
