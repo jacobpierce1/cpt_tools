@@ -113,7 +113,7 @@ class TDC_Mgr( object ) :
         return self.num_data_in_buf
 
         
-    def clear_buf( self ) :
+    def reset( self ) :
         self.num_data_in_buf = 0 
 
     def get_channels( self, hits ) :

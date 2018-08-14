@@ -7,9 +7,8 @@ import phase_imaging_plotter
 import sys 
 import scipy.stats as st
 import struct 
-# import multiprocessing
 import threading
-
+import datetime
 import os
 import numpy as np
 import scipy
@@ -35,6 +34,9 @@ SUBTITLE_WEIGHT = 3
 
 DEFAULT_KDE_BW = 0.03
 
+
+gui_path = sys.path[0]
+gui_path = gui_path[ : gui_path.rfind( '/' ) ]
                 
         
 class tabdemo( QtGui.QTabWidget ):
@@ -43,15 +45,23 @@ class tabdemo( QtGui.QTabWidget ):
     def __init__(self, parent = None):
         super(tabdemo, self).__init__( parent )
 
+        self.date_str = datetime.datetime.now().strftime( '%Y_%m_%d' )
+        self.data_dir_path = gui_path + '/data/'
+        self.session_dir_path = None
+        
+        print( self.data_dir_path )
+        
+        try :
+            os.makedirs( self.data_dir_path, exist_ok = 1 )
+        except :
+            pass
+
+        self.session_dir_path = self.data_dir_path
+        
+        
+        # the 3 custom classes we will be using to manage DAQ, processing, and plots
         self.tdc_mgr = tdc_daq_mgr.TDC_Mgr()
-        # time.sleep(5.0)
-        # tdc_mgr.read()
-
         self.tdc_data_processor = phase_im_processing.tdc_processor( self.tdc_mgr ) 
-        # tdc_data_processor.extract_candidates() 
-
-
-        # self.tdc_data_handler = TDCDataHandler( data_path )
         self.tdc_plotter = phase_imaging_plotter.plotter( self.tdc_data_processor )
 
         self.controls_tab_idx = 0
@@ -112,140 +122,6 @@ class tabdemo( QtGui.QTabWidget ):
 
         
         
-    # def controls_tab_init( self ) :
-
-    #     tabor_layout = QtGui.QFormLayout()
-
-    #     # don't expand to take more room than necessary 
-    #     tabor_layout.setFieldGrowthPolicy( 0 ) 
-            
-    #     subtitle = QtGui.QLabel( 'Tabor Controls' )
-    #     subtitle.setFont( QtGui.QFont( SUBTITLE_FONT, SUBTITLE_SIZE,
-    #                                    QtGui.QFont.Bold ) )
-
-    #     tabor_layout.addRow( subtitle )
-        
-    #     self.load_tabor_button = QtGui.QPushButton( 'Load Tabor Parameters' )
-    #     tabor_layout.addRow( self.load_tabor_button ) 
-
-    #     self.num_steps_entry = QtGui.QLineEdit( '5' )
-    #     tabor_layout.addRow( 'num steps:', self.num_steps_entry ) 
-
-    #     self.tacc_entry = QtGui.QLineEdit( '68' )
-    #     tabor_layout.addRow( 'Accumulation Time:', self.tacc_entry ) 
-
-    #     nrows = 5
-    #     ncols = 3 
-        
-    #     tabor_table = QtGui.QTableWidget( nrows, ncols )
-        
-    #     # combination of size policy change and resizemode change
-    #     # makes the table not expand more than necessary 
-    #     size_policy = QtGui.QSizePolicy( QtGui.QSizePolicy.Maximum,
-    #                                      QtGui.QSizePolicy.Maximum )
-        
-    #     tabor_table.setSizePolicy( size_policy )
-    #     self.load_tabor_button.setSizePolicy( size_policy ) 
-        
-    #     tabor_table.horizontalHeader().setResizeMode( QtGui.QHeaderView.Stretch ) 
-    #     tabor_table.verticalHeader().setResizeMode( QtGui.QHeaderView.Stretch )
-        
-    #     tabor_table.setHorizontalHeaderLabels( [ 'w_-', 'w_+', 'w_c' ] )
-    #     tabor_table.setVerticalHeaderLabels( [ 'omega', 'phase', 'amp',
-    #                                            'loops', 'length' ] )
-
-    #     defaults = [ [ 1600.0, 656252.0, 657844.5 ],
-    #                  [ -140.0, 0.0, 0.0 ],
-    #                  [ 0.0005, 0.2, 0.5 ],
-    #                  [ 1, 100, 208 ],
-    #                  [ 3, 1, 1 ]
-    #     ]
-                
-    #     omega_validator = QtGui.QDoubleValidator( 0, 1e8, 4 ) 
-    #     phase_validator = QtGui.QDoubleValidator( -180.0, 180.0, 4 ) 
-    #     amp_validator = QtGui.QDoubleValidator( 0, 1.0, 4 ) 
-    #     int_validator = QtGui.QIntValidator( 0, 300 ) 
-        
-    #     validators = [
-    #         [ omega_validator ] * 3,
-    #         [ phase_validator ] * 3,
-    #         [ amp_validator ] * 3,
-    #         [ int_validator ] * 3,
-    #         [ int_validator ] * 3
-    #     ]
-        
-    #     for i in range( nrows ) :
-    #         for j in range( ncols ) :
-    #             tmp = QtGui.QLineEdit( str( defaults[i][j] ) )
-    #             tmp.setValidator( validators[i][j] )
-    #             tabor_table.setCellWidget( i,j, tmp )
-
-    #     print( tabor_table.cellWidget( 0, 0 ).text() )
-
-    #     tabor_layout.addRow( tabor_table )
-
-    #     self.set_from_ion_button = QtGui.QPushButton( 'Set Params From Ion Data' )
-    #     tabor_layout.addRow( self.load_tabor_button ) 
-        
-    #     # tabor_controls_grid = QGridLayout()
-    #     # tabor_layout.addLayout( tabor_controls_grid ) 
-
-    #     self.toggle_daq_button = QtGui.QPushButton( 'Pause' )
-    #     self.toggle_daq_button.setSizePolicy( size_policy )
-        
-    #     self.clear_button = QtGui.QPushButton( 'Clear' ) 
-    #     self.clear_button.setSizePolicy( size_policy )
-        
-    #     daq_layout = QtGui.QFormLayout()
-    #     daq_layout.addRow( self.make_subtitle( 'DAQ Controls' ) )
-    #     daq_layout.addRow( self.toggle_daq_button )
-    #     daq_layout.addRow( self.clear_button )
-
-    #     daq_layout.addRow( self.make_subtitle( 'Output Controls' ) ) 
-
-    #     self.save_button = QtGui.QPushButton( 'Save' )
-    #     self.save_button.setSizePolicy( size_policy )
-    #     daq_layout.addRow( self.save_button ) 
-
-    #     self.data_name_entry = QtGui.QLineEdit()
-    #     daq_layout.addRow( 'Current Data Name:', self.data_name_entry )  
-        
-    #     dirpicker = QtGui.QHBoxLayout() 
-    #     self.session_path_button = QtGui.QPushButton( 'Choose Session Path' )
-    #     self.session_path_entry = QtGui.QLineEdit()
-    #     dirpicker.addWidget( self.session_path_button )
-    #     dirpicker.addWidget( self.session_path_entry ) 
-    #     daq_layout.addRow( dirpicker )
-
-        
-        
-    #     # self.data_name = QtGui.QPushButton( 'Current Data Name' )
-
-    #     # daq_layout.addRow( 
-        
-    #     # grid_layout = QtGui.QGridLayout()
-    #     # grid_layout.addLayout( tabor_layout, 0, 0, 0, 0 )
-    #     # grid_layout.addLayout( daq_layout, 0, 0, 0, 1 ) 
-
-    #     # daq_layout.setAlignment( QtCore.Qt.AlignRight ) 
-        
-    #     layout = QtGui.QHBoxLayout()
-    #     # layout.setSpacing(0)
-    #     layout.addLayout( tabor_layout, 2 )
-    #     layout.addLayout( daq_layout, 2 )
-
-    #     # layout.setAlignment( QtCore.Qt.AlignHCenter ) 
-
-    #     # layout.setStretch( 0, 0 ) 
-    #     # layout.setStretch( 1, 0 )
-
-    #     # layout.setSpacing(30)
-    #     layout.setContentsMargins(0,0,0,0)
-        
-    #     self.controls_tab.setLayout( layout )
-
-
-        
     def controls_tab_init( self ) :
 
         tabor_layout = QtGui.QFormLayout()
@@ -260,8 +136,10 @@ class tabdemo( QtGui.QTabWidget ):
         tabor_layout.addRow( subtitle )
         
         self.load_tabor_button = QtGui.QPushButton( 'Load Tabor Parameters' )
+        self.load_tabor_button.clicked.connect( self.load_tabor_button_clicked ) 
         tabor_layout.addRow( self.load_tabor_button ) 
-
+        
+        
         self.num_steps_entry = QtGui.QLineEdit( '5' )
         tabor_layout.addRow( 'num steps:', self.num_steps_entry ) 
 
@@ -318,16 +196,40 @@ class tabdemo( QtGui.QTabWidget ):
 
         tabor_layout.addRow( tabor_table )
 
-        self.set_from_ion_button = QtGui.QPushButton( 'Set Params From Ion Data' )
-        tabor_layout.addRow( self.load_tabor_button ) 
+        self.set_params_from_ion_data_button = QtGui.QPushButton( 'Set Params From Ion Data' )
+        self.set_params_from_ion_data_button.clicked.connect(
+            self.set_params_from_ion_data_button_clicked ) 
+        tabor_layout.addRow( self.set_params_from_ion_data_button )
+
+        self.z_entry = None
+        self.n_entry = None
+        self.q_entry = None
+
+        # ion_entry_layout = QtGui.QFormLayout()
+        # ion_entry_layout.addRow( 'Z:', self.z_entry )
+
+        labels = [ 'Z:', 'N:', 'q:' ]
+        entries = [ self.z_entry, self.n_entry, self.q_entry ]
+        defaults = [ '55', '82', '1' ]
+
+        ion_param_validator = QtGui.QIntValidator( 0, 1000 ) 
+
+        for i in range( len( labels ) ) :
+            entries[i] = QtGui.QLineEdit( defaults[i] ) 
+            entries[i].setValidator( ion_param_validator )
+            tabor_layout.addRow( labels[i], entries[i] )
+        
+        
         
         # tabor_controls_grid = QGridLayout()
         # tabor_layout.addLayout( tabor_controls_grid ) 
 
         self.toggle_daq_button = QtGui.QPushButton( 'Pause' )
+        self.toggle_daq_button.clicked.connect( self.toggle_daq_button_clicked ) 
         self.toggle_daq_button.setSizePolicy( size_policy )
         
-        self.clear_button = QtGui.QPushButton( 'Clear' ) 
+        self.clear_button = QtGui.QPushButton( 'Clear' )
+        self.clear_button.clicked.connect( self.clear_button_clicked ) 
         self.clear_button.setSizePolicy( size_policy )
         
         daq_layout = QtGui.QFormLayout()
@@ -338,18 +240,26 @@ class tabdemo( QtGui.QTabWidget ):
         daq_layout.addRow( self.make_subtitle( 'Output Controls' ) ) 
 
         self.save_button = QtGui.QPushButton( 'Save' )
+        self.save_button.clicked.connect( self.save_button_clicked ) 
         self.save_button.setSizePolicy( size_policy )
         daq_layout.addRow( self.save_button ) 
 
-        self.data_name_entry = QtGui.QLineEdit()
-        daq_layout.addRow( 'Current Data Name:', self.data_name_entry )  
+        self.session_name_entry = QtGui.QLineEdit()
+        daq_layout.addRow( 'Session Name', self.session_name_entry )
+
+        self.experimenter_entry = QtGui.QLineEdit()
+        daq_layout.addRow( 'Experimenter', self.experimenter_entry ) 
+
+        self.comment_entry = QtGui.QTextEdit()
+        daq_layout.addRow( 'Session Comments', self.comment_entry ) 
         
-        dirpicker = QtGui.QHBoxLayout() 
-        self.session_path_button = QtGui.QPushButton( 'Choose Session Path' )
-        self.session_path_entry = QtGui.QLineEdit()
-        dirpicker.addWidget( self.session_path_button )
-        dirpicker.addWidget( self.session_path_entry ) 
-        daq_layout.addRow( dirpicker )
+        # dirpicker = QtGui.QHBoxLayout() 
+        # self.session_path_button = QtGui.QPushButton( 'Choose Session Path' )
+        # self.session_path_button.clicked.connect( self.session_path_button_clicked ) 
+        # self.session_path_entry = QtGui.QLineEdit()
+        # dirpicker.addWidget( self.session_path_button )
+        # dirpicker.addWidget( self.session_path_entry ) 
+        # daq_layout.addRow( dirpicker )
 
         
         
@@ -549,7 +459,9 @@ class tabdemo( QtGui.QTabWidget ):
 
         layout.addWidget( self.canvases[ tab_idx ] )
         # layout.addWidget(self.button)
-            
+
+        
+        
         self.unprocessed_data_tab.setLayout( layout )
         
         # layout = QtGui.QFormLayout()
@@ -564,13 +476,46 @@ class tabdemo( QtGui.QTabWidget ):
         
         
     def analysis_tab_init( self ):
-        layout = QtGui.QHBoxLayout()
-        layout.addWidget( QtGui.QLabel("subjects") ) 
-        layout.addWidget( QtGui.QCheckBox("Physics"))
-        layout.addWidget( QtGui.QCheckBox("Maths"))
-        # self.setTabText( 2, "Education Details" )
-        self.analysis_tab.setLayout( layout )
 
+        tab_idx = self.analysis_tab_idx 
+        
+        # layout.addWidget( QtGui.QLabel("subjects") ) 
+        # layout.addWidget( QtGui.QCheckBox("Physics"))
+        # layout.addWidget( QtGui.QCheckBox("Maths"))
+        # # self.setTabText( 2, "Education Details" )
+
+        
+        # self.canvases[ tab_idx ].draw() 
+
+        # box = QtGui.QGroupBox( 'Data for Analysis' )
+
+        
+        self.analysis_data_dirs_qlist = QtGui.QListWidget()
+        self.analysis_data_dirs_qlist.addItem( 'test' )
+        
+        analysis_controls_layout = QtGui.QVBoxLayout()
+        analysis_controls_layout.addWidget(
+            self.make_subtitle( 'Choose Analysis Directories' ) )
+        analysis_controls_layout.addWidget( self.analysis_data_dirs_qlist ) 
+        
+        # layout.addWidget( self.analysis_data_dirs_qlist )
+        # layout.addWidget( self.canvases[ tab_idx ] )
+        # self.analysis_tab.setLayout( layout )
+
+        # plotting 
+        f, axarr = plt.subplots( 2, 2 )
+        f.subplots_adjust( hspace = 0.5 )
+        self.canvases[ tab_idx ] = FigureCanvas( f )
+
+        
+        layout = QtGui.QGridLayout()
+        layout.addLayout( analysis_controls_layout, 0, 0, 0, 1, QtCore.Qt.AlignLeft )
+        layout.setColumnStretch( 0, 0.5 ) 
+        layout.addWidget( self.canvases[ tab_idx ], 0, 1, 1, 1 )
+        layout.setColumnStretch( 1, 1 ) 
+        
+        self.analysis_tab.setLayout( layout )
+        
 
 
     def help_tab_init( self ) :
@@ -599,13 +544,14 @@ class tabdemo( QtGui.QTabWidget ):
             label.setPixmap( pixmap )        
 
         except :
-            print( 'ERROR: please put a picture of Jim Morisson in ../imagesjim-morrison-og.jpg' )
+            print( 'ERROR: please put a picture of Jim Morisson in ../images/jim-morrison-og.jpg' )
             sys.exit(0)
             
         layout.addWidget( label ) 
         
         self.help_tab.setLayout( layout ) 
         
+
         
     def update( self ) :
 
@@ -645,7 +591,63 @@ class tabdemo( QtGui.QTabWidget ):
         return subtitle
 
     
-      
+
+    def load_tabor_button_clicked( self ) :
+        print( 'INFO: loading tabor...' )
+
+        
+    def set_params_from_ion_data_button_clicked( self ) :
+        print( 'INFO: setting tabor params from ion data...' ) 
+
+        
+    def toggle_daq_button_clicked( self ) :
+        print( 'INFO: toggling DAQ...' ) 
+
+        
+    def clear_button_clicked( self ) :
+        print( 'INFO: clearing data' ) 
+        time.sleep(1)
+        self.tdc_mgr.reset()
+        self.tdc_data_processor.reset()
+
+        
+    def save_button_clicked( self ) : 
+        print( 'INFO: saving data...' )
+        session_name = self.session_name_entry.text()
+
+        if not session_name :
+            print( 'ERROR: session name is required' ) 
+            return 0 
+        
+        session_dir_path = self.data_dir_path + session_name + '/'
+        print( session_dir_path ) 
+        
+        if session_dir_path != self.session_dir_path :
+            self.session_dir_path = session_dir_path
+            os.makedirs( self.session_dir_path, exist_ok = 1 )
+            
+        np.save( self.session_dir_path + 'test', [1,2,3] )
+
+        
+        
+    
+    # def session_path_button_clicked( self ) :
+    #     print( 'INFO: setting session path' )
+    #     session_dir = self.session_path_entry.text()
+
+    #     data_name = self.data_name_entry.text() 
+        
+    #     print( session_dir )
+    #     print( data_name )
+
+    #     dir_path = str( QtGui.QFileDialog.getExistingDirectory( self, "Select Directory") )
+
+    #     print( dir_path ) 
+        
+    #     # def analysis_dir_list_clicked( self ) :
+        
+
+    
 def main():
    app = QtGui.QApplication(sys.argv)
    ex = tabdemo()
