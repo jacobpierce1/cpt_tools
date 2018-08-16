@@ -4,6 +4,7 @@ IS_WINDOWS = ( os.name == 'nt' )
 
 USE_TABOR = 1 
 USE_FAKE_DATA = 0
+BENCHMARK = 1 
 
 if not IS_WINDOWS :
     USE_TABOR = 0

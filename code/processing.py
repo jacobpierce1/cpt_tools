@@ -1,8 +1,14 @@
 # this class connects to a tdc_daq_mgr and processes the data in real time 
 
+import config 
+
 import numpy as np
 import sys
+import time
+from numba import jit
 
+
+# start = time.time() 
 
 MCP_CAL_X = 1.29
 MCP_CAL_Y = 1.31
@@ -73,8 +79,12 @@ class Processor( object ) :
     def set_r_cut_upper( self, x ) :
         self.r_cut_upper = x 
 
-    
+
+    # @jit
     def extract_candidates( self ) :
+
+        if config.BENCHMARK :
+            start = time.time() 
 
         rollovers = self.tdc_daq_mgr.rollovers[ : self.tdc_daq_mgr.num_data_in_buf ] 
 
@@ -96,7 +106,7 @@ class Processor( object ) :
             idx = channel_indices[i]
 
             chan = self.tdc_daq_mgr.channels[ idx ]
-            time = self.tdc_daq_mgr.times[ idx ]
+            hit_time = self.tdc_daq_mgr.times[ idx ]
 
             # print( 'chan: ', chan )
             # print( 'time: ', time ) 
@@ -118,7 +128,7 @@ class Processor( object ) :
                 
             # new mcp hit: found an event candidate 
             elif chan == 7 :
-                mcp_trigger_time = time
+                mcp_trigger_time = hit_time
                 tof = self.compute_tof( self.current_trig_time, mcp_trigger_time )
 
                 self.num_mcp_hits += 1
@@ -145,7 +155,7 @@ class Processor( object ) :
                     
                     # don't add data if it's already there
                     if not pos_channel_buf[ chan ] : 
-                        pos_channel_buf[ chan ] = time
+                        pos_channel_buf[ chan ] = hit_time
                         num_pos_channels_detected += 1 
 
                     # found enough data for a calculation 
@@ -182,10 +192,16 @@ class Processor( object ) :
 
             i += 1
 
+        if config.BENCHMARK :
+            end = time.time()
+            diff = ( end - start ) * 1000 
+            print( 'BENCHMARK: processed %d hits in %f ms'
+                   % ( self.tdc_daq_mgr.num_data_in_buf, diff ) )
             
 
     # the data is only partially sorted when it comes out of the TDC.
     # complete the sorting between each group of consecutive rolloovers.
+    @jit
     def sort_data( self ) :
 
         num_data = self.tdc_daq_mgr.num_data_in_buf
@@ -238,7 +254,7 @@ class Processor( object ) :
         
         return start, end
 
-            
+    # @jit( nopython = 1 ) 
     def compute_mcp_positions( self, pos_channel_buf ) :
         # print( pos_channel_buf ) 
         mcp_pos = np.zeros(2) 

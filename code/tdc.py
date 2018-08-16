@@ -21,7 +21,7 @@ code_path = os.path.abspath( os.path.dirname( __file__ ) )
 os.chdir( code_path ) 
 _dll_path = code_path + '\hptdc_driver_3.4.3_x86_c_wrap.dll'
 print( _dll_path ) 
-fake_data_path = code_path + '../debug/test_data_tabor_on.npy'  
+fake_data_path = os.path.join( code_path, '..', 'debug', 'test_data_tabor_on.npy' )
 
 SAVE_FAKE_DATA = 0 
 
@@ -86,17 +86,18 @@ class TDC( object ) :
         self.collecting_data = 0
 
         
-    def resume( self ) : 
-        self.tdc_driver_lib.TDCManager_Continue( self.tdc_ctx )
+    def resume( self ) :
+        if not config.USE_FAKE_DATA : 
+            self.tdc_driver_lib.TDCManager_Continue( self.tdc_ctx )
         self.collecting_data = 1
 
         
     def get_state( self ) :
-        state = self.tdc_driver_lib.TDCManager_GetState( self.tdc_ctx )
+        if not config.USE_FAKE_DATA : 
+            state = self.tdc_driver_lib.TDCManager_GetState( self.tdc_ctx )
         return state
                 
     def read( self ) :
-
         if config.USE_FAKE_DATA :
             self.data_buf = np.load( fake_data_path )
             self.num_data_in_buf = np.where( self.data_buf == 0 )[0][0]
@@ -106,10 +107,7 @@ class TDC( object ) :
                 self.tdc_ctx,
                 self.data_buf.ctypes.data_as( ctypes.POINTER( ctypes.c_uint ) ), 
                 _max_tdc_buf_size );
-        
-        # for i in range( self.num_data_in_buf ) :
-        #       print( bin( self.data_buf[i+3] ) )
-        
+                
         tmp = self.data_buf[ : self.num_data_in_buf ]
         
         self.channels[ : self.num_data_in_buf ] = self.get_channels( tmp ) 
