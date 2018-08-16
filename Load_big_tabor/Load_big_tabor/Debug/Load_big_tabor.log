@@ -1,21 +1,17 @@
-﻿Build started 8/15/2018 9:18:16 AM.
+﻿Build started 8/16/2018 10:59:20 AM.
      1>Project "C:\Users\cpt\Desktop\JACOB\cpt_master_controller\Load_big_tabor\Load_big_tabor\Load_big_tabor.vcxproj" on node 2 (Build target(s)).
      1>ClCompile:
-         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _LIB /D _WINDLL /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yc"stdafx.h" /Fp"Debug\Load_big_tabor.pch" /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt stdafx.cpp
-         stdafx.cpp
-         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _LIB /D _WINDLL /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yu"stdafx.h" /Fp"Debug\Load_big_tabor.pch" /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt Load_big_tabor.cpp
+         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D WIN32 /D TABOR_EXPORT /D _DEBUG /D _CONSOLE /D _LIB /D _WINDLL /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yu"stdafx.h" /Fp"Debug\Load_big_tabor.pch" /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt Load_big_tabor.cpp
          Load_big_tabor.cpp
-     1>c:\users\cpt\desktop\jacob\cpt_master_controller\load_big_tabor\load_big_tabor\load_big_tabor.cpp(213): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\cpt\desktop\jacob\cpt_master_controller\load_big_tabor\load_big_tabor\load_big_tabor.cpp(216): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
-     1>c:\users\cpt\desktop\jacob\cpt_master_controller\load_big_tabor\load_big_tabor\load_big_tabor.cpp(219): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\load_big_tabor\load_big_tabor\load_big_tabor.cpp(223): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\load_big_tabor\load_big_tabor\load_big_tabor.cpp(226): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>c:\users\cpt\desktop\jacob\cpt_master_controller\load_big_tabor\load_big_tabor\load_big_tabor.cpp(229): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
        Link:
          C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\cpt\Desktop\JACOB\cpt_master_controller\Load_big_tabor\Debug\Load_big_tabor.dll" /INCREMENTAL /NOLOGO /LIBPATH:"C:\Program Files\IVI Foundation\VISA\WinNT\lib\msc" /LIBPATH:"C:\Program Files\IVI Foundation\IVI\Lib\msc" ww257x.lib visa32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\cpt\Desktop\JACOB\cpt_master_controller\Load_big_tabor\Debug\Load_big_tabor.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\cpt\Desktop\JACOB\cpt_master_controller\Load_big_tabor\Debug\Load_big_tabor.lib" /MACHINE:X86 /DLL Debug\Load_big_tabor.obj
          Debug\stdafx.obj
-         LINK : C:\Users\cpt\Desktop\JACOB\cpt_master_controller\Load_big_tabor\Debug\Load_big_tabor.dll not found or not built by the last incremental link; performing full link
-            Creating library C:\Users\cpt\Desktop\JACOB\cpt_master_controller\Load_big_tabor\Debug\Load_big_tabor.lib and object C:\Users\cpt\Desktop\JACOB\cpt_master_controller\Load_big_tabor\Debug\Load_big_tabor.exp
          Load_big_tabor.vcxproj -> C:\Users\cpt\Desktop\JACOB\cpt_master_controller\Load_big_tabor\Debug\Load_big_tabor.dll
      1>Done Building Project "C:\Users\cpt\Desktop\JACOB\cpt_master_controller\Load_big_tabor\Load_big_tabor\Load_big_tabor.vcxproj" (Build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:11.17
+Time Elapsed 00:00:02.89

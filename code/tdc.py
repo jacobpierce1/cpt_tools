@@ -12,13 +12,15 @@ import time
 import atexit
 import collections 
 import sys
+import os 
 
-
-_dll_path = 'hptdc_driver_3.4.3_x86_c_wrap.dll'
 _max_tdc_buf_size = 2**14
 # fake_data_path = 'test_data_tabor_on_with_rising.npy' 
 
-code_path = sys.path[0] + '/'
+code_path = os.path.abspath( os.path.dirname( __file__ ) )
+os.chdir( code_path ) 
+_dll_path = code_path + '\hptdc_driver_3.4.3_x86_c_wrap.dll'
+print( _dll_path ) 
 fake_data_path = code_path + '../debug/test_data_tabor_on.npy'  
 
 SAVE_FAKE_DATA = 0 

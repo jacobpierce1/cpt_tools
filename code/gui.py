@@ -1,5 +1,6 @@
 import config
 import tdc
+import tabor
 import processing
 import plotter
 
@@ -65,6 +66,7 @@ class gui( QTabWidget ):
         
         # the 3 custom classes we will be using to manage DAQ, processing, and plots
         self.tdc_mgr = tdc.TDC()
+        self.tabor = tabor.Tabor() 
         self.tdc_data_processor = processing.Processor( self.tdc_mgr ) 
         self.plotter = plotter.Plotter( self.tdc_data_processor )
 
@@ -198,8 +200,6 @@ class gui( QTabWidget ):
                 tmp = QLineEdit( str( defaults[i][j] ) )
                 tmp.setValidator( validators[i][j] )
                 tabor_table.setCellWidget( i,j, tmp )
-
-        print( tabor_table.cellWidget( 0, 0 ).text() )
 
         tabor_layout.addRow( tabor_table )
 
@@ -613,6 +613,17 @@ class gui( QTabWidget ):
 
     def load_tabor_button_clicked( self ) :
         print( 'INFO: loading tabor...' )
+        
+        tacc = self.tacc_entry.text() 
+        nsteps = self.num_steps_entry.text() 
+        types = [ float, float, float, int, int ]
+        data = [ [ types[i]( tabor_table.cellWidget( i, j ).text() ) 
+                for j in range(3) ] 
+                for i in range( 5) ]
+
+        print( data )
+        freqs, phases, amps, loops, steps = data 
+        self.tabor.load_params( tacc, nsteps, freqs, phases, amps, loops, steps )
 
         
     def set_params_from_ion_data_button_clicked( self ) :

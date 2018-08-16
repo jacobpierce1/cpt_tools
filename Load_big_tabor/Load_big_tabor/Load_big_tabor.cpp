@@ -1,6 +1,8 @@
 // WW four-channel Win32 Console.cpp : Defines the entry point for the console application.
 //
 
+
+
 #include "stdafx.h"
 #include "ww257x.h"
 #include <iostream>		// std:cout, std::cin
@@ -11,6 +13,12 @@
 #include <sstream>		// Conversion number to string
 #include <math.h>		// Least Common Multiple function
 using namespace std;
+
+#ifdef TABOR_EXPORT
+#define JACOB_TABOR_API __declspec( dllexport )   
+#else  
+#define JACOB_TABOR_API __declspec( dllimport )   
+#endif  
 
 // Parameters
 #define USB_ADDRESS		"ASRL6::INSTR"
@@ -83,12 +91,14 @@ int loadSquareWaveformData(double, float, ViInt32 &);				// Function to load a S
 int loadSineWaveformData(double, double, float, int, ViInt32 &);	// Function to load a Sine wave
 int loadDCLevelWaveformData(double, double, ViInt32 &);				// Function to load a DC level waveform data
 
-__declspec( dllexport ) int load_tabor( int tacc, int nsteps,
-	double wplus, double wminus, double wc,
-	double wplus_phase, double wminus_phase, double wc_phase, 
-	double wplus_amp, double wminus_amp, double wc_amp,
-	int wplus_loops, int wminus_loops, int wc_loops,
-	int wplus_length, int wminus_length, int wc_length )
+extern "C" __declspec( dllexport ) int load_tabor( 
+// JACOB_TABOR_API int load_tabor( 
+int tacc, int nsteps,
+	double wminus, double wplus, double wc,
+	double wminus_phase, double wplus_phase, double wc_phase, 
+	double wminus_amp, double wplus_amp, double wc_amp,
+	int wminus_loops, int wplus_loops, int wc_loops,
+	int wminus_length, int wplus_length, int wc_length )
 {
 	
 	// Declarations
@@ -321,8 +331,8 @@ __declspec( dllexport ) int load_tabor( int tacc, int nsteps,
 		printf("Record Uploaded!!! \n \n");
 
 		// Exit
-		cout << "Press 'Enter' button to quit the Console Application";
-		cin.get();
+		// cout << "Press 'Enter' button to quit the Console Application";
+		// cin.get();
 	}
 
 // Clean-up pointers
