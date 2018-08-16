@@ -158,21 +158,21 @@ class gui( QTabWidget ):
         nrows = 5
         ncols = 3 
         
-        tabor_table = QTableWidget( nrows, ncols )
+        self.tabor_table = QTableWidget( nrows, ncols )
         
         # combination of size policy change and resizemode change
         # makes the table not expand more than necessary 
         size_policy = QSizePolicy( QSizePolicy.Maximum,
                                    QSizePolicy.Maximum )
         
-        tabor_table.setSizePolicy( size_policy )
+        self.tabor_table.setSizePolicy( size_policy )
         self.load_tabor_button.setSizePolicy( size_policy ) 
         
-        tabor_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
-        tabor_table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
+        self.tabor_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
+        self.tabor_table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
         
-        tabor_table.setHorizontalHeaderLabels( [ 'w_-', 'w_+', 'w_c' ] )
-        tabor_table.setVerticalHeaderLabels( [ 'omega', 'phase', 'amp',
+        self.tabor_table.setHorizontalHeaderLabels( [ 'w_-', 'w_+', 'w_c' ] )
+        self.tabor_table.setVerticalHeaderLabels( [ 'omega', 'phase', 'amp',
                                                'loops', 'length' ] )
 
         defaults = [ [ 1600.0, 656252.0, 657844.5 ],
@@ -199,9 +199,9 @@ class gui( QTabWidget ):
             for j in range( ncols ) :
                 tmp = QLineEdit( str( defaults[i][j] ) )
                 tmp.setValidator( validators[i][j] )
-                tabor_table.setCellWidget( i,j, tmp )
+                self.tabor_table.setCellWidget( i,j, tmp )
 
-        tabor_layout.addRow( tabor_table )
+        tabor_layout.addRow( self.tabor_table )
 
         self.set_params_from_ion_data_button = QPushButton( 'Set Params From Ion Data' )
         self.set_params_from_ion_data_button.clicked.connect(
@@ -614,10 +614,10 @@ class gui( QTabWidget ):
     def load_tabor_button_clicked( self ) :
         print( 'INFO: loading tabor...' )
         
-        tacc = self.tacc_entry.text() 
-        nsteps = self.num_steps_entry.text() 
+        tacc = int( self.tacc_entry.text() ) 
+        nsteps = int( self.num_steps_entry.text() )
         types = [ float, float, float, int, int ]
-        data = [ [ types[i]( tabor_table.cellWidget( i, j ).text() ) 
+        data = [ [ types[i]( self.tabor_table.cellWidget( i, j ).text() ) 
                 for j in range(3) ] 
                 for i in range( 5) ]
 

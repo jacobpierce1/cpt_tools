@@ -5,8 +5,8 @@ import config
 import numpy as np
 import sys
 import time
-from numba import jit
-
+from numba import jit, jitclass
+import numba
 
 # start = time.time() 
 
@@ -20,8 +20,10 @@ BUF_SIZE = 2 ** 22
 mcp_center_coords = np.array( [ -1.6, 3.0 ] )
 
 
-
-    
+# spec = [ 
+# ( 'first_pass', numba.int32 )
+# ]
+# @jitclass( spec ) 
 class Processor( object ) :
 
     def __init__( self, tdc_daq_mgr = None ) :
@@ -82,10 +84,13 @@ class Processor( object ) :
 
     # @jit
     def extract_candidates( self ) :
-
+        
+        if self.tdc_daq_mgr.num_data_in_buf == 0 : 
+            return
+    
         if config.BENCHMARK :
             start = time.time() 
-
+            
         rollovers = self.tdc_daq_mgr.rollovers[ : self.tdc_daq_mgr.num_data_in_buf ] 
 
         channel_indices = np.where( rollovers == 0 )[0]
@@ -201,7 +206,7 @@ class Processor( object ) :
 
     # the data is only partially sorted when it comes out of the TDC.
     # complete the sorting between each group of consecutive rolloovers.
-    @jit
+    # @jit
     def sort_data( self ) :
 
         num_data = self.tdc_daq_mgr.num_data_in_buf
