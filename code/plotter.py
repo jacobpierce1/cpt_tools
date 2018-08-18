@@ -51,8 +51,13 @@ class Plotter( object ) :
             data = self.processor.candidate_tofs[ : self.processor.num_mcp_hits ]
                                 
         # self.current_tof_plot_data = self.tof_plot.hist( self.processor.tof_data )
-        self.tof_plot.clear() 
-        self.tof_plot.hist( data, bins = 'fd', log = 1  ) 
+        self.tof_plot.clear()
+
+        bins = self.tof_plot_hist_num_bins
+        if bins == 0 :
+            bins = 'fd'
+        
+        self.tof_plot.hist( data, bins = bins, log = 1  ) 
         # hist, bins = np.histogram( self.processor.tof_data, bins = 'auto' )
         # self.tof_plot.plot( bins[:-1], hist, ls = 'steps-mid' ) 
         self.tof_plot.set_title( 'TOF histogram'  )
@@ -175,7 +180,11 @@ class Plotter( object ) :
             
         data = self.processor.candidate_radii[ valid_indices ]
 
-        self.r_plot.hist( data, bins = 'rice' )
+        bins = self.tof_plot_hist_num_bins
+        if bins == 0 :
+            bins = 'rice'
+
+        self.r_plot.hist( data, bins = bins )
         
     
     def init_theta_plot( self, ax ) :
@@ -193,8 +202,12 @@ class Plotter( object ) :
             
         data = self.processor.candidate_angles[ valid_indices ]
 
+        bins = self.tof_plot_hist_num_bins
+        if bins == 0 :
+            bins = 'rice'
+
         self.theta_plot.set_title( r'Angle (deg)' ) 
-        self.theta_plot.hist( data, bins = 'rice' )
+        self.theta_plot.hist( data, bins = bins )
     
         
     def init_coords_plots( self, axarr ) :

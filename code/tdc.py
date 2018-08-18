@@ -49,7 +49,6 @@ class TDC( object ) :
             
             # connect to the tdc and start DAQ
             self.tdc_driver_lib.TDCManager_Init( self.tdc_ctx )
-            # self.tdc_driver_lib.TDCManager_ClearBuffer( self.tdc_ctx )
             self.tdc_driver_lib.TDCManager_Start( self.tdc_ctx )
                 
             # verify that the TDC is functioning as expected
@@ -91,6 +90,11 @@ class TDC( object ) :
             self.tdc_driver_lib.TDCManager_Continue( self.tdc_ctx )
         self.collecting_data = 1
 
+    def clear( self ) :
+        if not config.USE_FAKE_DATA :
+            self.tdc_driver_lib.TDCManager_ClearBuffer( self.tdc_ctx )
+        self.num_data_in_buf = 0
+        
         
     def get_state( self ) :
         if not config.USE_FAKE_DATA : 

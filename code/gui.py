@@ -24,6 +24,7 @@ from PyQt5.QtGui import QIntValidator, QDoubleValidator, QFont, QPixmap
 from PyQt5 import QtCore
 
 
+
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -42,10 +43,78 @@ DEFAULT_KDE_BW = 0.03
 
 gui_path = sys.path[0] + '/'
 # gui_path = gui_path[ : gui_path.rfind( '/' ) ] + '/'
+
+
+
+class MetadataWidget( object ) :
+
+    def __init__( self, processor ) :
+
+        self.processor = processor
+        
+        self.box = QGroupBox( 'Metadata' )
+        
+        h_labels = [ 'Counts', 'Rate (Hz)' ]
+        v_labels = [ 'MCP Hits', 'Valid data', 'Penning Eject' ]
+        
+        self.table = QTableWidget( len( v_labels ), len( h_labels ) )
+        
+        size_policy = QSizePolicy( QSizePolicy.Maximum,
+                                   QSizePolicy.Maximum )
+        
+        self.table.setSizePolicy( size_policy )
                 
+        self.table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
+        self.table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
+        
+        self.table.setHorizontalHeaderLabels( h_labels )
+        self.table.setVerticalHeaderLabels( v_labels )
+
+        for i in range( len( v_labels ) ) :
+            for j in range( len( h_labels ) ) :
+                self.table.setCellWidget( i, j, QLabel( '0' ) )
+
+        self.time_label_str = 'Time since data reset: '
+        self.time_label = QLabel( self.time_label_str )
+        # self.time_label_idx = len( time_label_str )
+
+        vbox = QVBoxLayout()
+        vbox.addWidget( self.table )
+        vbox.addWidget( self.time_label )
+        vbox.setAlignment( QtCore.Qt.AlignTop ) 
+        self.box.setLayout( vbox ) 
+
+        
+    def update( self ) :
+        cur_time = time.time()
+        diff_time = time.time() - self.processor.session_start_time 
+
+        counts = [ self.processor.num_mcp_hits, self.processor.num_processed_data,
+                   self.processor.num_penning_ejects ]
+
+        for i in range( len( counts ) ) :
+            self.table.cellWidget( i, 0 ).setText( '%d' % counts[i] )
+            self.table.cellWidget( i, 1 ).setText( '%.2f' % ( counts[i] / diff_time ) )
+
+        self.time_label.setText( self.time_label_str + '%d' % int( diff_time ) )
+            
+        # self.box = QVBoxLayout()
+
+        # total_counts_str = 'Total MCP hits: '
+        # self.total_counts_label = QLabel( total_counts_str )
+        # self.total_counts_idx = len( total_counts_str )
+
+        # total_penning_eject_str = 'Total Penning Ejects: '
+        # self.total_penning_ejects_label = QLabel( total_counts_str )
+        # self.total_penning_ejects_idx = 0
+
+        
+        
+        # self.box.addWidget( self.total_counts_label ) 
+
+
         
 class gui( QTabWidget ):
-
     
     def __init__(self, parent = None):
         super( gui, self ).__init__( parent )
@@ -65,36 +134,42 @@ class gui( QTabWidget ):
         
         
         # the 3 custom classes we will be using to manage DAQ, processing, and plots
-        self.tdc_mgr = tdc.TDC()
+        self.tdc = tdc.TDC()
         self.tabor = tabor.Tabor() 
-        self.tdc_data_processor = processing.Processor( self.tdc_mgr ) 
-        self.plotter = plotter.Plotter( self.tdc_data_processor )
-
+        self.processor = processing.Processor( self.tdc ) 
+        self.plotter = plotter.Plotter( self.processor )
+        
+        
+        
         self.controls_tab_idx = 0
         self.processed_data_tab_idx = 1
         # self.unprocessed_data_tab_idx = 2
         self.analysis_tab_idx = 2
-        self.help_tab_idx = 3
+        self.tools_tab_idx = 3 
+        self.help_tab_idx = 4
         
         self.controls_tab = QWidget() 
         self.processed_data_tab = QWidget()
         # self.unprocessed_data_tab = QWidget()
         self.analysis_tab = QWidget()
+        self.tools_tab = QWidget() 
         self.help_tab = QWidget()
         
         tabs = [ self.controls_tab, self.processed_data_tab,
                  # self.unprocessed_data_tab,
                  self.analysis_tab,
+                 self.tools_tab,
                  self.help_tab ]
 
         tab_idxs = [ self.controls_tab_idx, self.processed_data_tab_idx,
                      # self.unprocessed_data_tab_idx,
                      self.analysis_tab_idx,
+                     self.tools_tab_idx,
                      self.help_tab_idx ]
 
-        tab_names = [ 'Tabor / DAQ / Output', 'Processed Data',
+        tab_names = [ 'DAQ / Tabor / Output', 'Data Stream',
                       # 'Unprocessed Data',
-                      'Analysis', 'Help' ]
+                      'Analysis', 'Tools', 'Help' ]
         
         self.num_tabs = len( tabs ) 
         
@@ -112,12 +187,14 @@ class gui( QTabWidget ):
         self.processed_data_tab_init()
         # self.unprocessed_data_tab_init()
         self.analysis_tab_init()
+        self.tools_tab_init() 
         self.help_tab_init() 
         
         self.setWindowTitle("Phase Imaging DAQ and Real-Time Analysis")
         self.resize( 1300, 900 )
                 
         self.kill_update_thread = 0
+        self.thread_lock = threading.Lock() 
         self.update_thread = threading.Thread( target = self.update_loop )
         self.update_thread.start()
 
@@ -132,17 +209,17 @@ class gui( QTabWidget ):
         
     def controls_tab_init( self ) :
 
+        tab_idx = self.controls_tab_idx
+        
+        tabor_box = QGroupBox( 'Tabor Controls' ) 
         tabor_layout = QFormLayout()
-
+        tabor_box.setLayout( tabor_layout ) 
+        
         # don't expand to take more room than necessary 
         tabor_layout.setFieldGrowthPolicy( 0 ) 
             
-        # subtitle = QLabel( 'Tabor Controls' )
-        # subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE,
-        #                                Qtgui.QFont.Bold ) )
-
-        subtitle = self.make_subtitle( 'Tabor Controls' ) 
-        tabor_layout.addRow( subtitle )
+        # subtitle = self.make_subtitle( 'Tabor Controls' ) 
+        # tabor_layout.addRow( subtitle )
         
         self.load_tabor_button = QPushButton( 'Load Tabor Parameters' )
         self.load_tabor_button.clicked.connect( self.load_tabor_button_clicked ) 
@@ -165,8 +242,8 @@ class gui( QTabWidget ):
         size_policy = QSizePolicy( QSizePolicy.Maximum,
                                    QSizePolicy.Maximum )
         
-        self.tabor_table.setSizePolicy( size_policy )
-        self.load_tabor_button.setSizePolicy( size_policy ) 
+        # self.tabor_table.setSizePolicy( size_policy )
+        # self.load_tabor_button.setSizePolicy( size_policy ) 
         
         self.tabor_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
         self.tabor_table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
@@ -233,24 +310,28 @@ class gui( QTabWidget ):
 
         self.toggle_daq_button = QPushButton( 'Pause' )
         self.toggle_daq_button.clicked.connect( self.toggle_daq_button_clicked ) 
-        self.toggle_daq_button.setSizePolicy( size_policy )
+        # self.toggle_daq_button.setSizePolicy( size_policy )
         
         self.clear_button = QPushButton( 'Clear' )
         self.clear_button.clicked.connect( self.clear_button_clicked ) 
-        self.clear_button.setSizePolicy( size_policy )
+        # self.clear_button.setSizePolicy( size_policy )
         
-        daq_layout = QFormLayout()
-        daq_layout.addRow( self.make_subtitle( 'DAQ Controls' ) )
-        daq_layout.addRow( self.toggle_daq_button )
-        daq_layout.addRow( self.clear_button )
-
-        daq_layout.addRow( self.make_subtitle( 'Output Controls' ) ) 
-
         self.save_button = QPushButton( 'Save' )
-        self.save_button.clicked.connect( self.save_button_clicked ) 
-        self.save_button.setSizePolicy( size_policy )
-        daq_layout.addRow( self.save_button ) 
-
+        self.save_button.clicked.connect( self.save_button_clicked )
+        # self.save_button.setSizePolicy( size_policy )
+        
+        daq_box = QGroupBox( 'DAQ / Output Controls' ) 
+        daq_layout = QFormLayout()
+        daq_box.setLayout( daq_layout )
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addWidget( self.toggle_daq_button )
+        buttons_layout.addWidget( self.clear_button )
+        buttons_layout.addWidget( self.save_button ) 
+        daq_layout.addRow( buttons_layout ) 
+                
+        self.ion_name_entry = QLineEdit()
+        daq_layout.addRow( 'Suspected Ion', self.ion_name_entry )
+        
         self.session_name_entry = QLineEdit()
         daq_layout.addRow( 'Session Name', self.session_name_entry )
 
@@ -259,73 +340,34 @@ class gui( QTabWidget ):
 
         self.comment_entry = QTextEdit()
         daq_layout.addRow( 'Session Comments', self.comment_entry ) 
-        
-        # dirpicker = QHBoxLayout() 
-        # self.session_path_button = QPushButton( 'Choose Session Path' )
-        # self.session_path_button.clicked.connect( self.session_path_button_clicked ) 
-        # self.session_path_entry = QLineEdit()
-        # dirpicker.addWidget( self.session_path_button )
-        # dirpicker.addWidget( self.session_path_entry ) 
-        # daq_layout.addRow( dirpicker )
 
-        
-        
-        # self.data_name = QPushButton( 'Current Data Name' )
-
-        # daq_layout.addRow( 
-        
-        # grid_layout = QGridLayout()
-        # grid_layout.addLayout( tabor_layout, 0, 0, 0, 0 )
-        # grid_layout.addLayout( daq_layout, 0, 0, 0, 1 ) 
-
-        # daq_layout.setAlignment( QtCore.Qt.AlignLeft )
-        # tabor_layout.setAlignment( QtCore.Qt.AlignRight ) 
-        # tabor_layout.setFieldGrowthPolicy( QFormLayout.FieldsStayAtSizeHint )
-        # tabor_layout.setAlignment( QtCore.Qt.AlignRight )
-
+        metadata_widget = MetadataWidget( self.processor )
         
         layout = QHBoxLayout()
-        # layout.setSpacing(0)
-        layout.addLayout( tabor_layout )
-        layout.addLayout( daq_layout )
-
+        layout.addWidget( tabor_box )
+        layout.addWidget( daq_box )
+        layout.addWidget( metadata_widget.box )
         
-        # layout.setAlignment( QtCore.Qt.AlignHCenter ) 
-
-        # layout.setStretch( 0, 0 ) 
-        # layout.setStretch( 1, 0 )
-
-        # layout.setSpacing(30)
-        layout.setContentsMargins(200,100,200,10)
-
-        # layout.setSizePolicy( size_policy ) 
+        # layout.setContentsMargins(200,100,200,10)
         
         self.controls_tab.setLayout( layout )
+        self.tab_updaters[ tab_idx ] = [ metadata_widget.update ]
 
         
-      
+
+
+        
     def processed_data_tab_init( self ):
-        # layout = QFormLayout()
-        # layout.addRow("Name", QLineEdit() )
-        # layout.addRow("Address", QLineEdit() )
-        # self.setTabText(0,"Contact Details")
-        # self.tab1.setLayout(layout)
+
+        tab_idx = self.processed_data_tab_idx
 
         f, axarr = plt.subplots( 2, 2 )
-
         f.subplots_adjust( hspace = 0.5, wspace = 0.5 )
 
         self.plotter.init_mcp_hitmap( axarr[0][0], f )
         self.plotter.init_tof_plot( axarr[0][1] )
         self.plotter.init_r_plot( axarr[1][0] )
         self.plotter.init_theta_plot( axarr[1][1] )
-
-        tab_idx = self.processed_data_tab_idx
-        
-        self.tab_updaters[ tab_idx ] = [ self.plotter.update_mcp_hitmap,
-                                         self.plotter.update_tof_plot,
-                                         self.plotter.update_r_plot,
-                                         self.plotter.update_theta_plot ]
 
         # matplotlib canvas 
         self.canvases[ tab_idx ] = FigureCanvas( f )
@@ -347,6 +389,7 @@ class gui( QTabWidget ):
         self.mcp_kde_button = QRadioButton( 'KDE' )
         self.mcp_hist_button = QRadioButton( 'Hist' )
         self.mcp_kde_button.clicked.connect( self.set_use_kde )
+        self.mcp_hist_button.click()
         self.mcp_hist_button.clicked.connect( self.disable_use_kde ) 
         mcp_hitmap_buttons.addWidget( self.mcp_kde_button ) 
         mcp_hitmap_buttons.addWidget( self.mcp_hist_button )
@@ -380,27 +423,27 @@ class gui( QTabWidget ):
         mcp_hitmap_ybounds_entry.addWidget( self.mcp_hitmap_left_ybound_entry ) 
         mcp_hitmap_ybounds_entry.addWidget( self.mcp_hitmap_right_ybound_entry ) 
 
-        self.tof_histo_nbins_entry =  QLineEdit( str(0) )
-        self.tof_histo_nbins_entry.setValidator( hist_nbins_validator )
+        self.tof_hist_nbins_entry =  QLineEdit( str(0) )
+        self.tof_hist_nbins_entry.setValidator( hist_nbins_validator )
         
-        self.r_histo_nbins_entry =  QLineEdit( str(0) )
-        self.r_histo_nbins_entry.setValidator( hist_nbins_validator )
+        self.r_hist_nbins_entry =  QLineEdit( str(0) )
+        self.r_hist_nbins_entry.setValidator( hist_nbins_validator )
         
-        self.angle_histo_nbins_entry =  QLineEdit( str(0) )
-        self.angle_histo_nbins_entry.setValidator( hist_nbins_validator ) 
+        self.angle_hist_nbins_entry =  QLineEdit( str(0) )
+        self.angle_hist_nbins_entry.setValidator( hist_nbins_validator ) 
 
         
         # tof cut entry 
         tof_bounds = QHBoxLayout()
         
         self.tof_lower_cut_entry = QLineEdit(
-            str( self.tdc_data_processor.tof_cut_lower ) )
+            str( self.processor.tof_cut_lower ) )
 
         self.tof_lower_cut_entry.setValidator(
             QDoubleValidator(0., 10000., 10 ) )
 
         self.tof_upper_cut_entry = QLineEdit(
-            str( self.tdc_data_processor.tof_cut_upper ) )
+            str( self.processor.tof_cut_upper ) )
 
         self.tof_upper_cut_entry.setValidator(
             QDoubleValidator(0., 10000., 10 ) )
@@ -418,13 +461,15 @@ class gui( QTabWidget ):
 
         r_bounds.addWidget( self.r_lower_cut_entry )
         r_bounds.addWidget( self.r_upper_cut_entry ) 
-        
-        controls_layout = QFormLayout()
-        subtitle = QLabel( 'Visualization Controls' )
-        subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE,
-                                       QFont.Bold ) )
 
-        controls_layout.addRow( subtitle )
+        layout = QVBoxLayout() 
+        
+        controls_box = QGroupBox( 'Visualization Controls' )
+        controls_layout = QFormLayout()
+        # subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE,
+        #                                QFont.Bold ) )
+
+        # controls_layout.addRow( subtitle )
         controls_layout.addRow( 'Plot with Cuts', self.plot_with_cuts_button ) 
         controls_layout.addRow( 'Hitmap Type:', mcp_hitmap_buttons )
         # controls_layout.addRow( mcp_hitmap_settings )
@@ -432,26 +477,51 @@ class gui( QTabWidget ):
         controls_layout.addRow( 'MCP KDE bandwidth:', self.mcp_kde_bw_entry )
         controls_layout.addRow( 'MCP X Bounds:', mcp_hitmap_xbounds_entry ) 
         controls_layout.addRow( 'MCP Y Bounds:', mcp_hitmap_ybounds_entry ) 
-        controls_layout.addRow( 'TOF histo num bins:', self.tof_histo_nbins_entry )
-        controls_layout.addRow( 'Radius histo num bins:', self.r_histo_nbins_entry )
-        controls_layout.addRow( 'Angle histo num bins:', self.angle_histo_nbins_entry )
+        controls_layout.addRow( 'TOF hist num bins:', self.tof_hist_nbins_entry )
+        controls_layout.addRow( 'Radius hist num bins:', self.r_hist_nbins_entry )
+        controls_layout.addRow( 'Angle hist num bins:', self.angle_hist_nbins_entry )
+        reload_button = QPushButton( 'Reload Parameters' ) 
+        reload_button.clicked.connect( self.reload_visualization_params ) 
+        controls_layout.addRow( reload_button ) 
         
-        subtitle = QLabel( 'Data Cuts' )
-        subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE, QFont.Bold ) )
-        controls_layout.addRow( subtitle )
-        controls_layout.addRow( 'TOF lower / upper bounds:', tof_bounds ) 
-        controls_layout.addRow( 'Radius Cut:', r_bounds ) 
+        controls_box.setLayout( controls_layout )
+        layout.addWidget( controls_box ) 
+        
+        # subtitle = QLabel( 'Data Cuts' )
+        # subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE, QFont.Bold ) )
+        # controls_layout.addRow( subtitle )
 
-        controls_layout.addRow( self.make_subtitle( 'Gaussian Fitting' ) )
+        cuts_box = QGroupBox( 'Data Cuts' ) 
+        cuts_layout = QFormLayout() 
+        cuts_layout.addRow( 'TOF lower / upper bounds:', tof_bounds ) 
+        cuts_layout.addRow( 'Radius Cut:', r_bounds ) 
+        cuts_box.setLayout( cuts_layout )
+        layout.addWidget( cuts_box ) 
+
+        fits_box = QGroupBox( 'Gaussian Fitting' )
+        fits_layout = QVBoxLayout()
+
+        fits_box.setLayout( fits_layout )
+        layout.addWidget( fits_box ) 
+        
+
+        metadata_widget = MetadataWidget( self.processor )
+        layout.addWidget( metadata_widget.box ) 
 
         # tof fit: button, left bound, right bound, fit results 
 
         # r fit
 
-        # angle fit 
+        # angle fit
+        
+        self.tab_updaters[ tab_idx ] = [ self.plotter.update_mcp_hitmap,
+                                         self.plotter.update_tof_plot,
+                                         self.plotter.update_r_plot,
+                                         self.plotter.update_theta_plot,
+                                         metadata_widget.update ]
         
         grid_layout = QGridLayout()
-        grid_layout.addLayout( controls_layout, 0, 0, 0, 1, QtCore.Qt.AlignLeft )
+        grid_layout.addLayout( layout, 0, 0, 0, 1, QtCore.Qt.AlignLeft )
         grid_layout.setColumnStretch( 0, 0.5 ) 
         grid_layout.addWidget( self.canvases[ tab_idx ], 0, 1, 1, 1 )
         grid_layout.setColumnStretch( 1, 1 ) 
@@ -474,20 +544,9 @@ class gui( QTabWidget ):
         # layout.addWidget(self.toolbar)
 
         layout.addWidget( self.canvases[ tab_idx ] )
-        # layout.addWidget(self.button)
-
-        
         
         self.unprocessed_data_tab.setLayout( layout )
-        
-        # layout = QFormLayout()
-        # sex = QHBoxLayout()
-        # sex.addWidget( QRadioButton("Male"))
-        # sex.addWidget( QRadioButton("Female"))
-        # layout.addRow( QLabel("Sex"),sex)
-        # layout.addRow("Date of Birth", QLineEdit() )
-        # self.setTabText(1,"Personal Details")
-        # self.tab2.setLayout(layout)
+
 
         
         
@@ -495,24 +554,33 @@ class gui( QTabWidget ):
 
         tab_idx = self.analysis_tab_idx 
         
-        # layout.addWidget( QLabel("subjects") ) 
-        # layout.addWidget( QCheckBox("Physics"))
-        # layout.addWidget( QCheckBox("Maths"))
-        # # self.setTabText( 2, "Education Details" )
-
-        
-        # self.canvases[ tab_idx ].draw() 
-
-        # box = QGroupBox( 'Data for Analysis' )
-
-        
         self.analysis_data_dirs_qlist = QListWidget()
-        self.analysis_data_dirs_qlist.addItem( 'test' )
-        
+        # self.analysis_data_dirs_qlist.addItem( 'test' )
+
+        analysis_controls_box = QGroupBox( 'Choose Analysis Directories' ) 
         analysis_controls_layout = QVBoxLayout()
-        analysis_controls_layout.addWidget(
-            self.make_subtitle( 'Choose Analysis Directories' ) )
-        analysis_controls_layout.addWidget( self.analysis_data_dirs_qlist ) 
+
+        tmp = QHBoxLayout()
+        tmp.addWidget( QLabel( 'Display Isolated Dataset' ) )
+        self.analysis_display_isolated_dataset = 0
+        self.isolated_dataset_checkbox = QCheckBox()
+        self.isolated_dataset_checkbox.setCheckState( self.analysis_display_isolated_dataset )
+        self.isolated_dataset_checkbox.clicked.connect( self.toggle_isolated_dataset ) 
+        tmp.addWidget( self.isolated_dataset_checkbox )
+        analysis_controls_layout.addLayout( tmp ) 
+        
+        analysis_controls_layout.addWidget( self.analysis_data_dirs_qlist )
+
+        buttons = QHBoxLayout()
+        add_button = QPushButton( 'Add' )
+        add_button.clicked.connect( self.add_button_clicked ) 
+        delete_button = QPushButton( 'Delete' )
+        delete_button.clicked.connect( self.delete_button_clicked ) 
+        buttons.addWidget( add_button )
+        buttons.addWidget( delete_button )
+        analysis_controls_layout.addLayout( buttons ) 
+
+        analysis_controls_box.setLayout( analysis_controls_layout ) 
         
         # layout.addWidget( self.analysis_data_dirs_qlist )
         # layout.addWidget( self.canvases[ tab_idx ] )
@@ -524,14 +592,62 @@ class gui( QTabWidget ):
         self.canvases[ tab_idx ] = FigureCanvas( f )
 
         
+        
         layout = QGridLayout()
-        layout.addLayout( analysis_controls_layout, 0, 0, 0, 1, QtCore.Qt.AlignLeft )
+        layout.addWidget( analysis_controls_box, 0, 0, 0, 1, QtCore.Qt.AlignLeft )
         layout.setColumnStretch( 0, 0.5 ) 
         layout.addWidget( self.canvases[ tab_idx ], 0, 1, 1, 1 )
         layout.setColumnStretch( 1, 1 ) 
         
         self.analysis_tab.setLayout( layout )
+
         
+
+    def tools_tab_init( self ) :
+
+        tab_idx = self.tools_tab_idx 
+
+        layout = QHBoxLayout()
+
+        mass_identifier_box = QGroupBox( 'Mass Identifier' )
+        # mass_identifier_box.setStyleSheet( '
+        tmp = QFormLayout()
+        self.tools_freq_entry = QLineEdit() 
+        tmp.addRow( 'Cyclotron Frequency', self.tools_freq_entry )
+        self.mass_identifier_button = QPushButton( 'Look Up' )
+        tmp.addRow( self.mass_identifier_button )
+        table_cols = [ 'Freq', 'Name', 'q', 'A', 'Z', 'N', 'T_{1/2}',
+                       'Cf yield', 'Rel Natural Abund' ]
+        self.mass_identifier_table = QTableWidget( 1, len( table_cols ) )
+        self.mass_identifier_table.setHorizontalHeaderLabels( table_cols ) 
+        tmp.addRow( self.mass_identifier_table ) 
+        mass_identifier_box.setLayout( tmp ) 
+
+        property_lookup_box = QGroupBox( 'Property Lookup' )
+        # tmp_layout = QVBoxLayout
+        tmp = QFormLayout()
+        self.tools_z_entry = QLineEdit( '43' ) 
+        self.tools_n_entry = QLineEdit( '36' )
+        self.tools_q_entry = QLineEdit( '0' ) 
+        self.tools_property_button = QPushButton( 'Look Up' ) 
+        tmp.addRow( 'Z', self.tools_z_entry )
+        tmp.addRow( 'N', self.tools_n_entry )
+        tmp.addRow( 'q', self.tools_q_entry )
+        tmp.addRow( self.tools_property_button ) 
+        # tmp_layout.addLayout( tmp ) 
+        property_lookup_box.setLayout( tmp )
+
+        property_lookup_cols = [ 'Freq', 'T_{1/2}', 'Cf yield', 'Rel Natural Abund' ]
+        self.property_lookup_table = QTableWidget( 1, len( property_lookup_cols ) )
+        self.property_lookup_table.setHorizontalHeaderLabels( property_lookup_cols ) 
+        tmp.addRow( self.property_lookup_table ) 
+
+        layout.addWidget( mass_identifier_box ) 
+        layout.addWidget( property_lookup_box ) 
+        
+        self.tools_tab.setLayout( layout ) 
+        
+
 
 
     def help_tab_init( self ) :
@@ -577,9 +693,10 @@ class gui( QTabWidget ):
         # get the current index and update that tab 
         current_tab = self.currentIndex()
 
-        # self.tdc_data_handler.read_data()
-        self.tdc_mgr.read()
-        self.tdc_data_processor.extract_candidates()
+        # prevent tdc read 
+        with self.thread_lock : 
+            self.tdc.read()
+            self.processor.extract_candidates()
     
         updaters = self.tab_updaters[ current_tab ]
         if updaters is not None :
@@ -609,22 +726,41 @@ class gui( QTabWidget ):
                                        QFont.Bold ) )
         return subtitle
 
-    
+
 
     def load_tabor_button_clicked( self ) :
-        print( 'INFO: loading tabor...' )
+        thread = threading.Thread( target = self.load_tabor_button_clicked_target )
+        thread.start()
         
-        tacc = int( self.tacc_entry.text() ) 
-        nsteps = int( self.num_steps_entry.text() )
-        types = [ float, float, float, int, int ]
-        data = [ [ types[i]( self.tabor_table.cellWidget( i, j ).text() ) 
-                for j in range(3) ] 
-                for i in range( 5) ]
 
-        print( data )
-        freqs, phases, amps, loops, steps = data 
-        self.tabor.load_params( tacc, nsteps, freqs, phases, amps, loops, steps )
+    def load_tabor_button_clicked_target( self ) :
+        with self.thread_lock : 
+            print( 'INFO: loading tabor...' )
 
+            self.tdc.pause()
+            self.tdc.clear()
+            self.processor.clear() 
+        
+            tacc = int( self.tacc_entry.text() ) 
+            nsteps = int( self.num_steps_entry.text() )
+            types = [ float, float, float, int, int ]
+            data = [ [ types[i]( self.tabor_table.cellWidget( i, j ).text() ) 
+                       for j in range(3) ] 
+            for i in range( 5) ]
+
+            print( data )
+            freqs, phases, amps, loops, steps = data 
+
+            if config.USE_TABOR :
+                self.tabor.load_params( tacc, nsteps, freqs, phases, amps, loops, steps )
+            else :
+                print( 'INFO: simulating tabor load...' )
+                time.sleep( 5 )
+                print( 'Done.' )
+
+            self.tdc.resume()
+            
+            
         
     def set_params_from_ion_data_button_clicked( self ) :
         print( 'INFO: setting tabor params from ion data...' ) 
@@ -637,8 +773,8 @@ class gui( QTabWidget ):
     def clear_button_clicked( self ) :
         print( 'INFO: clearing data' ) 
         time.sleep(1)
-        self.tdc_mgr.reset()
-        self.tdc_data_processor.reset()
+        self.tdc.clear()
+        self.processor.clear()
 
         
     def save_button_clicked( self ) : 
@@ -667,7 +803,35 @@ class gui( QTabWidget ):
 
     def disable_use_kde( self ) :
         self.plotter.use_kde = 0 
-    
+
+    def reload_visualization_params( self ) :
+        self.plotter.mcp_hist_num_bins = int( self.mcp_hist_nbins_entry.text() )
+        self.plotter.mcp_kde_bandwidth = float( self.mcp_kde_bw_entry.text() )
+        self.plotter.mcp_x_bounds = [ float( self.mcp_hitmap_left_xbound_entry.text() ),
+                                      float( self.mcp_hitmap_right_xbound_entry.text() ) ]
+        self.plotter.mcp_y_bounds = [ float( self.mcp_hitmap_left_ybound_entry.text() ),
+                                      float( self.mcp_hitmap_right_ybound_entry.text() ) ]
+        
+        self.plotter.tof_hist_num_bins = int( self.tof_hist_nbins_entry.text() ) 
+        self.plotter.r_hist_num_bins = int( self.r_hist_nbins_entry.text() ) 
+        self.plotter.angle_hist_num_bins = int( self.angle_hist_nbins_entry.text() )
+
+
+
+    def add_button_clicked( self ) :
+        dir_path = str( QFileDialog.getExistingDirectory( self, "Select Directory") )
+        # name = dir_path[ dir_path.rfind( '/' ) + 1 : ] 
+        # self.analysis_data_dirs_qlist.addItem( name ) 
+        self.analysis_data_dirs_qlist.addItem( dir_path ) 
+
+        
+    def delete_button_clicked( self ) :
+        row = self.analysis_data_dirs_qlist.currentRow() 
+        self.analysis_data_dirs_qlist.takeItem( row ) 
+        
+    def toggle_isolated_dataset( self ) :
+        self.plot_isolated_dataset = self.isolated_dataset_checkbox.checkState() 
+        
     # def session_path_button_clicked( self ) :
     #     print( 'INFO: setting session path' )
     #     session_dir = self.session_path_entry.text()
@@ -681,12 +845,13 @@ class gui( QTabWidget ):
 
     #     print( dir_path ) 
         
-    #     # def analysis_dir_list_clicked( self ) :
+        # def analysis_dir_list_clicked( self ) :
         
 
     
 def main():
    app = QApplication(sys.argv)
+   app.setStyleSheet( 'QGroupBox { font-weight: bold; }' ) 
    ex = gui()
    ex.show()
    sys.exit( app.exec_() )

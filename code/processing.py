@@ -33,9 +33,10 @@ class Processor( object ) :
         self.current_trig_time = 0
 
         # record how much of the buffers have been filled 
-        self.num_mcp_hits = -1
-        self.num_candidate_data = 0
-        self.num_processed_data = 0
+        self.clear() 
+        # self.num_mcp_hits = -1
+        # self.num_candidate_data = 0
+        # self.num_processed_data = 0
         
         self.candidate_tofs = np.zeros( BUF_SIZE )
         self.candidate_radii = np.zeros( BUF_SIZE )
@@ -59,13 +60,17 @@ class Processor( object ) :
         self.r_cut_upper = 40
         
         
-    def reset( self ) :
+    def clear( self ) :
         self.first_pass = 1
 
+        self.num_penning_ejects = 0
         self.num_mcp_hits = -1
         self.num_processed_data = 0
         self.num_candidate_data = 0
 
+        self.session_start_time = time.time()
+        
+        
         # to be set by user
         # self.tof_cut_bounds = None
 
@@ -129,7 +134,8 @@ class Processor( object ) :
                 # print( '\n\ncpt trig reached' )
                 # print( time ) 
                 self.current_trig_time = self.tdc_daq_mgr.times[ idx ]
-                mcp_trigger_reached = 0 
+                mcp_trigger_reached = 0
+                self.num_penning_ejects += 1 
                 
             # new mcp hit: found an event candidate 
             elif chan == 7 :
