@@ -32,13 +32,13 @@ class Plotter( object ) :
 
         self.use_kde = 0 
         self.kde_bandwidth = 0.003
-        self.mcp_hist_num_bins = 0 
+        self.mcp_bin_width = 0.5
         self.mcp_x_bounds = [ -5.0, 5.0 ]
         self.mcp_y_bounds = [ -5.0, 5.0 ]
 
-        self.tof_hist_num_bins = 0
-        self.r_hist_num_bins = 0
-        self.angle_hist_num_bins = 0 
+        self.tof_hist_nbins = 0
+        self.r_hist_nbins = 0
+        self.angle_hist_nbins = 0 
 
         
     def update_tof_plot( self ) :
@@ -53,7 +53,7 @@ class Plotter( object ) :
         # self.current_tof_plot_data = self.tof_plot.hist( self.processor.tof_data )
         self.tof_plot.clear()
 
-        bins = self.tof_plot_hist_num_bins
+        bins = self.tof_hist_nbins
         if bins == 0 :
             bins = 'fd'
         
@@ -73,11 +73,6 @@ class Plotter( object ) :
         
     def update_mcp_hitmap( self ) :
 
-        # print( self.processor.mcp_positions ) 
-        # self.mcp_hitmap_plot.clear()
-        # self.mcp_hitmap_plot.clear()
-        # self.mcp_hitmap_fig
-
         if self.plot_with_cuts : 
             valid_indices = self.processor.processed_indices[ : self.processor.num_processed_data ]
         else :
@@ -85,84 +80,105 @@ class Plotter( object ) :
 
         data = self.processor.candidate_mcp_positions[ valid_indices, : ]
 
-        # print( data ) 
-        
-        if not self.use_kde :
-            image, xedges, yedges = np.histogram2d( data[:,0], data[:,1], bins = 20 )
+        xbins = np.arange( self.mcp_x_bounds[0], self.mcp_x_bounds[1]  + self.mcp_bin_width / 2,
+                           self.mcp_bin_width )
+        ybins = np.arange( self.mcp_y_bounds[0], self.mcp_y_bounds[1]  + self.mcp_bin_width / 2,
+                           self.mcp_bin_width )
+            
+        if self.rebuild_mcp_plot :
+            self.rebuild_mcp_plot = 0
+            self.mcp_hitmap_plot.clear()
+            if  self.mcp_hitmap_cbar : 
+                self.mcp_hitmap_cbar.ax.clear() 
+            # if self.mcp_hitmap_cbar is not None : 
+            #     self.mcp_hitmap_cbar.clear() 
+            
+            title = 'MCP Hitmap'
+            self.mcp_hitmap_plot.set_title( title )
+            self.mcp_hitmap_plot.set_xlabel( 'X' )
+            self.mcp_hitmap_plot.set_ylabel( 'Y' ) 
 
-        else :
-            # kernel = scipy.stats.gaussian_kde( [ [1]*4, [1]*4 ], bw_method = 0.005 )
-            try : 
-                kernel = scipy.stats.gaussian_kde( data, bw_method = 0.003 )
-            except :
-                print( 'Warning: KDE computation failed...' )
-                return
+            image, xedges, yedges, self.mcp_hitmap_im = self.mcp_hitmap_plot.hist2d(
+                data[:,0], data[:,1], ( xbins, ybins ),
+                cmap = mcp_hitmap_cmap # , range = ( (-100,100), (-100,100) )
+            )
             
-            x = np.linspace( kde_min, kde_max, n_kde_data + 1 )
-            y = np.linspace( kde_min, kde_max, n_kde_data + 1 )
+            xticks = xedges[:: len(xedges) // 5 ]
+            yticks = yedges[:: len(yedges) // 5 ]
             
-            xx, yy = np.meshgrid( x, y )
-            positions = np.vstack([xx.ravel(), yy.ravel()])
-            image = ( np.reshape( kernel( positions ).T, xx.shape)
-                      * len( self.processor.candidate_mcp_positions[0] ) )
+            self.mcp_hitmap_plot.set_xticks( xticks ) 
+            self.mcp_hitmap_plot.set_yticks( yticks ) 
+            self.mcp_hitmap_plot.set_xlim( xedges[0], xedges[-1] ) 
+            self.mcp_hitmap_plot.set_ylim( yedges[0], yedges[-1] )
             
-        self.mcp_hitmap_im.set_data( image ) 
+        
+            self.mcp_hitmap_plot.grid()
+
+            if not self.mcp_hitmap_cbar :
+                divider = make_axes_locatable( self.mcp_hitmap_plot ) 
+                self.mcp_hitmap_cax = divider.append_axes("right", size="5%", pad=0.05)
+                self.mcp_hitmap_cbar = self.mcp_hitmap_f.colorbar( self.mcp_hitmap_im,
+                                                               cax = self.mcp_hitmap_cax )
+            else :
+                self.mcp_hitmap_cbar = self.mcp_hitmap_f.colorbar( self.mcp_hitmap_im,
+                                                               cax = self.mcp_hitmap_cbar.ax )
+                
+            # self.mcp_hitmap_cbar.set_ticks( np.arange( n_cbar_ticks ) )
+            # self.mcp_hitmap_cbar.set_clim( 0, 0 )
+        
+        else : 
+            if not self.use_kde :
+                # xbins = np.linspace( * self.mcp_x_bounds, self.mcp_bin_width + 1 ) 
+                # ybins = np.linspace( * self.mcp_y_bounds, self.mcp_bin_width + 1 )                
+                xbins = np.arange( self.mcp_x_bounds[0], self.mcp_x_bounds[1]  + self.mcp_bin_width / 2,
+                                   self.mcp_bin_width )
+                ybins = np.arange( self.mcp_y_bounds[0], self.mcp_y_bounds[1]  + self.mcp_bin_width / 2,
+                                   self.mcp_bin_width )
+                image, xedges, yedges = np.histogram2d( data[:,0], data[:,1], bins = ( xbins, ybins ) )
+
+                print( xbins )
+                print( ybins ) 
+            else :
+                # kernel = scipy.stats.gaussian_kde( [ [1]*4, [1]*4 ], bw_method = 0.005 )
+                try : 
+                    kernel = scipy.stats.gaussian_kde( data, bw_method = 0.003 )
+                except :
+                    print( 'Warning: KDE computation failed...' )
+                    return
+            
+                x = np.linspace( kde_min, kde_max, n_kde_data + 1 )
+                y = np.linspace( kde_min, kde_max, n_kde_data + 1 )
+            
+                xx, yy = np.meshgrid( x, y )
+                positions = np.vstack([xx.ravel(), yy.ravel()])
+                image = ( np.reshape( kernel( positions ).T, xx.shape)
+                          * len( self.processor.candidate_mcp_positions[0] ) )
+
+            self.mcp_hitmap_im.set_data( image.T ) 
             
         image_min = np.min( image )
         image_max = np.max( image ) 
         ticks = np.linspace( image_min, image_max, n_cbar_ticks, dtype = int )
-            
+
+        print( image_max ) 
+        
         self.mcp_hitmap_cbar.set_clim( image_min, image_max )
         self.mcp_hitmap_cbar.set_ticks( ticks )
         self.mcp_hitmap_cbar.draw_all()
 
-            # print( len( self.processor.candidate_mcp_positions) )
-            
+
+         
+        
         
     def init_mcp_hitmap( self, ax, f ) :
         self.mcp_hitmap_plot = ax
         self.mcp_hitmap_f = f
-
-        title = 'MCP Hitmap'
-        if use_kde :
-            title += ': KDE'
-        else :
-            title += ': binned'
-
-        ax.set_title( title )
-        ax.set_xlabel( 'X' )
-        ax.set_ylabel( 'Y' ) 
-
-        self.mcp_hitmap_im = self.mcp_hitmap_plot.imshow( np.zeros( ( n_kde_data, n_kde_data ) ),
-                                                          cmap = mcp_hitmap_cmap,
-                                                          # interpolation = 'nearest',
-                                                          origin = 'lower' )
+        self.rebuild_mcp_plot = 1
+        self.mcp_hitmap_cbar = None
+        self.mcp_hitmap_cax = None 
         
-        divider = make_axes_locatable( self.mcp_hitmap_plot ) 
-        cax = divider.append_axes("right", size="5%", pad=0.05)
-        self.mcp_hitmap_cbar = self.mcp_hitmap_f.colorbar( self.mcp_hitmap_im, cax = cax )
 
-        tick_spacing = n_kde_data // 5
-        ticks = np.arange( 0, n_kde_data + 1, tick_spacing )
-        x = np.linspace( kde_min, kde_max, n_kde_data + 1 )
-        tick_labels = [ '%.2f' % x[ tick ] for tick in ticks ]
-
-        self.mcp_hitmap_plot.set_xticks( ticks )
-        self.mcp_hitmap_plot.set_xticklabels( tick_labels )
-        self.mcp_hitmap_plot.set_yticks( ticks )
-        self.mcp_hitmap_plot.set_yticklabels( tick_labels )
-
-        self.mcp_hitmap_cbar.set_ticks( np.arange( n_cbar_ticks ) )
-        self.mcp_hitmap_cbar.set_clim( 0, 0 )
-
-        # print( self.mcp_hitmap_cbar.get_ticks() )
         
-        # self.mcp_hitmap_cbar.set_xticklabels( np.zeros( n_cbar_ticks, dtype = int ) )
-        
-        # im = self.mcp_hitmap.imshow( self.processor.mcp_positions, cmap = mcp_hitmap_cmap ) 
-        # self.update_mcp_hitmap() 
-        # self.mcp_hitmap_plot.imshow( [ [ np.nan, np.nan ] ] ) 
-
 
 
     def init_r_plot( self, ax ) :
@@ -180,7 +196,7 @@ class Plotter( object ) :
             
         data = self.processor.candidate_radii[ valid_indices ]
 
-        bins = self.tof_plot_hist_num_bins
+        bins = self.r_hist_nbins
         if bins == 0 :
             bins = 'rice'
 
@@ -202,7 +218,7 @@ class Plotter( object ) :
             
         data = self.processor.candidate_angles[ valid_indices ]
 
-        bins = self.tof_plot_hist_num_bins
+        bins = self.angle_hist_nbins
         if bins == 0 :
             bins = 'rice'
 
@@ -210,18 +226,18 @@ class Plotter( object ) :
         self.theta_plot.hist( data, bins = bins )
     
         
-    def init_coords_plots( self, axarr ) :
-        self.coords_plots = axarr
+    # def init_coords_plots( self, axarr ) :
+    #     self.coords_plots = axarr
 
         
-    def update_coords_plots( self ) :
+    # def update_coords_plots( self ) :
 
-        titles = [ [ 'X1', 'X2' ], [ 'Y1', 'Y2' ] ]
+    #     titles = [ [ 'X1', 'X2' ], [ 'Y1', 'Y2' ] ]
 
-        for i in range(2) :
-            for j in range(2) :
-                self.coords_plots[i,j].clear()
-                self.coords_plots[i,j].set_title( titles[i][j] ) 
+    #     for i in range(2) :
+    #         for j in range(2) :
+    #             self.coords_plots[i,j].clear()
+    #             self.coords_plots[i,j].set_title( titles[i][j] ) 
                 
         
 

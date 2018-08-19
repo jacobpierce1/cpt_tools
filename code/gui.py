@@ -371,10 +371,11 @@ class gui( QTabWidget ):
 
         # matplotlib canvas 
         self.canvases[ tab_idx ] = FigureCanvas( f )
-
+        # self.toolbar = NavigationToolbar( self.canvases[ tab_idx ], self )
+        
         # this is the Navigation widget
         # it takes the Canvas widget and a parent
-        # self.toolbar = NavigationToolbar(self.canvas, self)
+        
 
         # self.button = QPushButton('Plot')
         # self.button.clicked.connect( self.update )
@@ -397,8 +398,8 @@ class gui( QTabWidget ):
         # mcp hitmap histo bin size and kde bandwidth
         # mcp_hitmap_settings = QHBoxLayout()
         hist_nbins_validator =  QIntValidator( 0, 10000 ) 
-        self.mcp_hist_nbins_entry = QLineEdit( str(0) )
-        self.mcp_hist_nbins_entry.setValidator( hist_nbins_validator ) 
+        self.mcp_bin_width_entry = QLineEdit( str( self.plotter.mcp_bin_width ) )
+        self.mcp_bin_width_entry.setValidator( QDoubleValidator(0., 10000., 10 ) ) 
         self.mcp_kde_bw_entry = QLineEdit( str( DEFAULT_KDE_BW ) )
         self.mcp_kde_bw_entry.setValidator( QDoubleValidator( 0.0, 10000., 10 ) )
         # mcp_hitmap_settings.addWidget( self.mcp_hist_bin_size_entry ) 
@@ -473,7 +474,7 @@ class gui( QTabWidget ):
         controls_layout.addRow( 'Plot with Cuts', self.plot_with_cuts_button ) 
         controls_layout.addRow( 'Hitmap Type:', mcp_hitmap_buttons )
         # controls_layout.addRow( mcp_hitmap_settings )
-        controls_layout.addRow( 'MCP hist num bins:', self.mcp_hist_nbins_entry )
+        controls_layout.addRow( 'MCP bin width (mm):', self.mcp_bin_width_entry )
         controls_layout.addRow( 'MCP KDE bandwidth:', self.mcp_kde_bw_entry )
         controls_layout.addRow( 'MCP X Bounds:', mcp_hitmap_xbounds_entry ) 
         controls_layout.addRow( 'MCP Y Bounds:', mcp_hitmap_ybounds_entry ) 
@@ -805,16 +806,18 @@ class gui( QTabWidget ):
         self.plotter.use_kde = 0 
 
     def reload_visualization_params( self ) :
-        self.plotter.mcp_hist_num_bins = int( self.mcp_hist_nbins_entry.text() )
+        self.plotter.mcp_bin_width = float( self.mcp_bin_width_entry.text() )
         self.plotter.mcp_kde_bandwidth = float( self.mcp_kde_bw_entry.text() )
         self.plotter.mcp_x_bounds = [ float( self.mcp_hitmap_left_xbound_entry.text() ),
                                       float( self.mcp_hitmap_right_xbound_entry.text() ) ]
         self.plotter.mcp_y_bounds = [ float( self.mcp_hitmap_left_ybound_entry.text() ),
                                       float( self.mcp_hitmap_right_ybound_entry.text() ) ]
         
-        self.plotter.tof_hist_num_bins = int( self.tof_hist_nbins_entry.text() ) 
-        self.plotter.r_hist_num_bins = int( self.r_hist_nbins_entry.text() ) 
-        self.plotter.angle_hist_num_bins = int( self.angle_hist_nbins_entry.text() )
+        self.plotter.tof_hist_nbins = int( self.tof_hist_nbins_entry.text() ) 
+        self.plotter.r_hist_nbins = int( self.r_hist_nbins_entry.text() ) 
+        self.plotter.angle_hist_nbins = int( self.angle_hist_nbins_entry.text() )
+
+        self.plotter.rebuild_mcp_plot = 1 
 
 
 
