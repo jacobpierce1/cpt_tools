@@ -17,6 +17,7 @@ class Tabor( object ) :
     # plus, minus, cyclotron
     def load_params( self, tacc, nsteps, freqs, phases, amps, loops, lengths ) : 
         if not config.USE_TABOR : 
+            print('INFO: conf.USE_TABOR is 0' )
             return 
             
         args = ( tacc, nsteps, *freqs, *phases, *amps, *loops, *lengths )

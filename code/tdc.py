@@ -64,8 +64,8 @@ class TDC( object ) :
         self.data_buf = np.zeros( _max_tdc_buf_size, dtype = 'uint32' )
         self.channels = np.zeros( _max_tdc_buf_size, dtype = 'uint8' )
         self.times = np.zeros( _max_tdc_buf_size, dtype = 'int32' )
-        self.rollovers = np.zeros( _max_tdc_buf_size, dtype = bool )
-        self.groups = np.zeros( _max_tdc_buf_size, dtype = bool )
+        self.rollovers = np.zeros( _max_tdc_buf_size, dtype = 'uint8' )
+        self.groups = np.zeros( _max_tdc_buf_size, dtype = 'uint8' )
         
         self.num_data_in_buf = 0
                 
@@ -111,10 +111,14 @@ class TDC( object ) :
             self.num_data_in_buf = np.where( self.data_buf == 0 )[0][0]
 
         else : 
+            # pass
             self.num_data_in_buf = self.tdc_driver_lib.TDCManager_Read( 
                 self.tdc_ctx,
                 self.data_buf.ctypes.data_as( ctypes.POINTER( ctypes.c_uint ) ), 
                 _max_tdc_buf_size );
+                
+            print( self.data_buf )
+            print( self.num_data_in_buf ) 
                 
         tmp = self.data_buf[ : self.num_data_in_buf ]
         

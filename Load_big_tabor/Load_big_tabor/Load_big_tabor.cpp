@@ -75,10 +75,14 @@ ViStatus error = VI_SUCCESS;
 ViChar errMsg[2 * VIBUF_LEN];
 ViRsrc resource = REMOTE_ADDRESS;
 ViInt32 response;											// Query returned
-ViReal64* dataNorm = new ViReal64[MAX_MEMORY_PER_CHANNEL];	// Pointer of an array of values normalized between -1 and +1. Output [V] = data [-1, 1] * Amplitude + 2 * Offset
-ViInt32* wfmHandles = new ViInt32[MAX_STEP_PER_CHANNEL];	// Pointer of an array of segment per step
-ViInt32* wfmLoopCounts = new ViInt32[MAX_STEP_PER_CHANNEL];	// Pointer of an array of number of loops per step
-ViUInt8* wfmMode = new ViUInt8[MAX_STEP_PER_CHANNEL];		// Pointer of an array of advance mode and sync state per step
+// ViReal64* dataNorm = new ViReal64[MAX_MEMORY_PER_CHANNEL];	// Pointer of an array of values normalized between -1 and +1. Output [V] = data [-1, 1] * Amplitude + 2 * Offset
+// ViInt32* wfmHandles = new ViInt32[MAX_STEP_PER_CHANNEL];	// Pointer of an array of segment per step
+//ViInt32* wfmLoopCounts = new ViInt32[MAX_STEP_PER_CHANNEL];	// Pointer of an array of number of loops per step
+//ViUInt8* wfmMode = new ViUInt8[MAX_STEP_PER_CHANNEL];		// Pointer of an array of advance mode and sync state per step
+ViReal64 dataNorm[MAX_MEMORY_PER_CHANNEL];	// Pointer of an array of values normalized between -1 and +1. Output [V] = data [-1, 1] * Amplitude + 2 * Offset
+ViInt32 wfmHandles[MAX_STEP_PER_CHANNEL];	// Pointer of an array of segment per step
+ViInt32 wfmLoopCounts[MAX_STEP_PER_CHANNEL];	// Pointer of an array of number of loops per step
+ViUInt8 wfmMode[MAX_STEP_PER_CHANNEL];	
 Table sequence[MAX_STEP_PER_CHANNEL];						// Sequence table structure
 int counter;												// Counting number of segment loaded
 long totalMemory;											// Total arbitrary memory allocated
@@ -336,7 +340,8 @@ int tacc, int nsteps,
 	}
 
 // Clean-up pointers
-	delete[] dataNorm, wfmHandles, wfmLoopCounts; wfmMode;
+	//delete[] dataNorm, wfmHandles, wfmLoopCounts; wfmMode;
+	ww257x_close(local_vi);
 
 
 Error:

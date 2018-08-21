@@ -188,6 +188,8 @@ class LiveCPTdata( CPTdata ) :
     # @jit
     def extract_candidates( self ) :
         
+        self.duration = time.time() - self.start_time
+
         if self.tdc.num_data_in_buf == 0 : 
             return
     
@@ -277,7 +279,6 @@ class LiveCPTdata( CPTdata ) :
         self.apply_cuts()
         self.num_cut_data_prev = self.num_cut_data
         self.num_events_prev = self.num_events
-        self.duration = time.time() - self.start_time
             
         if config.BENCHMARK :
             end = time.time()
@@ -297,7 +298,17 @@ class LiveCPTdata( CPTdata ) :
         channels = self.tdc.channels[ : num_data ]
         times =  self.tdc.times[ : num_data ]
 
+        if config.PRINT_TDC_DATA : 
+            print( 'rollovers: ')
+            print( rollovers )
+            print( '\nchannels:' )
+            print( channels ) 
+            print( '\ntimes:')
+            print( times ) 
+        
         rollover_start, rollover_end = self.get_rollover_boundaries( rollovers )
+        
+        print( rollover_start, rollover_end ) 
 
         # print( rollovers )
         # print( rollover_start )
@@ -323,11 +334,18 @@ class LiveCPTdata( CPTdata ) :
 
     def get_rollover_boundaries( self, rollovers ) :
 
+        rollovers[0] = 1 
         tmp = np.roll( rollovers, 1 )
-        tmp[0] = np.nan
+        # tmp[0] = rollovers[-1]
 
-        start = np.where( rollovers < tmp )[0]
-        end = np.where( rollovers > tmp ) [0]
+        print( rollovers ) 
+        print( tmp ) 
+        
+        start = np.insert( np.where( rollovers < tmp )[0], 0, 0 )
+        end = np.append( np.where( rollovers > tmp )[0], len( rollovers ) )
+
+        print( 'start: ', start )
+        print( 'end: ', end ) 
         
         return start, end
 
