@@ -102,6 +102,10 @@ class TDC( object ) :
         return state
                 
     def read( self ) :
+        
+        if config.BENCHMARK :
+            start = time.time()
+            
         if config.USE_FAKE_DATA :
             self.data_buf = np.load( fake_data_path )
             self.num_data_in_buf = np.where( self.data_buf == 0 )[0][0]
@@ -118,6 +122,13 @@ class TDC( object ) :
         self.times[ : self.num_data_in_buf ] = self.get_times( tmp ) 
         self.rollovers[ : self.num_data_in_buf ] = self.get_rollovers( tmp ) 
         self.groups[ : self.num_data_in_buf ] = self.get_groups( tmp ) 
+
+        
+        if config.BENCHMARK :
+            end = time.time()
+            diff = ( end - start ) * 1000 
+            print( 'BENCHMARK: read %d hits in %f ms'
+                   % ( self.num_data_in_buf, diff ) )
         
         return self.num_data_in_buf
 

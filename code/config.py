@@ -4,7 +4,7 @@ IS_WINDOWS = ( os.name == 'nt' )
 
 USE_TABOR = 1 
 USE_FAKE_DATA = 1
-BENCHMARK = 0
+BENCHMARK = 1
 SAVEDIR = None
 
 code_path = os.path.abspath( os.path.dirname( __file__ ) )

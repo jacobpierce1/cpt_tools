@@ -22,9 +22,17 @@ use_kde = 0 # use kernel density estimation
 
 class Plotter( object ) :
 
-    def __init__( self, processor ) :
+    def __init__( self, cpt_data ) :
 
-        self.processor = processor
+        self.f, self.axarr = plt.subplots( 2, 2 )
+        self.f.subplots_adjust( hspace = 0.5, wspace = 0.5 )
+        
+        self.init_mcp_hitmap( self.axarr[0][0], self.f )
+        self.init_tof_plot( self.axarr[0][1] )
+        self.init_r_plot( self.axarr[1][0] )
+        self.init_theta_plot( self.axarr[1][1] )
+        
+        self.cpt_data = cpt_data
         self.mcp_hitmap_plot = None
         self.tof_plot= None
 
@@ -38,19 +46,27 @@ class Plotter( object ) :
 
         self.tof_hist_nbins = 0
         self.r_hist_nbins = 0
-        self.angle_hist_nbins = 0 
+        self.angle_hist_nbins = 0
 
+
+
+    # deallocate matplotlib resources 
+    def release( self ) : 
+        self.f.clear() 
         
     def update_tof_plot( self ) :
+
+        self.tof_plot = self.axarr[0][1]
         
         if self.plot_with_cuts : 
-            valid_indices = self.processor.processed_indices[ : self.processor.num_processed_data ]    
-            data = self.processor.candidate_tofs[ valid_indices ]
+            valid_indices = self.cpt_data.cut_data_indices[ : self.cpt_data.num_cut_data ]    
+            data = self.cpt_data.tofs[ valid_indices ]
         else :
-            # valid_indices = self.processor.candidate_indices[ : self.processor.num_candidate_data ]
-            data = self.processor.candidate_tofs[ : self.processor.num_mcp_hits ]
+            # valid_indices = self.cpt_data.candidate_indices[ : self.cpt_data.num_candidate_data ]
+            # data = self.cpt_data.all_tofs[ : self.cpt_data.num_mcp_hits ]
+            data = self.cpt_data.tofs[ : self.cpt_data.num_events ]
                                 
-        # self.current_tof_plot_data = self.tof_plot.hist( self.processor.tof_data )
+        # self.current_tof_plot_data = self.tof_plot.hist( self.cpt_data.tof_data )
         self.tof_plot.clear()
 
         bins = self.tof_hist_nbins
@@ -58,7 +74,7 @@ class Plotter( object ) :
             bins = 'fd'
         
         self.tof_plot.hist( data, bins = bins, log = 1  ) 
-        # hist, bins = np.histogram( self.processor.tof_data, bins = 'auto' )
+        # hist, bins = np.histogram( self.cpt_data.tof_data, bins = 'auto' )
         # self.tof_plot.plot( bins[:-1], hist, ls = 'steps-mid' ) 
         self.tof_plot.set_title( 'TOF histogram'  )
         self.tof_plot.set_xlabel( 'TOF' )
@@ -66,25 +82,28 @@ class Plotter( object ) :
 
         
     def init_tof_plot( self, ax ) :
-        # print( self.processor.tof_data ) 
-        self.tof_plot = ax
-        # self.current_tof_plot_data = self.tof_plot.hist( self.processor.tof_data )
+        # print( self.cpt_data.tof_data ) 
+        pass
+        # self.current_tof_plot_data = self.tof_plot.hist( self.cpt_data.tof_data )
         
         
     def update_mcp_hitmap( self ) :
 
+        self.mcp_hitmap_plot = self.axarr[0][0]
+        
         if self.plot_with_cuts : 
-            valid_indices = self.processor.processed_indices[ : self.processor.num_processed_data ]
+            valid_indices = self.cpt_data.cut_data_indices[ : self.cpt_data.num_cut_data ]
+            data = self.cpt_data.mcp_positions[ valid_indices ] 
         else :
-            valid_indices = self.processor.candidate_indices[ : self.processor.num_candidate_data ]
+            # valid_indices = self.cpt_data.candidate_indices[ : self.cpt_data.num_candidate_data ]
 
-        data = self.processor.candidate_mcp_positions[ valid_indices, : ]
+            data = self.cpt_data.mcp_positions[ : self.cpt_data.num_events ]
 
         xbins = np.arange( self.mcp_x_bounds[0], self.mcp_x_bounds[1]  + self.mcp_bin_width / 2,
                            self.mcp_bin_width )
         ybins = np.arange( self.mcp_y_bounds[0], self.mcp_y_bounds[1]  + self.mcp_bin_width / 2,
                            self.mcp_bin_width )
-            
+
         if self.rebuild_mcp_plot :
             self.rebuild_mcp_plot = 0
             self.mcp_hitmap_plot.clear()
@@ -135,9 +154,7 @@ class Plotter( object ) :
                 ybins = np.arange( self.mcp_y_bounds[0], self.mcp_y_bounds[1]  + self.mcp_bin_width / 2,
                                    self.mcp_bin_width )
                 image, xedges, yedges = np.histogram2d( data[:,0], data[:,1], bins = ( xbins, ybins ) )
-
-                print( xbins )
-                print( ybins ) 
+                
             else :
                 # kernel = scipy.stats.gaussian_kde( [ [1]*4, [1]*4 ], bw_method = 0.005 )
                 try : 
@@ -152,15 +169,13 @@ class Plotter( object ) :
                 xx, yy = np.meshgrid( x, y )
                 positions = np.vstack([xx.ravel(), yy.ravel()])
                 image = ( np.reshape( kernel( positions ).T, xx.shape)
-                          * len( self.processor.candidate_mcp_positions[0] ) )
+                          * len( self.cpt_data.candidate_mcp_positions[0] ) )
 
             self.mcp_hitmap_im.set_data( image.T ) 
             
         image_min = np.min( image )
         image_max = np.max( image ) 
         ticks = np.linspace( image_min, image_max, n_cbar_ticks, dtype = int )
-
-        print( image_max ) 
         
         self.mcp_hitmap_cbar.set_clim( image_min, image_max )
         self.mcp_hitmap_cbar.set_ticks( ticks )
@@ -171,31 +186,30 @@ class Plotter( object ) :
         
         
     def init_mcp_hitmap( self, ax, f ) :
-        self.mcp_hitmap_plot = ax
-        self.mcp_hitmap_f = f
+        
+        self.mcp_hitmap_f = self.f
         self.rebuild_mcp_plot = 1
         self.mcp_hitmap_cbar = None
-        self.mcp_hitmap_cax = None 
-        
-
-        
+        self.mcp_hitmap_cax = None
 
 
     def init_r_plot( self, ax ) :
-        self.r_plot = ax 
+        pass 
 
         
     def update_r_plot( self ) :
+        self.r_plot = self.axarr[1][0]
         self.r_plot.clear() 
         self.r_plot.set_title( 'r' )
 
         if self.plot_with_cuts : 
-            valid_indices = self.processor.processed_indices[ : self.processor.num_processed_data ]
+            valid_indices = self.cpt_data.cut_data_indices[ : self.cpt_data.num_cut_data ]
+            data = self.cpt_data.radii[ valid_indices ] 
         else :
-            valid_indices = self.processor.candidate_indices[ : self.processor.num_candidate_data ]
-            
-        data = self.processor.candidate_radii[ valid_indices ]
+            # valid_indices = self.cpt_data.candidate_indices[ : self.cpt_data.num_candidate_data ]
 
+            data = self.cpt_data.radii[ : self.cpt_data.num_events ]
+        
         bins = self.r_hist_nbins
         if bins == 0 :
             bins = 'rice'
@@ -204,27 +218,33 @@ class Plotter( object ) :
         
     
     def init_theta_plot( self, ax ) :
-        self.theta_plot = ax 
+        pass 
 
         
     def update_theta_plot( self ) :
-
+        self.theta_plot = self.axarr[1][1]
         self.theta_plot.clear()
 
         if self.plot_with_cuts : 
-            valid_indices = self.processor.processed_indices[ : self.processor.num_processed_data ]
+            valid_indices = self.cpt_data.cut_data_indices[ : self.cpt_data.num_cut_data ]
+            data = self.cpt_data.angles[ valid_indices ] 
         else :
-            valid_indices = self.processor.candidate_indices[ : self.processor.num_candidate_data ]
+            # valid_indices = self.cpt_data.candidate_indices[ : self.cpt_data.num_candidate_data ]
+            data = self.cpt_data.angles[ : self.cpt_data.num_events ]
             
-        data = self.processor.candidate_angles[ valid_indices ]
-
         bins = self.angle_hist_nbins
         if bins == 0 :
             bins = 'rice'
 
         self.theta_plot.set_title( r'Angle (deg)' ) 
         self.theta_plot.hist( data, bins = bins )
-    
+
+
+    def update_all( self ) :
+        self.update_mcp_hitmap()
+        self.update_tof_plot()
+        self.update_r_plot()
+        self.update_theta_plot() 
         
     # def init_coords_plots( self, axarr ) :
     #     self.coords_plots = axarr

@@ -1,9 +1,10 @@
 import config
 import tdc
 import tabor
-import processing
+# import processing
+from cpt_data_structures import CPTdata, LiveCPTdata
 import plotter
-
+import analysis
 
 import sys 
 import scipy.stats as st
@@ -40,9 +41,12 @@ SUBTITLE_WEIGHT = 3
 
 DEFAULT_KDE_BW = 0.03
 
+PLOTTER_WIDGET_QLINEEDIT_WIDTH = 50
 
-gui_path = sys.path[0] + '/'
-# gui_path = gui_path[ : gui_path.rfind( '/' ) ] + '/'
+
+code_path = os.path.abspath( os.path.dirname( __file__ ) ) + '/'
+# code_path = sys.path[0] + '/'
+# code_path = code_path[ : code_path.rfind( '/' ) ] + '/'
 
 
 
@@ -86,33 +90,221 @@ class MetadataWidget( object ) :
 
         
     def update( self ) :
-        cur_time = time.time()
-        diff_time = time.time() - self.processor.session_start_time 
-
-        counts = [ self.processor.num_mcp_hits, self.processor.num_processed_data,
+                
+        counts = [ self.processor.num_mcp_hits, self.processor.num_events,
                    self.processor.num_penning_ejects ]
 
         for i in range( len( counts ) ) :
             self.table.cellWidget( i, 0 ).setText( '%d' % counts[i] )
-            self.table.cellWidget( i, 1 ).setText( '%.2f' % ( counts[i] / diff_time ) )
+            self.table.cellWidget( i, 1 ).setText( '%.2f' % ( counts[i] / self.processor.duration ) )
 
-        self.time_label.setText( self.time_label_str + '%d' % int( diff_time ) )
+        self.time_label.setText( self.time_label_str + '%d' % int( self.processor.duration ) )
             
-        # self.box = QVBoxLayout()
-
-        # total_counts_str = 'Total MCP hits: '
-        # self.total_counts_label = QLabel( total_counts_str )
-        # self.total_counts_idx = len( total_counts_str )
-
-        # total_penning_eject_str = 'Total Penning Ejects: '
-        # self.total_penning_ejects_label = QLabel( total_counts_str )
-        # self.total_penning_ejects_idx = 0
-
         
         
-        # self.box.addWidget( self.total_counts_label ) 
 
 
+class PlotterWidget( object ) :
+
+    def __init__( self, plotter = None ) :
+
+        if not plotter :
+            plotter = plotting.Plotter()
+            
+        self.plotter = plotter
+
+        self.canvas = FigureCanvas( self.plotter.f )
+        # this is the Navigation widget
+        # it takes the Canvas widget and a parent
+        
+
+        # self.button = QPushButton('Plot')
+        # self.button.clicked.connect( self.update )
+
+        # mcp hitmap type
+        self.plot_with_cuts_button = QCheckBox()
+        self.plot_with_cuts = 0
+        self.plot_with_cuts_button.setCheckState( self.plot_with_cuts ) 
+        self.plot_with_cuts_button.clicked.connect( self.plot_with_cuts_clicked ) 
+        
+        mcp_hitmap_buttons = QHBoxLayout()
+        self.mcp_kde_button = QRadioButton( 'KDE' )
+        self.mcp_hist_button = QRadioButton( 'Hist' )
+        self.mcp_kde_button.clicked.connect( self.set_use_kde )
+        self.mcp_hist_button.click()
+        self.mcp_hist_button.clicked.connect( self.disable_use_kde ) 
+        mcp_hitmap_buttons.addWidget( self.mcp_kde_button ) 
+        mcp_hitmap_buttons.addWidget( self.mcp_hist_button )
+        
+        # mcp hitmap histo bin size and kde bandwidth
+        # mcp_hitmap_settings = QHBoxLayout()
+        hist_nbins_validator =  QIntValidator( 0, 10000 ) 
+        self.mcp_bin_width_entry = QLineEdit( str( self.plotter.mcp_bin_width ) )
+        self.mcp_bin_width_entry.setValidator( QDoubleValidator(0., 10000., 10 ) )
+        self.mcp_bin_width_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
+        self.mcp_kde_bw_entry = QLineEdit( str( DEFAULT_KDE_BW ) )
+        self.mcp_kde_bw_entry.setValidator( QDoubleValidator( 0.0, 10000., 10 ) )
+        self.mcp_kde_bw_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
+        # mcp_hitmap_settings.addWidget( self.mcp_hist_bin_size_entry ) 
+        # mcp_hitmap_settings.addWidget( self.mcp_kde_bw_entry ) 
+
+        # mcp hitmap bounds inputs
+        self.mcp_hitmap_left_xbound_entry = QLineEdit( str(-5) )
+        self.mcp_hitmap_right_xbound_entry = QLineEdit( str(5) )
+        self.mcp_hitmap_left_ybound_entry = QLineEdit( str(-5) )
+        self.mcp_hitmap_right_ybound_entry = QLineEdit( str(5) )
+
+        mcp_hitmap_bounds_validator = QDoubleValidator( -1000, 1000, 10 )
+        self.mcp_hitmap_left_xbound_entry.setValidator( mcp_hitmap_bounds_validator )
+        self.mcp_hitmap_right_xbound_entry.setValidator( mcp_hitmap_bounds_validator )
+        self.mcp_hitmap_left_ybound_entry.setValidator( mcp_hitmap_bounds_validator ) 
+        self.mcp_hitmap_right_ybound_entry.setValidator( mcp_hitmap_bounds_validator )
+
+        self.mcp_hitmap_left_xbound_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
+        self.mcp_hitmap_right_xbound_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
+        self.mcp_hitmap_left_ybound_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
+        self.mcp_hitmap_right_ybound_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
+
+        mcp_hitmap_xbounds_entry = QHBoxLayout()
+        mcp_hitmap_ybounds_entry = QHBoxLayout()
+        mcp_hitmap_xbounds_entry.addWidget( self.mcp_hitmap_left_xbound_entry ) 
+        mcp_hitmap_xbounds_entry.addWidget( self.mcp_hitmap_right_xbound_entry ) 
+        mcp_hitmap_ybounds_entry.addWidget( self.mcp_hitmap_left_ybound_entry ) 
+        mcp_hitmap_ybounds_entry.addWidget( self.mcp_hitmap_right_ybound_entry ) 
+
+        self.tof_hist_nbins_entry =  QLineEdit( str(0) )
+        self.tof_hist_nbins_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
+        self.tof_hist_nbins_entry.setValidator( hist_nbins_validator )
+        
+        self.r_hist_nbins_entry =  QLineEdit( str(0) )
+        self.r_hist_nbins_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
+        self.r_hist_nbins_entry.setValidator( hist_nbins_validator )
+        
+        self.angle_hist_nbins_entry =  QLineEdit( str(0) )
+        self.angle_hist_nbins_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
+        self.angle_hist_nbins_entry.setValidator( hist_nbins_validator ) 
+
+        
+        # tof cut entry 
+        tof_bounds = QHBoxLayout()
+        
+        self.tof_lower_cut_entry = QLineEdit( str( self.plotter.cpt_data.tof_cut_lower ) )
+        self.tof_lower_cut_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
+        self.tof_lower_cut_entry.setValidator( QDoubleValidator(0., 10000., 10 ) )
+
+        self.tof_upper_cut_entry = QLineEdit( str( self.plotter.cpt_data.tof_cut_upper ) )
+        self.tof_upper_cut_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
+        self.tof_upper_cut_entry.setValidator( QDoubleValidator(0., 10000., 10 ) )
+
+        tof_bounds.addWidget( self.tof_lower_cut_entry ) 
+        tof_bounds.addWidget( self.tof_upper_cut_entry )
+
+        r_bounds = QHBoxLayout() 
+        
+        self.r_lower_cut_entry = QLineEdit( str(0) )
+        self.r_lower_cut_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
+        self.r_lower_cut_entry.setValidator( QDoubleValidator( 0, 10000, 3 ) )
+        
+        self.r_upper_cut_entry = QLineEdit( str(0) )
+        self.r_upper_cut_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
+        self.r_upper_cut_entry.setValidator( QDoubleValidator( 0, 10000, 3 ) )
+
+        r_bounds.addWidget( self.r_lower_cut_entry )
+        r_bounds.addWidget( self.r_upper_cut_entry ) 
+
+        layout = QVBoxLayout() 
+        
+        controls_box = QGroupBox( 'Visualization Controls' )
+        controls_layout = QFormLayout()
+        # subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE,
+        #                                QFont.Bold ) )
+
+        # controls_layout.addRow( subtitle )
+        controls_layout.addRow( 'Plot with Cuts', self.plot_with_cuts_button ) 
+        controls_layout.addRow( 'Hitmap Type:', mcp_hitmap_buttons )
+        # controls_layout.addRow( mcp_hitmap_settings )
+        controls_layout.addRow( 'MCP bin width (mm):', self.mcp_bin_width_entry )
+        controls_layout.addRow( 'MCP KDE bandwidth:', self.mcp_kde_bw_entry )
+        controls_layout.addRow( 'MCP X Bounds:', mcp_hitmap_xbounds_entry ) 
+        controls_layout.addRow( 'MCP Y Bounds:', mcp_hitmap_ybounds_entry ) 
+        controls_layout.addRow( 'TOF hist num bins:', self.tof_hist_nbins_entry )
+        controls_layout.addRow( 'Radius hist num bins:', self.r_hist_nbins_entry )
+        controls_layout.addRow( 'Angle hist num bins:', self.angle_hist_nbins_entry )
+        reload_button = QPushButton( 'Reload Parameters' ) 
+        reload_button.clicked.connect( self.reload_visualization_params ) 
+        controls_layout.addRow( reload_button ) 
+        
+        controls_box.setLayout( controls_layout )
+        layout.addWidget( controls_box ) 
+        
+        # subtitle = QLabel( 'Data Cuts' )
+        # subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE, QFont.Bold ) )
+        # controls_layout.addRow( subtitle )
+
+        cuts_box = QGroupBox( 'Data Cuts' ) 
+        cuts_layout = QFormLayout() 
+        cuts_layout.addRow( 'TOF lower / upper bounds:', tof_bounds ) 
+        cuts_layout.addRow( 'Radius Cut:', r_bounds ) 
+        cuts_box.setLayout( cuts_layout )
+        layout.addWidget( cuts_box ) 
+
+        fits_box = QGroupBox( 'Gaussian Fitting' )
+        fits_layout = QVBoxLayout()
+
+        fits_box.setLayout( fits_layout )
+        layout.addWidget( fits_box ) 
+        
+
+        self.metadata_widget = MetadataWidget( self.plotter.cpt_data )
+        layout.addWidget( self.metadata_widget.box ) 
+        
+        self.grid_layout = QGridLayout()
+        self.grid_layout.addLayout( layout, 0, 0, 0, 1, QtCore.Qt.AlignLeft )
+        self.grid_layout.setColumnStretch( 0, 0.5 ) 
+        self.grid_layout.addWidget( self.canvas, 0, 1, 1, 1 )
+        self.grid_layout.setColumnStretch( 1, 1 ) 
+
+        
+    def update( self ) :
+        self.canvas.draw()
+        self.plotter.update_all()
+        self.metadata_widget.update()
+        
+        
+        
+    # deallocate plotter 
+    def release( self ) :
+        plotter.release()
+        
+    def plot_with_cuts_clicked( self ) :
+        self.plotter.plot_with_cuts = self.plot_with_cuts_button.checkState() 
+    
+    def set_use_kde( self ) :
+        self.plotter.use_kde = 1 
+
+    def disable_use_kde( self ) :
+        self.plotter.use_kde = 0 
+
+    def reload_visualization_params( self ) :
+        self.plotter.mcp_bin_width = float( self.mcp_bin_width_entry.text() )
+        self.plotter.mcp_kde_bandwidth = float( self.mcp_kde_bw_entry.text() )
+        self.plotter.mcp_x_bounds = [ float( self.mcp_hitmap_left_xbound_entry.text() ),
+                                      float( self.mcp_hitmap_right_xbound_entry.text() ) ]
+        self.plotter.mcp_y_bounds = [ float( self.mcp_hitmap_left_ybound_entry.text() ),
+                                      float( self.mcp_hitmap_right_ybound_entry.text() ) ]
+        
+        self.plotter.tof_hist_nbins = int( self.tof_hist_nbins_entry.text() ) 
+        self.plotter.r_hist_nbins = int( self.r_hist_nbins_entry.text() ) 
+        self.plotter.angle_hist_nbins = int( self.angle_hist_nbins_entry.text() )
+
+        self.plotter.rebuild_mcp_plot = 1
+        self.update()
+
+
+    def set_cpt_data( self, cpt_data ) :
+        self.plotter.cpt_data = cpt_data 
+        self.metadata_widget.processor = cpt_data
+        
         
 class gui( QTabWidget ):
     
@@ -120,11 +312,9 @@ class gui( QTabWidget ):
         super( gui, self ).__init__( parent )
 
         self.date_str = datetime.datetime.now().strftime( '%Y_%m_%d' )
-        self.data_dir_path = gui_path + '/data/'
+        self.data_dir_path = code_path + '../data/'
         self.session_dir_path = None
-        
-        print( self.data_dir_path )
-        
+                
         try :
             os.makedirs( self.data_dir_path, exist_ok = 1 )
         except :
@@ -136,10 +326,9 @@ class gui( QTabWidget ):
         # the 3 custom classes we will be using to manage DAQ, processing, and plots
         self.tdc = tdc.TDC()
         self.tabor = tabor.Tabor() 
-        self.processor = processing.Processor( self.tdc ) 
+        self.processor = LiveCPTdata( self.tdc ) 
         self.plotter = plotter.Plotter( self.processor )
-        
-        
+                
         
         self.controls_tab_idx = 0
         self.processed_data_tab_idx = 1
@@ -360,199 +549,47 @@ class gui( QTabWidget ):
     def processed_data_tab_init( self ):
 
         tab_idx = self.processed_data_tab_idx
-
-        f, axarr = plt.subplots( 2, 2 )
-        f.subplots_adjust( hspace = 0.5, wspace = 0.5 )
-
-        self.plotter.init_mcp_hitmap( axarr[0][0], f )
-        self.plotter.init_tof_plot( axarr[0][1] )
-        self.plotter.init_r_plot( axarr[1][0] )
-        self.plotter.init_theta_plot( axarr[1][1] )
-
+        
+        processed_data_plotter_widget = PlotterWidget( self.plotter )
+        
         # matplotlib canvas 
-        self.canvases[ tab_idx ] = FigureCanvas( f )
+        self.canvases[ tab_idx ] = processed_data_plotter_widget.canvas
+
+        
         # self.toolbar = NavigationToolbar( self.canvases[ tab_idx ], self )
+
+        self.tab_updaters[ tab_idx ] = [ processed_data_plotter_widget.update ]
         
-        # this is the Navigation widget
-        # it takes the Canvas widget and a parent
-        
-
-        # self.button = QPushButton('Plot')
-        # self.button.clicked.connect( self.update )
-
-        # mcp hitmap type
-        self.plot_with_cuts_button = QCheckBox()
-        self.plot_with_cuts = 0
-        self.plot_with_cuts_button.setCheckState( self.plot_with_cuts ) 
-        self.plot_with_cuts_button.clicked.connect( self.plot_with_cuts_clicked ) 
-        
-        mcp_hitmap_buttons = QHBoxLayout()
-        self.mcp_kde_button = QRadioButton( 'KDE' )
-        self.mcp_hist_button = QRadioButton( 'Hist' )
-        self.mcp_kde_button.clicked.connect( self.set_use_kde )
-        self.mcp_hist_button.click()
-        self.mcp_hist_button.clicked.connect( self.disable_use_kde ) 
-        mcp_hitmap_buttons.addWidget( self.mcp_kde_button ) 
-        mcp_hitmap_buttons.addWidget( self.mcp_hist_button )
-        
-        # mcp hitmap histo bin size and kde bandwidth
-        # mcp_hitmap_settings = QHBoxLayout()
-        hist_nbins_validator =  QIntValidator( 0, 10000 ) 
-        self.mcp_bin_width_entry = QLineEdit( str( self.plotter.mcp_bin_width ) )
-        self.mcp_bin_width_entry.setValidator( QDoubleValidator(0., 10000., 10 ) ) 
-        self.mcp_kde_bw_entry = QLineEdit( str( DEFAULT_KDE_BW ) )
-        self.mcp_kde_bw_entry.setValidator( QDoubleValidator( 0.0, 10000., 10 ) )
-        # mcp_hitmap_settings.addWidget( self.mcp_hist_bin_size_entry ) 
-        # mcp_hitmap_settings.addWidget( self.mcp_kde_bw_entry ) 
-
-        # mcp hitmap bounds inputs
-        self.mcp_hitmap_left_xbound_entry = QLineEdit( str(-5) )
-        self.mcp_hitmap_right_xbound_entry = QLineEdit( str(5) )
-        self.mcp_hitmap_left_ybound_entry = QLineEdit( str(-5) )
-        self.mcp_hitmap_right_ybound_entry = QLineEdit( str(5) )
-
-        mcp_hitmap_bounds_validator = QDoubleValidator( -1000, 1000, 10 )
-        self.mcp_hitmap_left_xbound_entry.setValidator( mcp_hitmap_bounds_validator )
-        self.mcp_hitmap_right_xbound_entry.setValidator( mcp_hitmap_bounds_validator )
-        self.mcp_hitmap_left_ybound_entry.setValidator( mcp_hitmap_bounds_validator ) 
-        self.mcp_hitmap_right_ybound_entry.setValidator( mcp_hitmap_bounds_validator ) 
-
-        mcp_hitmap_xbounds_entry = QHBoxLayout()
-        mcp_hitmap_ybounds_entry = QHBoxLayout()
-        mcp_hitmap_xbounds_entry.addWidget( self.mcp_hitmap_left_xbound_entry ) 
-        mcp_hitmap_xbounds_entry.addWidget( self.mcp_hitmap_right_xbound_entry ) 
-        mcp_hitmap_ybounds_entry.addWidget( self.mcp_hitmap_left_ybound_entry ) 
-        mcp_hitmap_ybounds_entry.addWidget( self.mcp_hitmap_right_ybound_entry ) 
-
-        self.tof_hist_nbins_entry =  QLineEdit( str(0) )
-        self.tof_hist_nbins_entry.setValidator( hist_nbins_validator )
-        
-        self.r_hist_nbins_entry =  QLineEdit( str(0) )
-        self.r_hist_nbins_entry.setValidator( hist_nbins_validator )
-        
-        self.angle_hist_nbins_entry =  QLineEdit( str(0) )
-        self.angle_hist_nbins_entry.setValidator( hist_nbins_validator ) 
-
-        
-        # tof cut entry 
-        tof_bounds = QHBoxLayout()
-        
-        self.tof_lower_cut_entry = QLineEdit(
-            str( self.processor.tof_cut_lower ) )
-
-        self.tof_lower_cut_entry.setValidator(
-            QDoubleValidator(0., 10000., 10 ) )
-
-        self.tof_upper_cut_entry = QLineEdit(
-            str( self.processor.tof_cut_upper ) )
-
-        self.tof_upper_cut_entry.setValidator(
-            QDoubleValidator(0., 10000., 10 ) )
-
-        tof_bounds.addWidget( self.tof_lower_cut_entry ) 
-        tof_bounds.addWidget( self.tof_upper_cut_entry )
-
-        r_bounds = QHBoxLayout() 
-        
-        self.r_lower_cut_entry = QLineEdit( str(0) )
-        self.r_lower_cut_entry.setValidator( QDoubleValidator( 0, 10000, 3 ) )
-        
-        self.r_upper_cut_entry = QLineEdit( str(0) )
-        self.r_upper_cut_entry.setValidator( QDoubleValidator( 0, 10000, 3 ) )
-
-        r_bounds.addWidget( self.r_lower_cut_entry )
-        r_bounds.addWidget( self.r_upper_cut_entry ) 
-
-        layout = QVBoxLayout() 
-        
-        controls_box = QGroupBox( 'Visualization Controls' )
-        controls_layout = QFormLayout()
-        # subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE,
-        #                                QFont.Bold ) )
-
-        # controls_layout.addRow( subtitle )
-        controls_layout.addRow( 'Plot with Cuts', self.plot_with_cuts_button ) 
-        controls_layout.addRow( 'Hitmap Type:', mcp_hitmap_buttons )
-        # controls_layout.addRow( mcp_hitmap_settings )
-        controls_layout.addRow( 'MCP bin width (mm):', self.mcp_bin_width_entry )
-        controls_layout.addRow( 'MCP KDE bandwidth:', self.mcp_kde_bw_entry )
-        controls_layout.addRow( 'MCP X Bounds:', mcp_hitmap_xbounds_entry ) 
-        controls_layout.addRow( 'MCP Y Bounds:', mcp_hitmap_ybounds_entry ) 
-        controls_layout.addRow( 'TOF hist num bins:', self.tof_hist_nbins_entry )
-        controls_layout.addRow( 'Radius hist num bins:', self.r_hist_nbins_entry )
-        controls_layout.addRow( 'Angle hist num bins:', self.angle_hist_nbins_entry )
-        reload_button = QPushButton( 'Reload Parameters' ) 
-        reload_button.clicked.connect( self.reload_visualization_params ) 
-        controls_layout.addRow( reload_button ) 
-        
-        controls_box.setLayout( controls_layout )
-        layout.addWidget( controls_box ) 
-        
-        # subtitle = QLabel( 'Data Cuts' )
-        # subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE, QFont.Bold ) )
-        # controls_layout.addRow( subtitle )
-
-        cuts_box = QGroupBox( 'Data Cuts' ) 
-        cuts_layout = QFormLayout() 
-        cuts_layout.addRow( 'TOF lower / upper bounds:', tof_bounds ) 
-        cuts_layout.addRow( 'Radius Cut:', r_bounds ) 
-        cuts_box.setLayout( cuts_layout )
-        layout.addWidget( cuts_box ) 
-
-        fits_box = QGroupBox( 'Gaussian Fitting' )
-        fits_layout = QVBoxLayout()
-
-        fits_box.setLayout( fits_layout )
-        layout.addWidget( fits_box ) 
-        
-
-        metadata_widget = MetadataWidget( self.processor )
-        layout.addWidget( metadata_widget.box ) 
-
-        # tof fit: button, left bound, right bound, fit results 
-
-        # r fit
-
-        # angle fit
-        
-        self.tab_updaters[ tab_idx ] = [ self.plotter.update_mcp_hitmap,
-                                         self.plotter.update_tof_plot,
-                                         self.plotter.update_r_plot,
-                                         self.plotter.update_theta_plot,
-                                         metadata_widget.update ]
-        
-        grid_layout = QGridLayout()
-        grid_layout.addLayout( layout, 0, 0, 0, 1, QtCore.Qt.AlignLeft )
-        grid_layout.setColumnStretch( 0, 0.5 ) 
-        grid_layout.addWidget( self.canvases[ tab_idx ], 0, 1, 1, 1 )
-        grid_layout.setColumnStretch( 1, 1 ) 
-        
-        self.processed_data_tab.setLayout( grid_layout ) 
+        self.processed_data_tab.setLayout( processed_data_plotter_widget.grid_layout ) 
         
 
         
-    def unprocessed_data_tab_init( self ):
+    # def unprocessed_data_tab_init( self ):
 
-        tab_idx = self.unprocessed_data_tab_idx 
+    #     tab_idx = self.unprocessed_data_tab_idx 
         
-        f, axarr = plt.subplots( 2, 2 )
-        self.plotter.init_coords_plots( axarr )
-        self.canvases[ tab_idx ] = FigureCanvas( f ) 
-        self.tab_updaters[ tab_idx ] = [ self.plotter.update_coords_plots ]
+    #     f, axarr = plt.subplots( 2, 2 )
+    #     self.plotter.init_coords_plots( axarr )
+    #     self.canvases[ tab_idx ] = FigureCanvas( f ) 
+    #     self.tab_updaters[ tab_idx ] = [ self.plotter.update_coords_plots ]
         
-        # set the layout
-        layout = QVBoxLayout()
-        # layout.addWidget(self.toolbar)
+    #     # set the layout
+    #     layout = QVBoxLayout()
+    #     # layout.addWidget(self.toolbar)
 
-        layout.addWidget( self.canvases[ tab_idx ] )
+    #     layout.addWidget( self.canvases[ tab_idx ] )
         
-        self.unprocessed_data_tab.setLayout( layout )
+    #     self.unprocessed_data_tab.setLayout( layout )
 
 
         
         
     def analysis_tab_init( self ):
 
+        self.analyzer = analysis.CPTanalyzer()
+        analysis_plotter = plotter.Plotter( CPTdata() ) 
+        self.analysis_plotter_widget = PlotterWidget( analysis_plotter ) 
+        
         tab_idx = self.analysis_tab_idx 
         
         self.analysis_data_dirs_qlist = QListWidget()
@@ -588,17 +625,21 @@ class gui( QTabWidget ):
         # self.analysis_tab.setLayout( layout )
 
         # plotting 
-        f, axarr = plt.subplots( 2, 2 )
-        f.subplots_adjust( hspace = 0.5 )
-        self.canvases[ tab_idx ] = FigureCanvas( f )
+        # f, axarr = plt.subplots( 2, 2 )
+        # f.subplots_adjust( hspace = 0.5 )
+        # self.canvases[ tab_idx ] = FigureCanvas( self.analysis_plotter.f )
 
+        # self.tab_updaters[ tab_idx ] = [ self.analysis_plotter_widget.update ]
+
+        layout = QHBoxLayout()
+        layout.addWidget( analysis_controls_box )
+        layout.addLayout( self.analysis_plotter_widget.grid_layout ) 
         
-        
-        layout = QGridLayout()
-        layout.addWidget( analysis_controls_box, 0, 0, 0, 1, QtCore.Qt.AlignLeft )
-        layout.setColumnStretch( 0, 0.5 ) 
-        layout.addWidget( self.canvases[ tab_idx ], 0, 1, 1, 1 )
-        layout.setColumnStretch( 1, 1 ) 
+        # layout = QGridLayout()
+        # layout.addWidget( analysis_controls_box, 0, 0, 0, 1, QtCore.Qt.AlignLeft )
+        # layout.setColumnStretch( 0, 0.5 ) 
+        # layout.addWidget( self.canvases[ tab_idx ], 0, 1, 1, 1 )
+        # layout.setColumnStretch( 1, 1 ) 
         
         self.analysis_tab.setLayout( layout )
 
@@ -673,7 +714,7 @@ class gui( QTabWidget ):
 
         try : 
             label = QLabel()
-            morrison_path = gui_path + '../images/jim-morrison-og.jpg'
+            morrison_path = code_path + '../images/jim-morrison-og.jpg'
             print( morrison_path )
             print( os.path.exists( morrison_path ) ) 
             pixmap = QPixmap( morrison_path ) 
@@ -712,6 +753,7 @@ class gui( QTabWidget ):
             
         
     def update_loop( self ) :
+        # time.sleep(1)
         while( not self.kill_update_thread ) :
             time.sleep(1)
             self.update()
@@ -782,55 +824,46 @@ class gui( QTabWidget ):
         print( 'INFO: saving data...' )
         session_name = self.session_name_entry.text()
 
-        if not session_name :
-            print( 'ERROR: session name is required' ) 
-            return 0 
+        # if not session_name :
+        #     print( 'ERROR: session name is required' ) 
+        #     return 0 
         
-        session_dir_path = self.data_dir_path + session_name + '/'
+        session_dir_path = self.data_dir_path + '/' #  + session_name + '/'
         print( session_dir_path ) 
         
         if session_dir_path != self.session_dir_path :
             self.session_dir_path = session_dir_path
             os.makedirs( self.session_dir_path, exist_ok = 1 )
             
-        np.save( self.session_dir_path + 'test', [1,2,3] )
-
-
-    def plot_with_cuts_clicked( self ) :
-        self.plotter.plot_with_cuts = self.plot_with_cuts_button.checkState() 
-
-    def set_use_kde( self ) :
-        self.plotter.use_kde = 1 
-
-    def disable_use_kde( self ) :
-        self.plotter.use_kde = 0 
-
-    def reload_visualization_params( self ) :
-        self.plotter.mcp_bin_width = float( self.mcp_bin_width_entry.text() )
-        self.plotter.mcp_kde_bandwidth = float( self.mcp_kde_bw_entry.text() )
-        self.plotter.mcp_x_bounds = [ float( self.mcp_hitmap_left_xbound_entry.text() ),
-                                      float( self.mcp_hitmap_right_xbound_entry.text() ) ]
-        self.plotter.mcp_y_bounds = [ float( self.mcp_hitmap_left_ybound_entry.text() ),
-                                      float( self.mcp_hitmap_right_ybound_entry.text() ) ]
+        # np.save( self.session_dir_path + 'test', [1,2,3] )
+        path = self.session_dir_path + 'test.cpt'
+        self.processor.save( path ) 
         
-        self.plotter.tof_hist_nbins = int( self.tof_hist_nbins_entry.text() ) 
-        self.plotter.r_hist_nbins = int( self.r_hist_nbins_entry.text() ) 
-        self.plotter.angle_hist_nbins = int( self.angle_hist_nbins_entry.text() )
-
-        self.plotter.rebuild_mcp_plot = 1 
 
 
 
     def add_button_clicked( self ) :
-        dir_path = str( QFileDialog.getExistingDirectory( self, "Select Directory") )
+        path = QFileDialog.getOpenFileName( self, "Select Directory")[0]
+        print( 'path: ', path )
         # name = dir_path[ dir_path.rfind( '/' ) + 1 : ] 
         # self.analysis_data_dirs_qlist.addItem( name ) 
-        self.analysis_data_dirs_qlist.addItem( dir_path ) 
+        self.analysis_data_dirs_qlist.addItem( path )
+        new_cpt_data = CPTdata.load( path ) 
+        self.analysis_plotter_widget.set_cpt_data( new_cpt_data ) 
+        # self.analysis_plotter_widget.plotter.cpt_data = new_cpt_data
+        # self.anal
+        # print( 'initial set' ) 
+        # print( self.analysis_plotter_widget.cpt_data ) 
+        self.analyzer.data_list.append( new_cpt_data )
+         # = new_cpt_data
+        self.analysis_plotter_widget.update() 
 
         
     def delete_button_clicked( self ) :
         row = self.analysis_data_dirs_qlist.currentRow() 
         self.analysis_data_dirs_qlist.takeItem( row ) 
+        del self.analysis_data_list[ row ]
+        
         
     def toggle_isolated_dataset( self ) :
         self.plot_isolated_dataset = self.isolated_dataset_checkbox.checkState() 
