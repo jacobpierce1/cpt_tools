@@ -334,20 +334,29 @@ class LiveCPTdata( CPTdata ) :
 
     def get_rollover_boundaries( self, rollovers ) :
 
-        rollovers[0] = 1 
-        tmp = np.roll( rollovers, 1 )
-        # tmp[0] = rollovers[-1]
-
-        print( rollovers ) 
-        print( tmp ) 
         
-        start = np.insert( np.where( rollovers < tmp )[0], 0, 0 )
-        end = np.append( np.where( rollovers > tmp )[0], len( rollovers ) )
+    tmp = np.roll( rollovers, 1 )
+    tmp[0] = rollovers[0]
+    
+    # print( rollovers ) 
+    # print( tmp ) 
+    # print( rollovers - tmp ) 
+    
+    start = np.where( rollovers < tmp )[0]
+    end = np.where( rollovers > tmp )[0]
 
-        print( 'start: ', start )
-        print( 'end: ', end ) 
+    if not rollovers[0] :
+        start = np.insert( start, 0, 0 ) 
+    
+    if not rollovers[-1] :
+        end = np.append( end, len( rollovers ) ) 
         
-        return start, end
+    # end = np.append( np.where( rollovers > tmp )[0], len( rollovers ) )
+    
+    # print( 'start: ', start )
+    # print( 'end: ', end ) 
+    
+    return start, end
 
     
     # @jit( nopython = 1 ) 
