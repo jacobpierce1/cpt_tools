@@ -5,7 +5,7 @@
 Run from within the directory mass_identifier (the folder where the file mass_identifier.py is located):
 
 
-syntax: ipython mass_identifier.py  mode  omega  d_omega  [optional query args] 
+syntax: `$ ipython mass_identifier.py  mode  omega  d_omega  [optional query args]`
 
 	mode: 	0 for all ions 
 		1 for all ions and known molecules
