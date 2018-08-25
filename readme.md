@@ -1,4 +1,6 @@
-INSTRUCTIONS: 
+# Mass Identifier
+
+## INSTRUCTIONS: 
 
 Run from within the directory mass_identifier (the folder where the file mass_identifier.py is located):
 
@@ -31,7 +33,7 @@ In the future I can add support for a command line argument to reset the molecul
 
 
 
-KNOWN PROBLEMS
+## KNOWN PROBLEMS
 
 The program contains file ‘molecule_parser.py’ which has a function called atom counter. That function returns a list of Z values for each element in a molecule string. For example, ‘CH3I’ —> (6, 1, 53), ( 1, 3, 1) . Currently, atom_counter does not provide support for hydrates (which is a solvable problem, but will take a bit more effort) or molecules with a charge state specified NOT at the end of the string. Ambiguously charged molecules with a charge state higher than 1 specified at the end of the string such that the molecule is ambiguoous are ignored. For example, ’NH32-‘ could be two different molecules: ’NH3 2-‘ or ’NH32 -‘. To solve that, I manually went through the list of molecules and put spaces at the end for these ambiguous charge states, but if more molecules are added this same measure will need to be taken. 
 
@@ -47,6 +49,6 @@ Finally, for carbon-based molecules there will be some repeats because there are
 
 
 
-SUMMARY OF HOW PROGRAM WORKS 
+## SUMMARY OF HOW PROGRAM WORKS 
 
 Todo 
