@@ -2,9 +2,10 @@ import config
 import tdc
 import tabor
 # import processing
-from cpt_data_structures import CPTdata, LiveCPTdata
+from cpt_tools.cpt_data_structures import CPTdata, LiveCPTdata
 import plotter
 import analysis
+import cpt_tools
 
 import sys 
 import scipy.stats as st
@@ -15,6 +16,7 @@ import os
 import numpy as np
 import scipy
 import time
+from functools import partial
 
 
 # from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QAction, QTabWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel, QLineEdit, QRadioButton, QTableWidget
@@ -41,7 +43,9 @@ SUBTITLE_WEIGHT = 3
 
 DEFAULT_KDE_BW = 0.03
 
-PLOTTER_WIDGET_QLINEEDIT_WIDTH = 50
+PLOTTER_WIDGET_QLINEEDIT_WIDTH = 70
+MAX_SIZE_POLICY = size_policy = QSizePolicy( QSizePolicy.Maximum,
+                                             QSizePolicy.Maximum )
 
 
 code_path = os.path.abspath( os.path.dirname( __file__ ) ) + '/'
@@ -52,9 +56,9 @@ code_path = os.path.abspath( os.path.dirname( __file__ ) ) + '/'
 
 class MetadataWidget( object ) :
 
-    def __init__( self, processor ) :
+    def __init__( self, cpt_data ) :
 
-        self.processor = processor
+        self.cpt_data = cpt_data
         
         self.box = QGroupBox( 'Metadata' )
         
@@ -91,14 +95,14 @@ class MetadataWidget( object ) :
         
     def update( self ) :
                 
-        counts = [ self.processor.num_mcp_hits, self.processor.num_events,
-                   self.processor.num_penning_ejects ]
+        counts = [ self.cpt_data.num_mcp_hits, self.cpt_data.num_events,
+                   self.cpt_data.num_penning_ejects ]
 
         for i in range( len( counts ) ) :
             self.table.cellWidget( i, 0 ).setText( '%d' % counts[i] )
-            self.table.cellWidget( i, 1 ).setText( '%.2f' % ( counts[i] / self.processor.duration ) )
+            self.table.cellWidget( i, 1 ).setText( '%.2f' % ( counts[i] / self.cpt_data.duration ) )
 
-        self.time_label.setText( self.time_label_str + '%d' % int( self.processor.duration ) )
+        self.time_label.setText( self.time_label_str + '%d' % int( self.cpt_data.duration ) )
             
         
         
@@ -249,9 +253,20 @@ class PlotterWidget( object ) :
         layout.addWidget( cuts_box ) 
 
         fits_box = QGroupBox( 'Gaussian Fitting' )
-        fits_layout = QVBoxLayout()
+        # fits_layout = QVBoxLayout()
+        # fits_layout.setSpacing(0)
+        
+        self.fit_widget = FitWidget( self.plotter.all_hists ) 
 
-        fits_box.setLayout( fits_layout )
+               # self.tof_fit_widget = FitWidget( 'TOF', self.plotter.tof_hist )
+               # self.angle_fit_widget = FitWidget( 'Angle', self.plotter.angle_hist )
+               # self.radius_fit_widget = FitWidget( 'Radius', self.plotter.radius_hist )
+
+        # fits_layout.addLayout( self.tof_fit_widget.layout ) 
+        # fits_layout.addLayout( self.angle_fit_widget.layout ) 
+        # fits_layout.addLayout( self.radius_fit_widget.layout ) 
+        
+        fits_box.setLayout( self.fit_widget.layout )
         layout.addWidget( fits_box ) 
         
 
@@ -270,15 +285,14 @@ class PlotterWidget( object ) :
         self.plotter.update_all()
         self.metadata_widget.update()
         
-        
-        
     # deallocate plotter 
     def release( self ) :
         plotter.release()
         
     def plot_with_cuts_clicked( self ) :
-        self.plotter.plot_with_cuts = self.plot_with_cuts_button.checkState() 
-    
+        plot_with_cuts = self.plot_with_cuts_button.checkState() 
+        self.plotter.set_plot_with_cuts( plot_with_cuts ) 
+        
     def set_use_kde( self ) :
         self.plotter.use_kde = 1 
 
@@ -297,13 +311,128 @@ class PlotterWidget( object ) :
         self.plotter.r_hist_nbins = int( self.r_hist_nbins_entry.text() ) 
         self.plotter.angle_hist_nbins = int( self.angle_hist_nbins_entry.text() )
 
+        self.plotter.cpt_data.tof_cut_lower = float( self.tof_lower_cut_entry.text() )
+        self.plotter.cpt_data.tof_cut_upper = float( self.tof_upper_cut_entry.text() )
+
+        # self.plotter.clear()
+        if self.plotter.cpt_data.is_live : 
+            self.plotter.cpt_data.reset_cuts()
+        # self.plotter.cpt_data.apply_cuts()
+        
         self.plotter.rebuild_mcp_plot = 1
-        self.update()
+
+        # self.update()
 
 
     def set_cpt_data( self, cpt_data ) :
         self.plotter.cpt_data = cpt_data 
-        self.metadata_widget.processor = cpt_data
+        self.metadata_widget.cpt_data = cpt_data
+        
+
+
+        
+class FitWidget( object ) :
+
+    def __init__( self, plotter_hist_list ) :
+
+        self.layout = QVBoxLayout()
+
+        self.hists = plotter_hist_list 
+
+        params_labels = [ 'A', '\u03c3', '\u03bc', '\u03c72' ]
+        self.num_params = len( params_labels ) 
+
+        h_labels = [ '', '', 'Left', 'Right' ]
+        h_labels.extend( params_labels ) 
+        v_labels = [ x.title for x in plotter_hist_list ] 
+        
+        nrows = len( v_labels )
+        ncols = len( h_labels ) 
+
+        self.table = QTableWidget( nrows, ncols ) 
+
+
+        # size_policy = QSizePolicy( QSizePolicy.Maximum,
+        #                            QSizePolicy.Maximum )
+        
+        # self.table.setSizePolicy( size_policy )
+                
+        self.table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
+        self.table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
+        # header = self.table.horizontalHeader() 
+        # header.setSectionResizeMode( 0, QHeaderView.Stretch )
+        # for j in range( 1, len( h_labels ) ) : 
+        #     header.setSectionResizeMode( j, QHeaderView.ResizeToContents )
+        
+        self.table.setHorizontalHeaderLabels( h_labels )
+        self.table.setVerticalHeaderLabels( v_labels )
+
+        self.bounds_entries = [] 
+        self.params_labels = []
+        fit_buttons = []
+        delete_buttons = [] 
+        
+        for i in range( len( plotter_hist_list ) ) :
+            
+            self.bounds_entries.append( [ QLineEdit(), QLineEdit() ] )
+            self.params_labels.append( [ QLabel() for i in range( self.num_params ) ] )
+
+            fit_buttons.append( QPushButton( 'Fit' ) )
+            delete_buttons.append( QPushButton( 'Delete' ) )
+ 
+            fit_buttons[i].clicked.connect( lambda state, a=i : self.fit_button_clicked( a ) )
+            delete_buttons[i].clicked.connect( lambda state, a=i : self.delete_button_clicked( a ) )
+            # fit_buttons[i].clicked.emit() 
+
+            self.table.setCellWidget( i, 0, fit_buttons[i] )
+            self.table.setCellWidget( i, 1, delete_buttons[i] ) 
+
+            self.table.setCellWidget( i, 2, self.bounds_entries[i][0] )
+            self.table.setCellWidget( i, 3, self.bounds_entries[i][1] )
+
+            for j in range( self.num_params ) :
+                self.table.setCellWidget( i, 4 + j, self.params_labels[i][j] )
+
+            # self.left_x_bound_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
+            # self.right_x_bound_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
+        
+        # self.layout.setSpacing(0)
+        # self.layout.addLayout( label_layout ) 
+
+        self.layout.addWidget( self.table )
+        
+
+        
+    def fit_button_clicked( self, i ) :
+                
+        try : 
+            left_x_bound = float( self.bounds_entries[i][0].text() )
+            right_x_bound = float( self.bounds_entries[i][1].text() )
+        except :
+            print( 'WARNING: please specify bounds for fit' )
+            return
+
+        bounds = [ left_x_bound, right_x_bound ]    
+        params, params_errors, redchisqr = self.hists[i].apply_fit( bounds ) 
+
+        if params_errors is not None : 
+            labels = [ '%.2f\u00b1%.2f' % ( params[i], params_errors[i] ) for j in range( len(params) ) ]
+        else :
+            labels = [ '%.2f' % params[j] for j in range( len(params) ) ]
+            
+        labels.append( '%.2f' % redchisqr )
+        for j in range( len(params) + 1 ) : 
+            self.params_labels[i][j].setText( labels[j] ) 
+            
+        # ret = analysis.gaussian_fit( self.cpt_data ) 
+        
+
+    def delete_button_clicked( self, i ) :
+        self.hists[i].remove_fit() 
+    
+
+
+
         
         
 class gui( QTabWidget ):
@@ -649,29 +778,40 @@ class gui( QTabWidget ):
 
         tab_idx = self.tools_tab_idx 
 
-        layout = QHBoxLayout()
+        layout = QVBoxLayout()
 
         mass_identifier_box = QGroupBox( 'Mass Identifier' )
         # mass_identifier_box.setStyleSheet( '
         tmp = QFormLayout()
-        self.tools_freq_entry = QLineEdit() 
+        self.tools_freq_entry = QLineEdit( '616024' ) 
         tmp.addRow( 'Cyclotron Frequency', self.tools_freq_entry )
-        self.mass_identifier_button = QPushButton( 'Look Up' )
-        tmp.addRow( self.mass_identifier_button )
+        self.tools_freq_delta_entry = QLineEdit( '0.5' ) 
+        tmp.addRow( 'Cyclotron Frequency Uncertainty', self.tools_freq_delta_entry )
+
+        mass_identifier_button = QPushButton( 'Look Up' )
+        mass_identifier_button.clicked.connect( self.mass_identifier_button_clicked ) 
+        tmp.addRow( mass_identifier_button )
         table_cols = [ 'Freq', 'Name', 'q', 'A', 'Z', 'N', 'T_{1/2}',
                        'Cf yield', 'Rel Natural Abund' ]
         self.mass_identifier_table = QTableWidget( 1, len( table_cols ) )
-        self.mass_identifier_table.setHorizontalHeaderLabels( table_cols ) 
+        self.mass_identifier_table.setHorizontalHeaderLabels( table_cols )
+        
+        self.mass_identifier_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
+        self.mass_identifier_table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
+        
         tmp.addRow( self.mass_identifier_table ) 
         mass_identifier_box.setLayout( tmp ) 
 
-        property_lookup_box = QGroupBox( 'Property Lookup' )
+        property_lookup_box = QGroupBox( 'Nuclide Property Lookup' )
         # tmp_layout = QVBoxLayout
         tmp = QFormLayout()
-        self.tools_z_entry = QLineEdit( '43' ) 
-        self.tools_n_entry = QLineEdit( '36' )
-        self.tools_q_entry = QLineEdit( '0' ) 
+        self.tools_z_entry = QLineEdit( '55' ) 
+        self.tools_n_entry = QLineEdit( '82' )
+        self.tools_q_entry = QLineEdit( '0' )
+        
         self.tools_property_button = QPushButton( 'Look Up' ) 
+        self.tools_property_button.clicked.connect( self.property_lookup_button_clicked ) 
+        
         tmp.addRow( 'Z', self.tools_z_entry )
         tmp.addRow( 'N', self.tools_n_entry )
         tmp.addRow( 'q', self.tools_q_entry )
@@ -679,9 +819,16 @@ class gui( QTabWidget ):
         # tmp_layout.addLayout( tmp ) 
         property_lookup_box.setLayout( tmp )
 
-        property_lookup_cols = [ 'Freq', 'T_{1/2}', 'Cf yield', 'Rel Natural Abund' ]
+        property_lookup_cols = [ 'Freq', 'Mass', 'T_{1/2}', 'Cf yield', 'Rel Natural Abund' ]
         self.property_lookup_table = QTableWidget( 1, len( property_lookup_cols ) )
-        self.property_lookup_table.setHorizontalHeaderLabels( property_lookup_cols ) 
+        self.property_lookup_table.setHorizontalHeaderLabels( property_lookup_cols )
+
+        self.property_lookup_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
+        self.property_lookup_table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
+
+        for i in range( len( property_lookup_cols ) ) :
+            self.property_lookup_table.setCellWidget( 0, i, QLabel( '' ) )
+                                
         tmp.addRow( self.property_lookup_table ) 
 
         layout.addWidget( mass_identifier_box ) 
@@ -866,7 +1013,46 @@ class gui( QTabWidget ):
         
         
     def toggle_isolated_dataset( self ) :
-        self.plot_isolated_dataset = self.isolated_dataset_checkbox.checkState() 
+        self.plot_isolated_dataset = self.isolated_dataset_checkbox.checkState()
+
+
+
+    def mass_identifier_button_clicked( self ) :
+        omega = float( self.tools_freq_entry.text() )
+        d_omega = float( self.tools_freq_delta_entry.text() )
+        
+        thread = threading.Thread( target = cpt_tools.mass_identifier,
+                                   args = ( 1, omega, d_omega ) ) 
+        thread.start()
+        
+
+        
+    def property_lookup_button_clicked( self ) :
+
+        Z = int( self.tools_z_entry.text() )
+        N = int( self.tools_n_entry.text() )
+        q = int( self.tools_q_entry.text() )
+        
+        # freq = cpt_tools.nuclear_data.
+
+        # print( cpt_tools.nuclear_data.half_lives )
+
+        mass = cpt_tools.nuclear_data.masses[ Z, N ]
+        half_life = cpt_tools.nuclear_data.half_lives[Z,N]
+        cf_yield =  cpt_tools.nuclear_data.cf_yields[Z,N]
+        abund = cpt_tools.nuclear_data.rel_abundances[Z,N]
+        
+
+        if q > 0 : 
+            omega = cpt_tools.mass_to_omega( mass, q, 1 )
+        else :
+            omega = np.nan
+            
+        self.property_lookup_table.cellWidget( 0, 0 ).setText( '%.2f' % omega )
+        self.property_lookup_table.cellWidget( 0, 1 ).setText( '%.2f' % mass )
+        self.property_lookup_table.cellWidget( 0, 2 ).setText( '%.2e' % half_life )
+        self.property_lookup_table.cellWidget( 0, 3 ).setText( '%.2e' % cf_yield )
+        self.property_lookup_table.cellWidget( 0, 4 ).setText( '%.2e' % abund )
         
     # def session_path_button_clicked( self ) :
     #     print( 'INFO: setting session path' )
