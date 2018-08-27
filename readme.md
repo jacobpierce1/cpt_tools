@@ -1,3 +1,15 @@
+# Overview of functionality
+
+
+
+
+# Installation
+
+To add the `cpt_tools` module to your available python modules, change directory to `cpt_tools` and run `pip install -e .'`. This runs the script `setup.py`.
+
+
+
+
 # Mass Identifier
 
 ## INSTRUCTIONS: 
@@ -26,7 +38,7 @@ If you forget the syntax, just type ipython mass_identifier.py and it will print
 
 The first time you run the program in molecule mode (mode 1), a database will be generated containing the masses of all molecules with nuclide combinations meeting the half life, cf yield, molecule size, and abundance criteria in the code. For subsequent calls in molecule mode, the same database will be used and metadata about the database (what criteria were used to select molecules / nuclides ) will be printed. If you want to regenerate the database with different criteria, just set delete the database on your computer (it’s located in the directory ‘storage’) and set the desired criteria using the optional query args described above. If you don’t set one or more of the parameters, default values will be used.  
 
-In the future I can add support for a command line argument to reset the molecule database, but I doubt that would be used very frequently. 
+In the future I can add support for a command line argument to reset the molecule database, but I doubt that would be used very frequently. For now, if you need to reset, just manually delete the database, located at `storage/molecule_db.sql` and re-run the program to regenerate.
 
 
 
@@ -51,4 +63,11 @@ Finally, for carbon-based molecules there will be some repeats because there are
 
 ## SUMMARY OF HOW PROGRAM WORKS 
 
-Todo 
+Todo
+
+
+
+
+# About
+
+Written by Jacob Pierce, 2018.

@@ -3,7 +3,7 @@
 # DATE: 4.27.18
 #
 # DESCRIPTION: given the cyclotron frequency of something measured in
-# the CPT (or elsewhere), CPT, determine all possible nuclides or
+# the CPT (or elsewhere) determine all possible nuclides or
 # molecules that could produce that cyclotron frequency.
 
 # all masses are given in 10^6 AMU. all frequencies are measured in
@@ -21,9 +21,9 @@ import re
 import datetime
 import sqlite3
 
-from molecule_parser import atom_counter
+# from molecule_parser import atom_counter
 
-
+from cpt_tools import nuclear_data, mass_to_omega, omega_to_mass, z_to_element, atom_counter
 
 # define this for database debug
 DEBUG_DB = 0
@@ -32,38 +32,32 @@ DEBUG_DB = 0
 
 # from periodic_table_dict import get_periodic_table_dict
 
-molecule_db_dir = './storage/'
-molecule_db_schema_path = './molecule_db_schema.sql'
+current_path = os.path.abspath( os.path.dirname( __file__ ) ) 
+
+molecule_db_dir = current_path + '/storage/'
+molecule_db_schema_path = current_path + '/molecule_db_schema.sql'
 
 
-ame16_data_path = './data/ame16_all_masses_accurate.txt'
-nubase2016_data_path = './data/nubase2016_raw.txt'
-wikipedia_molecule_data_path = './data/molecules/wikipedia_molecule_data.txt'
-carbon_molecule_data_dir = './data/molecules/carbon_molecules/'
+# ame16_data_path = './data/ame16_all_masses_accurate.txt'
+# nubase2016_data_path = './data/nubase2016_raw.txt'
+
+wikipedia_molecule_data_path = current_path + '/data/molecules/wikipedia_molecule_data.txt'
+carbon_molecule_data_dir = current_path + '/data/molecules/carbon_molecules/'
 carbon_file_name = 'C'
-wallet_card_path = './data/nuclear-wallet-cards.txt'
-fission_yield_data_path = './data/fissionyields.txt' 
-abundances_path = './data/abundances.txt'
+
+# wallet_card_path = './data/nuclear-wallet-cards.txt'
+# fission_yield_data_path = './data/fissionyields.txt' 
+# abundances_path = './data/abundances.txt'
 
 
-
-
-# B is obtained using this calibration data
-
-electron_mass = 548.579909
-neutron_mass = 1.008665e6
-proton_mass = 1.007276e6 
-
-cesium_133_mass = 132905451.961
-cesium_133_omega =  657844.45
-
+# for pretty print 
 line_break =  '--------------------------------------------' * 2 
 
 max_Z = 119
 max_N = 200
 max_A = 500 
 
-max_mass = 550 * neutron_mass
+max_mass = 550 * nuclear_data.neutron_mass
 
 
 
@@ -99,32 +93,17 @@ max_carbon_number = 24
 
 
 
+atom_masses = np.copy( nuclear_data.masses )
+half_lives = np.copy( nuclear_data.half_lives )
+cf_yields = np.copy( nuclear_data.cf_yields )
+abundances = np.copy( nuclear_data.rel_abundances )
 
-def get_periodic_table_dict() :
-
-    periodic_table_string = '''h he
-    li be b c n o f ne
-    na mg al si p s cl ar
-    k ca sc ti v cr mn fe co ni cu zn ga ge as se br kr
-    rb sr y zr nb mo tc ru rh pd ag cd in sn sb te i xe
-    cs ba la ce pr nd pm sm eu gd tb dy ho er tm yb lu hf ta w re os ir pt au hg tl pb bi  po at rn
-    fr ra ac th pa u np pu am cm bk cf es fm md no lr rf db sg bh hs mt ds rg cn nh fl mc lv ts og'''
-
-    keys = periodic_table_string.split() 
-    
-    tmp = dict( zip( keys, range( 1, 119 ) )  )
-
-    tmp[ 'd' ] = 1 
-
-    return tmp 
+for x in [ atom_masses, half_lives, cf_yields, abundances ] :
+    x[ np.isnan(x) ] = 0 
+# cf_yields[ np.isnan( cf_yields ) ] = 0 
 
 
-
-periodic_table_dict = get_periodic_table_dict()
-
-
-
-def main() :
+def run_mass_identifier() :
 
     if len( sys.argv ) < 4 :
         print( '\nERROR: less than 3 args supplied' )
@@ -147,9 +126,14 @@ def main() :
                % ( small_molecule_size, min_half_life,
                    min_cf_yield_fraction, max_charge ) )
 
+    mass_identifier( mode, omega, d_omega ) 
 
-    atom_masses = get_atom_masses()
+
+
+
     
+def mass_identifier( mode, omega, d_omega ) : 
+        
     filtered_atom_masses, filtered_atom_labels = get_filtered_atom_masses_and_labels( atom_masses )
     
     if mode == 0 :
@@ -161,7 +145,7 @@ def main() :
         print( line_break ) 
 
     elif mode == 1 :
-        
+
         molecule_db = get_molecule_db( filtered_atom_masses, filtered_atom_labels )
         print( '' ) 
 
@@ -185,9 +169,9 @@ def main() :
     #     check_all_ion_combinations( atom_masses, atom_labels ) 
     #     print( line_break ) 
         
-    else :
-        print( 'ERROR: mode not implemented\n' )
-        return -1
+    # else :
+    #     print( 'ERROR: mode not implemented\n' )
+    #     return -1
 
     return 0
 
@@ -267,7 +251,7 @@ def check_ions( atom_masses, omega, d_omega,
                 if mass == -1 :
                     continue
 
-                mass -= q * electron_mass 
+                mass -= q * nuclear_data.electron_mass 
                 current_omega = mass_to_omega( mass, q )
 
 
@@ -275,7 +259,7 @@ def check_ions( atom_masses, omega, d_omega,
 
                     half_life = half_lives[ Z, N ]
 
-                    element_name = get_element_name( Z ).title()
+                    element_name = z_to_element( Z ).title()
 
                     print( '%.1f\t%s \t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f'
                            % ( current_omega, element_name, q, Z+N, Z, N,
@@ -349,10 +333,10 @@ def check_ions( atom_masses, omega, d_omega,
 #                 mass = np.sum( [ masses[ A_index[ x ] ][ nuclide_index[ x ] ]
 #                                  for x in range( num_indices ) ] )
 
-#                 mass -= q * electron_mass 
+#                 mass -= q * nuclear_data.electron_mass 
 
 #                 # print( mass ) 
-#                 # print( mass / proton_mass ) 
+#                 # print( mass / nuclear_data.proton_mass ) 
 
 #                 # we have a candidate, add mass and all labels 
 #                 if np.abs( mass_to_omega( mass, q ) - omega ) <= d_omega : 
@@ -371,12 +355,6 @@ def check_ions( atom_masses, omega, d_omega,
                     
                     
         
-            
-    
-         
-
-
-
 # modified from 
 # https://stackoverflow.com/questions/17720072/print-all-unique-integer-partitions-given-an-integer-as-input
 
@@ -437,8 +415,13 @@ def check_molecule_combinations( molecule_db, omega, d_omega,
 
         print( '\n\nINFO: checking q = %d' % q ) # , expected A = %d' % ( q, total_A)  )
 
-        mass_low = omega_to_mass( omega + d_omega, q ) + q * electron_mass 
-        mass_high = omega_to_mass( omega - d_omega, q ) + q * electron_mass
+
+        print( omega )
+        print( q )
+        print( nuclear_data.electron_mass ) 
+        
+        mass_low = omega_to_mass( omega + d_omega, q ) + q * nuclear_data.electron_mass 
+        mass_high = omega_to_mass( omega - d_omega, q ) + q * nuclear_data.electron_mass
 
         # print( [ mass_low, mass_high ] ) 
 
@@ -452,7 +435,7 @@ def check_molecule_combinations( molecule_db, omega, d_omega,
 
                 mass = data[ 'mass' ] 
 
-                mass -= q * electron_mass
+                mass -= q * nuclear_data.electron_mass
 
                 current_omega = mass_to_omega( mass, q )
 
@@ -504,43 +487,6 @@ def check_molecule_combinations( molecule_db, omega, d_omega,
             print( 'NONE FOUND' ) 
 
                     
-    
-
-    
-
-
-
-def get_atom_masses() :
-
-    atom_masses = np.zeros( ( max_Z, max_N ) )
-
-    # default value 
-    atom_masses[:] = -1 
-    
-    # parse the ame16 data. this only has ground state masses. 
-    
-    with open( ame16_data_path ) as f :
-
-        # skip first line 
-        f.readline()
-
-        for line in f.readlines() :
-
-            data = line.split( '\t' )
-            Z = int(data[1])
-            N = int(data[0])
-
-            name = data[3] 
-            mass = float( data[4] )
-
-            atom_masses[Z,N] = mass
-
-    return atom_masses 
-
-
-
-
-
 
 
 def get_filtered_atom_masses_and_labels( atom_masses ) :
@@ -566,7 +512,6 @@ def get_filtered_atom_masses_and_labels( atom_masses ) :
 
     return filtered_atom_masses, filtered_atom_labels 
     
-
 
 
 
@@ -924,220 +869,16 @@ def perm_unique_helper(listunique,result_list,d):
 
 
 
-
-
-
-
-
-
-def get_abundances_data() :
-
-    abundances = np.zeros( ( 126, 250 ) )
-
-    current_Z = 0
-
-    skiplines = 0 
-    
-    with open( abundances_path ) as f :
-        
-        for line in f.readlines() :
-
-            if skiplines < 3 :
-                skiplines += 1
-                continue
-
-            line = line.split()
-
-            # print( line ) 
-
-            # if( not line or len( line ) < 4 or not( line[0].isdigit() ) ) :
-            #     continue
-            
-            if line[0].isdigit() and line[1].isalpha() :
-                Z_idx = 0 
-                Z = int( line[0] )
-                current_Z = Z
-                min_len = 5
-
-            else :
-                Z_idx = -2 
-                Z = current_Z
-                min_len = 3 
-
-            if len( line ) < min_len :
-                continue
-
-            A = int( line[ 2 + Z_idx ] )
-            abund = line[ 4 + Z_idx ]
-
-            if '[' in abund :
-                continue
-            
-            parenth_idx = abund.find( '(' )
-            if parenth_idx != -1 :
-                abund = float( abund[ : parenth_idx ] )
-
-            # print( abund ) 
-
-            N = A - Z
-
-            # print( line )
-            # print( Z, N )
-            # print( abund ) 
-                        
-            abundances[Z,N] = abund
-    
-    return abundances
-
-
-
-def str_is_int( s ) :
-    try: 
-        int(s)
-        return True
-    except ValueError:
-        return False
-
-
-    
-
-def get_cf_yield_data() :
-
-    cf_yields = np.zeros( ( 126, 200 ) )
-
-    with open( fission_yield_data_path ) as f :
-
-        for line in f.readlines() :
-
-            line = line.split()
-
-            if( not line ) :
-                continue
-
-            element_string = line[0]
-            A, element_name  = re.findall( r'(\d*)([A-Z][a-z]*)', element_string )[0]
-            A = int( A )
-            Z = periodic_table_dict[ element_name.lower() ]
-            N = A - Z 
-                        
-            fission_yield = float( line[-2] ) / 200
-            cf_yields[ Z, N ] = fission_yield
-            
-    return cf_yields 
-
-
-
-
-
-
-
-
-def get_half_life_data() :
-
-    half_lives = np.zeros( ( 126, 200 ) )
-
-    with open( wallet_card_path ) as f :
-
-        for full_line in f.readlines()  :
-
-            line = full_line.split()
-
-            if 'STABLE' in full_line :
-                half_life = np.inf
-
-            else :
-                try : 
-                    half_life = float( line[-1] )
-                except:
-                    continue
-
-            if has_digit( line[0] ) :
-                A_idx = 0
-
-            else :
-                A_idx = 1
-
-            # can't currently handle excited states. 
-            if not line[ A_idx ].isdigit() :
-                continue
-
-            else : 
-                A = int( line[ A_idx ] ) 
-
-            Z = int( line[ A_idx + 1 ] ) 
-            
-            # this denotes a metastable state
-            # A = string_to_numstring( line[0] )
-            # if A == '' :
-            #     A = int( string_to_numstring( line[ 1 ] ) ) 
-            #     Z = int( line[ 2 ] )
-
-            # else :
-            #     A = int( A )
-            #     Z = int( line[1] ) 
-
-            N = A - Z
-
-            
-            # if Z == 9 :
-            #     print( full_line )
-            #     print( N ) 
-            #     print( half_life ) 
-
-            half_lives[ Z, N ] = half_life
-
-                    
-    return half_lives
-
-
-
-
-
-def string_to_numstring( s ) :
-     return ''.join( [ c for c in s if c.isdigit() ] )
-
- 
-def has_digit( s ) :
-    for c in s :
-        if c.isdigit() :
-            return 1
-    return 0 
-                   
-                   
                    
     
 # the cyclotron frequency is qB/m
     
-def mass_to_omega( mass, q ) :
-    omega = q * cesium_133_omega * ( cesium_133_mass - electron_mass ) / mass 
-    return omega
-    
-
-def omega_to_mass( omega, q ) :
-    return q * cesium_133_omega * ( cesium_133_mass - electron_mass ) / omega 
-
-
-
 def file_len( fname ):
     with open(fname) as f:
         for i, l in enumerate(f):
             pass
     return i + 1
 
-
-
-
-def get_element_name( Z ) :
-
-    try :
-        return next( key for key, value in periodic_table_dict.items() if value == Z )
-
-    except :
-        print( 'ERROR: no element name for Z = %s' % str( Z ) )
-        sys.exit( 0 )
-    
-
-        
 
 
 class TimeEstimator( object ) :
@@ -1354,22 +1095,7 @@ class molecule_db_manager( object ) :
         return None
 
 
-    # # read all molecules from the DB that have total atomic number A 
     
-    # def read_isobar( self, A ) :
-
-    #     if self.conn is None:
-    #         raise ValueError( 'Cannot read db, sqlite3 connection is not open. Call db.connect().' )
-
-    #     query = 'SELECT * FROM molecule_masses WHERE A=?'
-
-    #     # cursor = self.conn.cursor()
-    #     self.cursor.execute( query, (A,) )
-
-    #     return self.cursor.fetchall()
-
-
-
     def search_mass( self, mass_low, mass_high ) :
         
         if self.conn is None:
@@ -1381,27 +1107,21 @@ class molecule_db_manager( object ) :
 
         return self.cursor.fetchall() 
 
-                             
-        
+
     
-
     def begin_transaction( self ) :
-
         self.cursor.execute( 'BEGIN' )
 
         
+        
     def end_transaction( self ) :
-
         self.cursor.execute( 'COMMIT' ) 
         
 
-
-half_lives = get_half_life_data() 
-cf_yields = get_cf_yield_data()
-abundances = get_abundances_data() 
         
-  
-main() 
+# call the command line arg processor if we are running outside module mode 
+if __name__ == '__main__' :
+    run_mass_identifier() 
 
 
 
