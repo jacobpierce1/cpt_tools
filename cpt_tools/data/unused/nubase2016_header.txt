@@ -1,0 +1,9 @@
+nuclide
+mass_excess (keV)
+excitation energy (keV)
+half life (unit varies)
+J/pi
+ens
+reference
+year of discovery
+decay modes and intensity	

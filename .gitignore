@@ -1,3 +1,14 @@
+<<<<<<< HEAD
 *molecule_db.sql*
 *.egg-info
 *__pycache__
+=======
+*.opensdf
+*#
+*~
+*.o
+*/gui.app/
+*/Debug/*
+*/ipch/
+*.DS_Store
+>>>>>>> cpt_master_controller/master

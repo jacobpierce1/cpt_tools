@@ -1,0 +1,1 @@
+ERROR: DeviceOpen: Failed opening a handle to the device: Failed opening a WDC device handle. Error 0x2000000e - Resource overlap
