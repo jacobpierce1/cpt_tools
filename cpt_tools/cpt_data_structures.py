@@ -5,8 +5,10 @@ import numpy as np
 import dill
 import time
 import config
+import os
+from datetime import datetime
 
-from cpt_tools import z_to_element, element_to_z, tabor_params, DEFAULT_STORAGE_DIRECTORY
+from cpt_tools import z_to_element, element_to_z, DEFAULT_STORAGE_DIRECTORY
 
 
 
@@ -17,19 +19,82 @@ MCP_CAL_Y = 1.31
 
 mcp_center_coords = np.array( [ -1.6, 3.0 ] )
 
+
+# this translates in ascii codes to CPT. this will be written
+# when files are saved and always verified to make sure the header
+# is lined up correctly. this will prevent bugs which may arise if
+# the file format is changed and someone tries to read an old file
+# with an incompatible function, unless the new header is the same length
+# as the old one.
+
+cpt_header_key = np.array( [ 3, 16, 20 ], dtype = float ) 
+
+
+class CPTexception( Exception ) :
+    pass
+    
+
+
+
+
+class TaborParams( object ) :
+
+    def __init__( self, tacc, nsteps, freqs, phases, amps, loops, lengths ) :
+        self.tacc = tacc
+        self.nsteps = nsteps
+        self.freqs = freqs
+        self.phases = phases
+        self.amps = amps
+        self.loops = loops
+        self.lengths = lengths
+
+        
+    def flatten( self ) :
+        ret = np.zeros( 17 )
+        ret[0] = self.tacc
+        ret[1] = self.nsteps
+
+        data = [ self.freqs, self.phases, self.amps, self.loops, self.lengths ]
+        for i in range(5) :
+            ret[ 2 + i*3 : 2 + (i+1) * 3 ] = data[i]
+
+        return ret 
+
+    
+    @classmethod
+    def unflatten( cls, data ) :
+        tacc = data[0]
+        nsteps = data[1]
+        return cls( tacc, nsteps, * data[2:].reshape(5,3) )
+        
+
+    @classmethod
+    def empty( cls ) :
+        tmp = np.empty(17)
+        tmp[:] = np.nan
+        return cls.unflatten( tmp ) 
+
+    
+
+
+    
+
+
 class CPTdata( object ) :
 
     def __init__( self, buf_size = _default_buf_size ) :
 
-        self.Z = np.nan
-        self.N = np.nan
-        
         # self.clear()
         # self.start_time = time.time()
+        self.Z = np.nan
+        self.A = np.nan
+        self.tabor_params = TaborParams.empty()
+        
         self.duration = 0 
         self.num_events = 0
         self.is_live = 0
-
+        self.num_cut_data = 0
+        
         self.num_penning_ejects = 0
         self.num_mcp_hits = 0
         self.num_events = 0
@@ -69,14 +134,21 @@ class CPTdata( object ) :
         
         data = np.fromfile( path, float, -1 )
         
+        # ret.Z = int( data[0] )
+        # ret.N = int( data[1] )
         ret.Z = data[0]
         ret.N = data[1]
         ret.duration = data[2]
-        ret.num_mcp_hits = data[3]
-        ret.num_penning_ejects = data[4]
-        ret.tabor_params = tabor.TaborParams.unflatten( data[ 5 : 5 + num_tabor_params ] )
-        
-        ret.all_data = data[ 5 + num_tabor_params : ].reshape( len( all_data ) // 4, 4 ) 
+        ret.num_mcp_hits = int( data[3] )
+        ret.num_penning_ejects = int( data[4] )
+        ret.tabor_params = TaborParams.unflatten( data[ 5 : 5 + num_tabor_params ] )
+
+        cpt_header = data[ 5 + num_tabor_params : 8 + num_tabor_params ]
+        if not np.all( cpt_header == cpt_header_key ) :
+            raise CPTexception( 'ERROR: the cpt header in %s does not match the cpt header key. the most likely source is that the file format has been changed and this file has the old format.' % path )
+
+        all_data = data[ 8 + num_tabor_params : ]
+        ret.all_data = all_data.reshape( len( all_data ) // 4, 4 ) 
         
         ret.tofs = ret.all_data[:,0]
         ret.timestamps = ret.all_data[:,1]
@@ -85,13 +157,10 @@ class CPTdata( object ) :
         ret.num_events = len( ret.tofs )
         ret.num_penning_ejects = 0
         ret.num_mcp_hits = 0 
-        # tmp.num_penning_ejects = np.sum( np.where( tmp. == 6 ) )
-        # tmp.num_mcp_hits = np.sum( np.where( tmp == 7 ) )
 
         ret.compute_polar()
         ret.apply_cuts()
 
-        # tmp.load( path ) 
         return ret
 
     
@@ -175,6 +244,10 @@ class LiveCPTdata( CPTdata ) :
         self.tdc = tdc
         self.clear()
         self.is_live = 1 
+
+        self.Z = np.nan
+        self.A = np.nan
+        self.tabor_params = TaborParams.empty()
         
         # track here all tofs, including ones without valid mcp pos 
         self.all_tofs = np.zeros( _default_buf_size ) 
@@ -385,23 +458,56 @@ class LiveCPTdata( CPTdata ) :
 
         if name is None :
             name = create_data_name( self.tabor_params, self.Z, self.A ) 
-        
-        with open( path, 'wb' ) as f :
-            header = np.array( [ self.Z, self.N,
-                                 self.duration, self.num_penning_ejects, self.num_mcp_hits,
-                                 self.tabor_params.flatten() ] )
-            tmp = np.concatenate( ( header, self.all_data[ : self.num_events ].flatten() ) )
+
+        file_path = path + '/' + name
+
+        try :
+            self._save( file_path )
+        except( OSError ) :
+            os.makedirs( path, exist_ok = 1 ) 
+            self._save( file_path )
+            
+            
+    def _save( self, file_path ) : 
+        with open( file_path, 'wb' ) as f :
+            header_prefix = np.array( [ self.Z, self.A,
+                                        self.duration, self.num_penning_ejects, self.num_mcp_hits ] )
+            
+            tmp = np.concatenate( ( header_prefix, self.tabor_params.flatten(), cpt_header_key,
+                                    self.all_data[ : self.num_events ].flatten() ) )
             tmp.tofile( f )  
 
+            
     
 
 # default data name 
-def create_data_name( tabor_params_array, Z, A ) :
-    if not isinstance( Z, str ) :
-        Z = z_to_element( Z ) 
-    Z[0] = Z[0].upper()
+def create_data_name( tabor_params, Z, A ) :
+
+    if np.isnan( Z ) :
+        prefix = 'unknown'
+        if not np.isnan( A ) :
+            prefix = str(A) + prefix 
     
-    data_name = '%d%s_%s_%duswc_%dustacc' % ( A, Z, tabor_params.freqs[2], tabor_params.tacc )
+    else :
+        if not isinstance( Z, str ) :
+            Z = z_to_element( Z ) 
+        Z[0] = Z[0].upper()
+        prefix = str(A) + Z 
+
+    date_str = datetime.now().strftime( '%y-%m-%d' ) 
+        
+    data_name = '%s_%s' % ( prefix, date_str )
+
+    w_c = tabor_params.freqs[2]
+    if not np.isnan( w_c ) :
+        data_name += '_%.0fuswc' % w_c
+
+    tacc = tabor_params.tacc
+    if not np.isnan( tacc ) :
+        data_name += '_%dustacc' % tacc
+
+    data_name += '.cpt'
+        
     return data_name 
 
                   # 133Cs_234.030mswc_2018-08-24_260ms_wcloops-228_w+pulse-50-0.22Vpp_tofF-400V_w-amp-0.0075

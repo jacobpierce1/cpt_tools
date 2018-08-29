@@ -34,6 +34,9 @@ from matplotlib.figure import Figure
 
 import matplotlib.pyplot as plt
 
+import signal
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+
 
 # CONFIG
 
@@ -338,7 +341,7 @@ class PlotterWidget( object ) :
 
 
     def set_cpt_data( self, cpt_data ) :
-        self.plotter.cpt_data = cpt_data 
+        self.plotter.set_cpt_data( cpt_data ) 
         self.metadata_widget.cpt_data = cpt_data
         
 
@@ -1189,12 +1192,13 @@ class gui( QTabWidget ):
         
 
     def add_button_clicked( self ) :
-        path = QFileDialog.getOpenFileName( self, "Select Directory")[0]
+        path = QFileDialog.getOpenFileName( self, 'Select File' )[0]
         print( 'path: ', path )
         # name = dir_path[ dir_path.rfind( '/' ) + 1 : ] 
         # self.analysis_data_dirs_qlist.addItem( name ) 
         self.analysis_data_dirs_qlist.addItem( path )
-        new_cpt_data = CPTdata.load( path ) 
+        new_cpt_data = CPTdata.load( path )
+        # print( new_cpt_data.tofs ) 
         self.analysis_plotter_widget.set_cpt_data( new_cpt_data ) 
         # self.analysis_plotter_widget.plotter.cpt_data = new_cpt_data
         # self.anal

@@ -33,18 +33,26 @@ class PlotterHist( object ) :
         self.data = data
         self.cut_data_indices = cut_data_indices 
         self.plot = None
-        self.plot_with_cuts = 0
         self.num_cut_data = 0
         self.num_events = 0
         self.n_bins = 0
         self.fit_params = None
         self.fit_bounds = None
+
+        self.plot_with_cuts = 0
+        self.is_live = 0 
+
+        # print( self.data )
         
 
     def update( self ) : 
         self.ax.clear() 
         self.ax.set_title( self.title )
 
+        # print( 'self.plot_with_cuts: ', self.plot_with_cuts )
+        # print( 'self.is_live: ', self.is_live )
+        # print( 'self.num_events: ', self.num_events ) 
+        
         if self.plot_with_cuts :
             if self.is_live : 
                 valid_indices = self.cut_data_indices[ : self.num_cut_data ]
@@ -53,6 +61,8 @@ class PlotterHist( object ) :
             data = self.data[ valid_indices ] 
         else :
             data = self.data[ : self.num_events ]
+
+        # print( 'plotting data: ', data )
         
         bins = self.n_bins
         if bins == 0 :
@@ -105,6 +115,8 @@ class Plotter( object ) :
         self.f.subplots_adjust( hspace = 0.5, wspace = 0.5 )
         
         self.init_mcp_hitmap( self.axarr[0][0], self.f )
+
+        print( self.cpt_data.tofs ) 
         
         self.tof_hist = PlotterHist( self.axarr[0,1], 'TOF', self.cpt_data.tofs,
                                      self.cpt_data.cut_data_indices )
@@ -235,8 +247,6 @@ class Plotter( object ) :
         self.mcp_hitmap_cbar.set_clim( image_min, image_max )
         self.mcp_hitmap_cbar.set_ticks( ticks )
         self.mcp_hitmap_cbar.draw_all()
-
-
          
         
         
@@ -248,73 +258,24 @@ class Plotter( object ) :
         self.mcp_hitmap_cax = None
 
 
-    # def init_r_plot( self, ax ) :
-    #     self.r_plot = self.axarr[1][0]
-        
-
-        
-    # def update_r_plot( self ) :
-        
-
-    
-    
-    # def init_theta_plot( self, ax ) :
-    #     self.theta_plot = self.axarr[1][1]
-        
-
-        
-    # def update_theta_plot( self ) :
-    #     self.theta_plot = self.axarr[1][1]
-    #     self.theta_plot.clear()
-
-    #     if self.plot_with_cuts : 
-    #         valid_indices = self.cpt_data.cut_data_indices[ : self.cpt_data.num_cut_data ]
-    #         data = self.cpt_data.angles[ valid_indices ] 
-    #     else :
-    #         # valid_indices = self.cpt_data.candidate_indices[ : self.cpt_data.num_candidate_data ]
-    #         data = self.cpt_data.angles[ : self.cpt_data.num_events ]
-            
-    #     bins = self.angle_hist_nbins
-    #     if bins == 0 :
-    #         bins = 'fd'
-
-    #     self.theta_plot.set_title( r'Angle (deg)' ) 
-    #     self.theta_plot.hist( data, bins = bins )
-
-
-    # def apply_angle_fit( self, bounds ) :
-    #     pass
-
-    # def remove_angle_fit( self, bounds ) :
-    #     pass 
         
     def update_all( self ) :
         self.update_mcp_hitmap()
         for hist in self.all_hists :
-            if self.cpt_data.is_live : 
-                hist.set_data_params( self.cpt_data.num_events, self.cpt_data.num_cut_data ) 
+            # if self.cpt_data.is_live : 
+            hist.set_data_params( self.cpt_data.num_events, self.cpt_data.num_cut_data ) 
             hist.update()
 
             
     def set_plot_with_cuts( self, plot_with_cuts ) :
         self.plot_with_cuts = plot_with_cuts 
-        for hist in self.all_hists : 
+        for hist in self.all_hists :
             hist.plot_with_cuts = plot_with_cuts 
 
+            
+    def set_cpt_data( self, cpt_data ) :
+        self.cpt_data = cpt_data
+        self.tof_hist.data = cpt_data.tofs
+        self.radius_hist.data = cpt_data.radii
+        self.angle_hist.data = cpt_data.angles
         
-        
-    # def init_coords_plots( self, axarr ) :
-    #     self.coords_plots = axarr
-
-        
-    # def update_coords_plots( self ) :
-
-    #     titles = [ [ 'X1', 'X2' ], [ 'Y1', 'Y2' ] ]
-
-    #     for i in range(2) :
-    #         for j in range(2) :
-    #             self.coords_plots[i,j].clear()
-    #             self.coords_plots[i,j].set_title( titles[i][j] ) 
-                
-        
-
