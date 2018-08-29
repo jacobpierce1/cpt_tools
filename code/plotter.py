@@ -45,8 +45,11 @@ class PlotterHist( object ) :
         self.ax.clear() 
         self.ax.set_title( self.title )
 
-        if self.plot_with_cuts : 
-            valid_indices = self.cut_data_indices[ : self.num_cut_data ]
+        if self.plot_with_cuts :
+            if self.is_live : 
+                valid_indices = self.cut_data_indices[ : self.num_cut_data ]
+            else :
+                valid_indices = self.cut_data_indices 
             data = self.data[ valid_indices ] 
         else :
             data = self.data[ : self.num_events ]
@@ -119,7 +122,7 @@ class Plotter( object ) :
 
         self.use_kde = 0 
         self.kde_bandwidth = 0.003
-        self.mcp_bin_width = 0.5
+        self.mcp_bin_width = 0.25
         self.mcp_x_bounds = [ -5.0, 5.0 ]
         self.mcp_y_bounds = [ -5.0, 5.0 ]
 
@@ -137,7 +140,8 @@ class Plotter( object ) :
     def release( self ) : 
         self.f.clear() 
     
-    
+
+        
     def update_mcp_hitmap( self ) :
 
         self.mcp_hitmap_plot = self.axarr[0][0]
@@ -148,9 +152,11 @@ class Plotter( object ) :
         else :
             data = self.cpt_data.mcp_positions[ : self.cpt_data.num_events ]
 
-        xbins = np.arange( self.mcp_x_bounds[0], self.mcp_x_bounds[1]  + self.mcp_bin_width / 2,
+        xbins = np.arange( self.mcp_x_bounds[0], self.mcp_x_bounds[1]
+                           + self.mcp_bin_width / 2,
                            self.mcp_bin_width )
-        ybins = np.arange( self.mcp_y_bounds[0], self.mcp_y_bounds[1]  + self.mcp_bin_width / 2,
+        ybins = np.arange( self.mcp_y_bounds[0], self.mcp_y_bounds[1]
+                           + self.mcp_bin_width / 2,
                            self.mcp_bin_width )
 
         if self.rebuild_mcp_plot :
@@ -284,8 +290,9 @@ class Plotter( object ) :
         
     def update_all( self ) :
         self.update_mcp_hitmap()
-        for hist in self.all_hists : 
-            hist.set_data_params( self.cpt_data.num_events, self.cpt_data.num_cut_data ) 
+        for hist in self.all_hists :
+            if self.cpt_data.is_live : 
+                hist.set_data_params( self.cpt_data.num_events, self.cpt_data.num_cut_data ) 
             hist.update()
 
             

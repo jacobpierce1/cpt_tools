@@ -2,7 +2,7 @@ import numpy as np
 import scipy
 import scipy.stats as st
 import scipy.optimize as opt
-
+import matplotlib.pyplot as plt 
 
 
 class CPTanalyzer( object ) :
@@ -11,8 +11,16 @@ class CPTanalyzer( object ) :
 
         # this will store CPTdata objects 
         self.data_list = [] 
+        self.f, self.axarr = plt.subplots( 3 ) 
+        self.f.subplots_adjust( hspace = 0.5 ) 
+        
+    def __del__( self ) :
+        pass
 
-
+    def update( self ) :
+        pass
+    
+        
 def gaussian( params, x ) :
     return params[0] * np.exp( - ( x - params[1] ) ** 2
                                / ( 2 * params[2] ** 2 ) )

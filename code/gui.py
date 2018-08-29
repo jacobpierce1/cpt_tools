@@ -44,8 +44,7 @@ SUBTITLE_WEIGHT = 3
 DEFAULT_KDE_BW = 0.03
 
 PLOTTER_WIDGET_QLINEEDIT_WIDTH = 70
-MAX_SIZE_POLICY = size_policy = QSizePolicy( QSizePolicy.Maximum,
-                                             QSizePolicy.Maximum )
+MAX_SIZE_POLICY = size_policy = QSizePolicy( QSizePolicy.Maximum, QSizePolicy.Maximum )
 
 
 code_path = os.path.abspath( os.path.dirname( __file__ ) ) + '/'
@@ -82,7 +81,7 @@ class MetadataWidget( object ) :
             for j in range( len( h_labels ) ) :
                 self.table.setCellWidget( i, j, QLabel( '0' ) )
 
-        self.time_label_str = 'Time since data reset: '
+        self.time_label_str = 'Active time since data reset: '
         self.time_label = QLabel( self.time_label_str )
         # self.time_label_idx = len( time_label_str )
 
@@ -100,9 +99,16 @@ class MetadataWidget( object ) :
 
         for i in range( len( counts ) ) :
             self.table.cellWidget( i, 0 ).setText( '%d' % counts[i] )
-            self.table.cellWidget( i, 1 ).setText( '%.2f' % ( counts[i] / self.cpt_data.duration ) )
 
-        self.time_label.setText( self.time_label_str + '%d' % int( self.cpt_data.duration ) )
+            if self.cpt_data.duration > 0 : 
+                rate = counts[i] / self.cpt_data.duration
+            else :
+                rate = np.nan
+                
+            self.table.cellWidget( i, 1 ).setText( '%.2f' % rate ) 
+
+        self.time_label.setText( self.time_label_str + '%d'
+                                 % int( self.cpt_data.duration ) )
             
         
         
@@ -118,12 +124,7 @@ class PlotterWidget( object ) :
         self.plotter = plotter
 
         self.canvas = FigureCanvas( self.plotter.f )
-        # this is the Navigation widget
-        # it takes the Canvas widget and a parent
-        
-
-        # self.button = QPushButton('Plot')
-        # self.button.clicked.connect( self.update )
+        self.canvas.mpl_connect( 'motion_notify_event', self.mouse_moved )        
 
         # mcp hitmap type
         self.plot_with_cuts_button = QCheckBox()
@@ -268,23 +269,35 @@ class PlotterWidget( object ) :
         
         fits_box.setLayout( self.fit_widget.layout )
         layout.addWidget( fits_box ) 
-        
 
         self.metadata_widget = MetadataWidget( self.plotter.cpt_data )
-        layout.addWidget( self.metadata_widget.box ) 
+        layout.addWidget( self.metadata_widget.box )
+
+        canvas_layout = QVBoxLayout()
+        canvas_layout.addWidget( self.canvas )
+
+        self.coords_label = QLabel() 
         
+        canvas_layout.addWidget( self.coords_label )
+
         self.grid_layout = QGridLayout()
         self.grid_layout.addLayout( layout, 0, 0, 0, 1, QtCore.Qt.AlignLeft )
         self.grid_layout.setColumnStretch( 0, 0.5 ) 
-        self.grid_layout.addWidget( self.canvas, 0, 1, 1, 1 )
+        self.grid_layout.addLayout( canvas_layout, 0, 1, 1, 1 )
         self.grid_layout.setColumnStretch( 1, 1 ) 
 
         
-    def update( self ) :
-        self.canvas.draw()
+    def update( self, update_first = 0 ) :
+        if not update_first : 
+            self.canvas.draw()
+            
         self.plotter.update_all()
         self.metadata_widget.update()
-        
+
+        if update_first :
+            self.canvas.draw()
+
+            
     # deallocate plotter 
     def release( self ) :
         plotter.release()
@@ -321,7 +334,7 @@ class PlotterWidget( object ) :
         
         self.plotter.rebuild_mcp_plot = 1
 
-        # self.update()
+        self.update()
 
 
     def set_cpt_data( self, cpt_data ) :
@@ -329,8 +342,15 @@ class PlotterWidget( object ) :
         self.metadata_widget.cpt_data = cpt_data
         
 
+    def mouse_moved( self, mouse_event ) :
+        if mouse_event.inaxes:
+            x, y = mouse_event.xdata, mouse_event.ydata
+            self.coords_label.setText( '(%.2f, %.2f)' % (x ,y ) )
 
-        
+
+
+            
+                                       
 class FitWidget( object ) :
 
     def __init__( self, plotter_hist_list ) :
@@ -350,7 +370,7 @@ class FitWidget( object ) :
         ncols = len( h_labels ) 
 
         self.table = QTableWidget( nrows, ncols ) 
-
+        self.table.setMinimumWidth( 400 ) 
 
         # size_policy = QSizePolicy( QSizePolicy.Maximum,
         #                            QSizePolicy.Maximum )
@@ -433,6 +453,91 @@ class FitWidget( object ) :
 
 
 
+
+class CombinedAnalysisWidget( object ) :
+
+    def __init__( self ) :
+                
+        data_box = QGroupBox( 'Processed Data' ) 
+        data_layout = QVBoxLayout()
+        data_box.setLayout( data_layout ) 
+
+        self.mass_label_str = 'Current Mass Estimate: '
+        self.mass_estimate_label = QLabel( self.mass_label_str + '?' ) 
+        
+        data_cols = [ 'Accumulation \nTime (ms)', 'Measured \u0394\u03B8 (deg)' ]
+        self.data_table = QTableWidget( 1, len( data_cols ) )
+        self.data_table.setHorizontalHeaderLabels( data_cols )
+        self.data_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
+        # self.data_table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
+
+
+        data_layout.addWidget( self.mass_estimate_label ) 
+        data_layout.addWidget( self.data_table )
+
+        for i in range( len( data_cols ) ) :
+            self.data_table.setColumnWidth( i, 100 ) 
+        # self.data_table.setSizePolicy( MAX_SIZE_POLICY )
+
+        
+        self.data_table.setMinimumWidth( 250 ) 
+        # self.data_table.resizeColumnsToContents()
+        
+        # self.data_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch)
+
+        # self.data_table.setSizeAdjustPolicy( QAbstractScrollArea.AdjustToContents )
+        # self.data_table.resizeColumnsToContents()
+        # self.data_table.resizeColumnsToContents()
+
+        
+        # setTableWidth( self.data_table ) 
+        
+        predictions_box = QGroupBox( 'Predictions' ) 
+        predictions_layout = QVBoxLayout()
+        predictions_box.setLayout( predictions_layout )
+                
+        predictions_cols = [ 'Accumulation \nTime (ms)',
+                             'Corrected \u0394\u03B8 \nPrediction (deg)',
+                             'AME \u0394\u03B8 \nPrediction (deg)' ]
+        self.predictions_table = QTableWidget( 1, len( predictions_cols ) )
+        self.predictions_table.setHorizontalHeaderLabels( predictions_cols )
+        self.predictions_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
+        # self.predictions_table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
+        self.predictions_table.setMinimumWidth( 400 )
+        predictions_layout.addWidget( self.predictions_table ) 
+        # self.predictions_table.setSizePolicy( MAX_SIZE_POLICY )
+
+
+        canvas_box = QGroupBox( 'Visualization' ) 
+        canvas_layout = QVBoxLayout() 
+        self.analyzer = analysis.CPTanalyzer()
+        self.canvas = FigureCanvas( self.analyzer.f )
+        canvas_layout.addWidget( self.canvas )
+        canvas_box.setLayout( canvas_layout ) 
+
+        
+        self.layout = QHBoxLayout() 
+        self.layout.addWidget( data_box )
+        self.layout.addWidget( predictions_box ) 
+        self.layout.addWidget( canvas_box )        
+
+        # self.layout = QGridLayout()
+        # # self.layout.addWidget( data_box, 0, 0, 0, 0, QtCore.Qt.AlignLeft )
+        # self.layout.addWidget( data_box, 0, 0 )
+        # # self.layout.setColumnStretch( 0, 1 ) 
+        # self.layout.addWidget( predictions_box, 0, 1 )
+        # # self.layout.setColumnStretch( 1, 0.25 ) 
+        # #self.layout.addWidget( canvas_box, 0, 2 ) 
+        # # self.layout.setColumnStretch( 2, 0 ) 
+        
+
+    # def update( self ) :
+    #     self.analyzer.update()
+    #     self.canvas.draw() 
+        
+
+
+        
         
         
 class gui( QTabWidget ):
@@ -458,45 +563,43 @@ class gui( QTabWidget ):
         self.processor = LiveCPTdata( self.tdc ) 
         self.plotter = plotter.Plotter( self.processor )
                 
-        
-        self.controls_tab_idx = 0
-        self.processed_data_tab_idx = 1
-        # self.unprocessed_data_tab_idx = 2
-        self.analysis_tab_idx = 2
-        self.tools_tab_idx = 3 
-        self.help_tab_idx = 4
+        ( self.controls_tab_idx,
+          self.processed_data_tab_idx,
+          self.analysis_1_tab_idx,
+          self.analysis_2_tab_idx,
+          self.tools_tab_idx,
+          self.help_tab_idx ) = range(6)
         
         self.controls_tab = QWidget() 
         self.processed_data_tab = QWidget()
         # self.unprocessed_data_tab = QWidget()
-        self.analysis_tab = QWidget()
+        self.analysis_1_tab = QWidget()
+        self.analysis_2_tab = QWidget()
         self.tools_tab = QWidget() 
         self.help_tab = QWidget()
         
         tabs = [ self.controls_tab, self.processed_data_tab,
                  # self.unprocessed_data_tab,
-                 self.analysis_tab,
+                 self.analysis_1_tab,
+                 self.analysis_2_tab,
                  self.tools_tab,
                  self.help_tab ]
 
         tab_idxs = [ self.controls_tab_idx, self.processed_data_tab_idx,
                      # self.unprocessed_data_tab_idx,
-                     self.analysis_tab_idx,
+                     self.analysis_1_tab_idx,
+                     self.analysis_2_tab_idx,
                      self.tools_tab_idx,
                      self.help_tab_idx ]
 
         tab_names = [ 'DAQ / Tabor / Output', 'Data Stream',
                       # 'Unprocessed Data',
-                      'Analysis', 'Tools', 'Help' ]
+                      'Isolated Analysis', 'Combined Analysis', 'Tools', 'Help' ]
         
         self.num_tabs = len( tabs ) 
         
         for i in range( self.num_tabs ) :
             self.insertTab( tab_idxs[i], tabs[i], tab_names[i] )
-        
-        # self.( self., "Processed Data" )
-        # self.addTab( self.tab2, "Unprocessed Data" )
-        # self.addTab(self.tab3,"Tab 3")
         
         self.tab_updaters = [ None for i in range( self.num_tabs ) ] 
         self.canvases = [ None for i in range( self.num_tabs ) ] 
@@ -504,7 +607,8 @@ class gui( QTabWidget ):
         self.controls_tab_init()
         self.processed_data_tab_init()
         # self.unprocessed_data_tab_init()
-        self.analysis_tab_init()
+        self.analysis_1_tab_init()
+        self.analysis_2_tab_init() 
         self.tools_tab_init() 
         self.help_tab_init() 
         
@@ -557,8 +661,7 @@ class gui( QTabWidget ):
         
         # combination of size policy change and resizemode change
         # makes the table not expand more than necessary 
-        size_policy = QSizePolicy( QSizePolicy.Maximum,
-                                   QSizePolicy.Maximum )
+        size_policy = QSizePolicy( QSizePolicy.Maximum, QSizePolicy.Maximum )
         
         # self.tabor_table.setSizePolicy( size_policy )
         # self.load_tabor_button.setSizePolicy( size_policy ) 
@@ -569,7 +672,7 @@ class gui( QTabWidget ):
         self.tabor_table.setHorizontalHeaderLabels( [ 'w_-', 'w_+', 'w_c' ] )
         self.tabor_table.setVerticalHeaderLabels( [ 'omega', 'phase', 'amp',
                                                'loops', 'length' ] )
-
+        
         defaults = [ [ 1600.0, 656252.0, 657844.5 ],
                      [ -140.0, 0.0, 0.0 ],
                      [ 0.0005, 0.2, 0.5 ],
@@ -603,15 +706,12 @@ class gui( QTabWidget ):
             self.set_params_from_ion_data_button_clicked ) 
         tabor_layout.addRow( self.set_params_from_ion_data_button )
 
-        self.z_entry = None
-        self.n_entry = None
-        self.q_entry = None
 
         # ion_entry_layout = QFormLayout()
         # ion_entry_layout.addRow( 'Z:', self.z_entry )
 
         labels = [ 'Z:', 'N:', 'q:' ]
-        entries = [ self.z_entry, self.n_entry, self.q_entry ]
+        entries = [ None, None, None ]
         defaults = [ '55', '82', '1' ]
 
         ion_param_validator = QIntValidator( 0, 1000 ) 
@@ -620,14 +720,19 @@ class gui( QTabWidget ):
             entries[i] = QLineEdit( defaults[i] ) 
             entries[i].setValidator( ion_param_validator )
             tabor_layout.addRow( labels[i], entries[i] )
-        
-        
+
+        self.tabor_z_entry, self.tabor_n_entry, self.tabor_q_entry = entries
+
+        self.set_params_from_ion_data_button_clicked()
         
         # tabor_controls_grid = QGridLayout()
         # tabor_layout.addLayout( tabor_controls_grid ) 
 
-        self.toggle_daq_button = QPushButton( 'Pause' )
-        self.toggle_daq_button.clicked.connect( self.toggle_daq_button_clicked ) 
+        self.toggle_daq_button = QPushButton() 
+        tmp = lambda state : self.toggle_daq_button_clicked( 1 ) 
+        self.toggle_daq_button.clicked.connect( tmp ) 
+        self.toggle_daq_button_clicked( toggle = 0 ) 
+        
         # self.toggle_daq_button.setSizePolicy( size_policy )
         
         self.clear_button = QPushButton( 'Clear' )
@@ -650,8 +755,8 @@ class gui( QTabWidget ):
         self.ion_name_entry = QLineEdit()
         daq_layout.addRow( 'Suspected Ion', self.ion_name_entry )
         
-        self.session_name_entry = QLineEdit()
-        daq_layout.addRow( 'Session Name', self.session_name_entry )
+        # self.session_name_entry = QLineEdit()
+        # daq_layout.addRow( 'Session Name', self.session_name_entry )
 
         self.experimenter_entry = QLineEdit()
         daq_layout.addRow( 'Experimenter', self.experimenter_entry ) 
@@ -660,11 +765,57 @@ class gui( QTabWidget ):
         daq_layout.addRow( 'Session Comments', self.comment_entry ) 
 
         metadata_widget = MetadataWidget( self.processor )
+
+
+        batch_box = QGroupBox( 'Batch Instructions' )
+        batch_layout = QHBoxLayout() 
+        batch_box.setLayout( batch_layout )
+
+        self.batch_button = QPushButton( 'Start Batch' ) 
+
+        rows = [ 'Accumulation\nTime (\u03BCs)' ]
+        ncols = 20 
+        self.batch_table = QTableWidget( len( rows ), ncols )
+        self.batch_table.setVerticalHeaderLabels( rows )
+        # self.batch_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
+        self.batch_table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
+        self.batch_table.setMinimumWidth( 1000 ) 
+        for i in range( ncols ) :
+            tmp = QLineEdit()
+            tmp.setValidator( QIntValidator( 1, int(1e7) ) ) 
+            self.batch_table.setCellWidget( 0, i, tmp )
         
-        layout = QHBoxLayout()
-        layout.addWidget( tabor_box )
-        layout.addWidget( daq_box )
-        layout.addWidget( metadata_widget.box )
+        batch_input_layout = QFormLayout()
+        batch_start_button = QPushButton( 'Start Batch' ) 
+        batch_input_layout.addRow( batch_start_button ) 
+        self.batch_stop_time_entry = QLineEdit()
+        batch_input_layout.addRow( 'Stop Time (s)', self.batch_stop_time_entry )
+        self.batch_stop_counts_entry = QLineEdit()
+        batch_input_layout.addRow( 'Stop Counts', self.batch_stop_counts_entry )
+        generate_linspace_button = QPushButton( 'Generate Linspace' )
+        generate_linspace_button.clicked.connect( self.batch_generate_linspace ) 
+        batch_input_layout.addRow( generate_linspace_button )
+        self.linspace_start_entry = QLineEdit( '0' ) 
+        batch_input_layout.addRow( 'Linspace Start', self.linspace_start_entry )
+        self.linspace_stop_entry = QLineEdit( '1000' ) 
+        batch_input_layout.addRow( 'Linspace Stop (ms)', self.linspace_stop_entry )
+        self.linspace_num_data_entry = QLineEdit( '11' ) 
+        batch_input_layout.addRow( 'Linspace Num Data', self.linspace_num_data_entry )
+        
+        batch_layout.addLayout( batch_input_layout ) 
+        batch_layout.addWidget( self.batch_table ) 
+        
+        top_layout = QHBoxLayout()
+        top_layout.addWidget( tabor_box )
+        top_layout.addWidget( daq_box )
+        top_layout.addWidget( metadata_widget.box )
+
+        # bottom_layout = QHBoxLayout()
+        # bottom_layout.addWidget( batch_box )
+        
+        layout = QVBoxLayout()
+        layout.addLayout( top_layout ) 
+        layout.addWidget( batch_box ) 
         
         # layout.setContentsMargins(200,100,200,10)
         
@@ -713,28 +864,28 @@ class gui( QTabWidget ):
 
         
         
-    def analysis_tab_init( self ):
+    def analysis_1_tab_init( self ):
 
         self.analyzer = analysis.CPTanalyzer()
         analysis_plotter = plotter.Plotter( CPTdata() ) 
         self.analysis_plotter_widget = PlotterWidget( analysis_plotter ) 
         
-        tab_idx = self.analysis_tab_idx 
+        tab_idx = self.analysis_1_tab_idx 
         
         self.analysis_data_dirs_qlist = QListWidget()
         # self.analysis_data_dirs_qlist.addItem( 'test' )
 
-        analysis_controls_box = QGroupBox( 'Choose Analysis Directories' ) 
+        analysis_controls_box = QGroupBox( 'Choose Files for Analysis' ) 
         analysis_controls_layout = QVBoxLayout()
 
-        tmp = QHBoxLayout()
-        tmp.addWidget( QLabel( 'Display Isolated Dataset' ) )
-        self.analysis_display_isolated_dataset = 0
-        self.isolated_dataset_checkbox = QCheckBox()
-        self.isolated_dataset_checkbox.setCheckState( self.analysis_display_isolated_dataset )
-        self.isolated_dataset_checkbox.clicked.connect( self.toggle_isolated_dataset ) 
-        tmp.addWidget( self.isolated_dataset_checkbox )
-        analysis_controls_layout.addLayout( tmp ) 
+        # tmp = QHBoxLayout()
+        # tmp.addWidget( QLabel( 'Display Isolated Dataset' ) )
+        # self.analysis_display_isolated_dataset = 0
+        # self.isolated_dataset_checkbox = QCheckBox()
+        # self.isolated_dataset_checkbox.setCheckState( self.analysis_display_isolated_dataset )
+        # self.isolated_dataset_checkbox.clicked.connect( self.toggle_isolated_dataset ) 
+        # tmp.addWidget( self.isolated_dataset_checkbox )
+        # analysis_controls_layout.addLayout( tmp ) 
         
         analysis_controls_layout.addWidget( self.analysis_data_dirs_qlist )
 
@@ -770,7 +921,15 @@ class gui( QTabWidget ):
         # layout.addWidget( self.canvases[ tab_idx ], 0, 1, 1, 1 )
         # layout.setColumnStretch( 1, 1 ) 
         
-        self.analysis_tab.setLayout( layout )
+        self.analysis_1_tab.setLayout( layout )
+
+
+        
+    def analysis_2_tab_init( self ) :
+
+        tmp = CombinedAnalysisWidget() 
+        
+        self.analysis_2_tab.setLayout( tmp.layout )
 
         
 
@@ -940,9 +1099,12 @@ class gui( QTabWidget ):
 
             print( data )
             freqs, phases, amps, loops, steps = data 
-
+            
+            tabor_params = tabor.TaborParams( tacc, nsteps, freqs, phases,
+                                              amps, loops, steps )
+            
             if config.USE_TABOR :
-                self.tabor.load_params( tacc, nsteps, freqs, phases, amps, loops, steps )
+                self.tabor.load_params( tabor_params ) 
             else :
                 print( 'INFO: simulating tabor load...' )
                 time.sleep( 5 )
@@ -954,11 +1116,36 @@ class gui( QTabWidget ):
         
     def set_params_from_ion_data_button_clicked( self ) :
         print( 'INFO: setting tabor params from ion data...' ) 
-
+        Z = int( self.tabor_z_entry.text() )
+        N = int( self.tabor_n_entry.text() )
+        q = int( self.tabor_q_entry.text() )
         
-    def toggle_daq_button_clicked( self ) :
-        print( 'INFO: toggling DAQ...' ) 
+        mass = cpt_tools.nuclear_data.masses[Z,N]
+        omega_c = cpt_tools.mass_to_omega( mass, q, atomic_mass = 1 ) 
+        omega_minus = float( self.tabor_table.cellWidget( 0, 0 ).text() )
+        omega_plus = omega_c - omega_minus
 
+        frequencies = [ omega_plus, omega_c ]
+        for i in range( 1, len( frequencies ) ) :
+            self.tabor_table.cellWidget(0,i).setText( '%.1f' % frequencies[i] )
+        
+        
+    def toggle_daq_button_clicked( self, toggle = 1 ) :
+        print( 'INFO: toggling DAQ...' ) 
+        
+        if toggle : 
+            state = self.tdc.toggle()
+        else :
+            state = self.tdc.collecting_data
+
+        if state :
+            self.toggle_daq_button.setStyleSheet("background-color:#89E552;")
+            self.toggle_daq_button.setText( 'Running' )
+        else : 
+            self.toggle_daq_button.setStyleSheet("background-color: #E55959")
+            self.toggle_daq_button.setText( 'Paused' ) 
+
+            
         
     def clear_button_clicked( self ) :
         print( 'INFO: clearing data' ) 
@@ -969,25 +1156,37 @@ class gui( QTabWidget ):
         
     def save_button_clicked( self ) : 
         print( 'INFO: saving data...' )
-        session_name = self.session_name_entry.text()
+        # session_name = self.session_name_entry.text()
 
         # if not session_name :
         #     print( 'ERROR: session name is required' ) 
         #     return 0 
         
-        session_dir_path = self.data_dir_path + '/' #  + session_name + '/'
-        print( session_dir_path ) 
+        # session_dir_path = self.data_dir_path + '/' #  + session_name + '/'
+        # print( session_dir_path ) 
         
-        if session_dir_path != self.session_dir_path :
-            self.session_dir_path = session_dir_path
-            os.makedirs( self.session_dir_path, exist_ok = 1 )
+        # if session_dir_path != self.session_dir_path :
+        #     self.session_dir_path = session_dir_path
+        #     os.makedirs( self.session_dir_path, exist_ok = 1 )
             
         # np.save( self.session_dir_path + 'test', [1,2,3] )
-        path = self.session_dir_path + 'test.cpt'
-        self.processor.save( path ) 
+        # path = self.session_dir_path + 'test.cpt'
+        # self.processor.save( path ) 
+        self.processor.save()
+
         
 
+    def batch_generate_linspace( self ) :
 
+        start = int( self.linspace_start_entry.text() )
+        stop =  int( self.linspace_stop_entry.text() )
+        num_data = int( self.linspace_num_data_entry.text() )
+
+        data = np.linspace( start, stop, num_data, dtype = int )
+
+        for i in range( len( data ) ) :
+            self.batch_table.cellWidget( 0, i ).setText( str( data[i] ) )
+        
 
     def add_button_clicked( self ) :
         path = QFileDialog.getOpenFileName( self, "Select Directory")[0]
@@ -1003,7 +1202,9 @@ class gui( QTabWidget ):
         # print( self.analysis_plotter_widget.cpt_data ) 
         self.analyzer.data_list.append( new_cpt_data )
          # = new_cpt_data
-        self.analysis_plotter_widget.update() 
+        self.analysis_plotter_widget.update( update_first = 1 )
+
+        # print( self.analysis_plotter_widget.cpt_data.
 
         
     def delete_button_clicked( self ) :
@@ -1070,7 +1271,25 @@ class gui( QTabWidget ):
         # def analysis_dir_list_clicked( self ) :
         
 
-    
+
+
+def setTableWidth( table ):
+
+    table.setVisible(False)
+    table.verticalScrollBar().setValue(0)
+    table.resizeColumnsToContents()
+    table.setVisible(True)
+        
+    width = table.verticalHeader().width()
+    width += table.horizontalHeader().length()
+
+    if table.verticalScrollBar().isVisible():
+        width += table.verticalScrollBar().width()
+        width += table.frameWidth() * 2
+        table.setFixedWidth(width)
+
+
+        
 def main():
    app = QApplication(sys.argv)
    app.setStyleSheet( 'QGroupBox { font-weight: bold; }' ) 
