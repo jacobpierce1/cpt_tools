@@ -6,6 +6,9 @@ import dill
 import time
 import config
 
+from cpt_tools import z_to_element, element_to_z, tabor_params, DEFAULT_STORAGE_DIRECTORY
+
+
 
 _default_buf_size = 2**22
 
@@ -18,8 +21,11 @@ class CPTdata( object ) :
 
     def __init__( self, buf_size = _default_buf_size ) :
 
+        self.Z = np.nan
+        self.N = np.nan
+        
         # self.clear()
-        self.start_time = time.time() 
+        # self.start_time = time.time()
         self.duration = 0 
         self.num_events = 0
         self.is_live = 0
@@ -50,34 +56,43 @@ class CPTdata( object ) :
         self.r_cut_upper = 40
 
         
-    def save( self, path ) :
-        with open( path, 'wb' ) as f :
-            self.all_data.tofile( f )      
+    # def save( self, path ) :
+    #     with open( path, 'wb' ) as f :
+    #         self.all_data.tofile( f )      
 
     @classmethod
     def load( cls, path ) :
-        tmp = cls( buf_size = 0 ) 
+        ret = cls( buf_size = 0 ) 
 
-        tmp_data = np.fromfile( path, float, -1 )
-        tmp.duration = tmp_data[0]
-        all_data = tmp_data[1:]
-        tmp.all_data = all_data.reshape( len( all_data ) // 4, 4 ) 
+        num_tabor_params = 17
+        # header_size = 2 + 3 + 17
         
-        tmp.tofs = tmp.all_data[:,0]
-        tmp.timestamps = tmp.all_data[:,1]
-        tmp.mcp_positions = tmp.all_data[:,2:]
+        data = np.fromfile( path, float, -1 )
+        
+        ret.Z = data[0]
+        ret.N = data[1]
+        ret.duration = data[2]
+        ret.num_mcp_hits = data[3]
+        ret.num_penning_ejects = data[4]
+        ret.tabor_params = tabor.TaborParams.unflatten( data[ 5 : 5 + num_tabor_params ] )
+        
+        ret.all_data = data[ 5 + num_tabor_params : ].reshape( len( all_data ) // 4, 4 ) 
+        
+        ret.tofs = ret.all_data[:,0]
+        ret.timestamps = ret.all_data[:,1]
+        ret.mcp_positions = ret.all_data[:,2:]
 
-        tmp.num_events = len( tmp.tofs )
-        tmp.num_penning_ejects = 0
-        tmp.num_mcp_hits = 0 
+        ret.num_events = len( ret.tofs )
+        ret.num_penning_ejects = 0
+        ret.num_mcp_hits = 0 
         # tmp.num_penning_ejects = np.sum( np.where( tmp. == 6 ) )
         # tmp.num_mcp_hits = np.sum( np.where( tmp == 7 ) )
 
-        tmp.compute_polar()
-        tmp.apply_cuts()
+        ret.compute_polar()
+        ret.apply_cuts()
 
         # tmp.load( path ) 
-        return tmp
+        return ret
 
     
     # def load( self, path ) : 
@@ -169,18 +184,27 @@ class LiveCPTdata( CPTdata ) :
     def clear( self ) :
         self.first_pass = 1
 
+        self.num_events = 0 
         self.num_events_prev = 0 
         self.num_cut_data = 0 
         self.num_cut_data_prev = 0
+
+        self.num_mcp_hits = 0
+        self.num_penning_ejects = 0
+
+        self.tdc.clear() 
+        
         # self.num_data = 0 
 
-        self.start_time = time.time()
+        
+        # duration of session in seconds 
+        self.duration = 0
 
         
     # @jit
     def extract_candidates( self ) :
         
-        self.duration = time.time() - self.start_time
+        # self.duration = time.time() - self.start_time
 
         if self.tdc.num_data_in_buf == 0 : 
             return
@@ -192,7 +216,7 @@ class LiveCPTdata( CPTdata ) :
 
         channel_indices = np.where( rollovers == 0 )[0]
 
-        self.sort_data()
+        # self.sort_data()
         
         cur_trig_idx = -1
 
@@ -271,77 +295,17 @@ class LiveCPTdata( CPTdata ) :
         self.apply_cuts()
         self.num_cut_data_prev = self.num_cut_data
         self.num_events_prev = self.num_events
-            
+        self.duration = self.tdc.duration 
+                
         if config.BENCHMARK :
             end = time.time()
             diff = ( end - start ) * 1000 
             print( 'BENCHMARK: processed %d hits in %f ms'
                    % ( self.tdc.num_data_in_buf, diff ) )
             
+        self.tdc.num_data_in_buf = 0 
 
-    # the data is only partially sorted when it comes out of the TDC.
-    # complete the sorting between each group of consecutive rolloovers.
-    # @jit
-    def sort_data( self ) :
-
-        num_data = self.tdc.num_data_in_buf
-
-        rollovers = self.tdc.rollovers[ : num_data ]
-        channels = self.tdc.channels[ : num_data ]
-        times =  self.tdc.times[ : num_data ]
-
-        
-        rollover_start, rollover_end = self.get_rollover_boundaries( rollovers )
-
-        if config.PRINT_TDC_DATA : 
-            print( 'rollovers: ')
-            print( rollovers )
-            print( '\nchannels:' )
-            print( channels ) 
-            print( '\ntimes:')
-            print( times )
-            print( '\nrollover start and end:' ) 
-            print( rollover_start, rollover_end ) 
-
-        # print( rollovers )
-        # print( rollover_start )
-        # print( rollover_end )
-
-        # sys.exit(0 ) 
-        
-        for i in range( len( rollover_start ) ) :
-
-            start = rollover_start[i]
-            end = rollover_end[i]
-
-            # print( start ) 
-
-            # print( times[ start - 1 : end + 1 ] )
-            
-            sort_indices = start + np.argsort( times[ start : end ] )
-            times[ start : end ] = times[ sort_indices ]
-            channels[ start : end ] = channels[ sort_indices ]
-
-            # print( times[ start - 1 : end + 1 ] )
-            
-
-            
-    def get_rollover_boundaries( self, rollovers ) :
-
-        tmp = np.roll( rollovers, 1 )
-        tmp[0] = rollovers[0]
-
-        start = np.where( rollovers < tmp )[0]
-        end = np.where( rollovers > tmp )[0]
-
-        if not rollovers[0] :
-            start = np.insert( start, 0, 0 ) 
-
-        if not rollovers[-1] :
-            end = np.append( end, len( rollovers ) ) 
-
-        return start, end
-
+    
     
     # @jit( nopython = 1 ) 
     def compute_mcp_positions( self, pos_channel_buf ) :
@@ -414,16 +378,35 @@ class LiveCPTdata( CPTdata ) :
         self.angles[ self.num_events_prev : self.num_events ] = angles
 
         
-    def save( self, path ) :
+    def save( self, path = None, name = None ) :
+
+        if path is None :
+            path = DEFAULT_STORAGE_DIRECTORY
+
+        if name is None :
+            name = create_data_name( self.tabor_params, self.Z, self.A ) 
+        
         with open( path, 'wb' ) as f :
-            tmp = np.concatenate( ( np.array( [ self.duration ] ),
-                                    self.all_data[ : self.num_events ].flatten() ) )
-            # print( tmp ) 
+            header = np.array( [ self.Z, self.N,
+                                 self.duration, self.num_penning_ejects, self.num_mcp_hits,
+                                 self.tabor_params.flatten() ] )
+            tmp = np.concatenate( ( header, self.all_data[ : self.num_events ].flatten() ) )
             tmp.tofile( f )  
 
+    
 
+# default data name 
+def create_data_name( tabor_params_array, Z, A ) :
+    if not isinstance( Z, str ) :
+        Z = z_to_element( Z ) 
+    Z[0] = Z[0].upper()
+    
+    data_name = '%d%s_%s_%duswc_%dustacc' % ( A, Z, tabor_params.freqs[2], tabor_params.tacc )
+    return data_name 
 
+                  # 133Cs_234.030mswc_2018-08-24_260ms_wcloops-228_w+pulse-50-0.22Vpp_tofF-400V_w-amp-0.0075
 
+    
             
 # def load( path ) :
 #     tmp = CPTdata( buf_size = 0 ) 

@@ -289,7 +289,7 @@ def has_digit( s ) :
 
 
 
-print( 'loading nuclear data' ) 
+print( 'INFO: loading nuclear data (this should only be printed once)' ) 
 nuclear_data = _NuclearData() 
 
 
