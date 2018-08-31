@@ -350,11 +350,18 @@ class LiveCPTdata( CPTdata ) :
             # have been observed.
             else :
                 if mcp_trigger_reached :
+                
+                    # self.tdc.print_bin( self.tdc.data_buf[ idx ] )
                     
                     # don't add data if it's already there
-                    if not pos_channel_buf[ chan ] : 
-                        pos_channel_buf[ chan ] = hit_time
-                        num_pos_channels_detected += 1 
+                    try : 
+                        if not pos_channel_buf[ chan ] : 
+                            pos_channel_buf[ chan ] = hit_time
+                            num_pos_channels_detected += 1 
+                    except : 
+                        self.tdc.print_bin( self.tdc.data_buf[ idx ] )
+                        print( 'chan: ', chan )
+                        
 
                     # found enough data for a calculation 
                     if num_pos_channels_detected == 4 :

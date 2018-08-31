@@ -23,7 +23,7 @@ _dll_path = code_path + '\hptdc_driver_3.4.3_x86_c_wrap.dll'
 print( _dll_path ) 
 fake_data_path = os.path.join( code_path, '..', 'debug', 'test_data_tabor_on.npy' )
 
-SAVE_FAKE_DATA = 0 
+SAVE_FAKE_DATA = 0
 
 
 # falling_transition_mask = 2**31 
@@ -106,8 +106,8 @@ class TDC( object ) :
         self.collecting_data = 1
 
     def clear( self ) :
-        if not config.USE_FAKE_DATA :
-            self.tdc_driver_lib.TDCManager_ClearBuffer( self.tdc_ctx )
+        # if not config.USE_FAKE_DATA :
+        #     self.tdc_driver_lib.TDCManager_ClearBuffer( self.tdc_ctx )
         self.num_data_in_buf = 0
         
         
@@ -120,6 +120,9 @@ class TDC( object ) :
         
         if config.BENCHMARK :
             start = time.time()
+            
+        if SAVE_FAKE_DATA : 
+            time.sleep(5)
             
         if config.USE_FAKE_DATA :
             # print( self.collecting_data )
@@ -148,6 +151,8 @@ class TDC( object ) :
         self.rollovers[ : self.num_data_in_buf ] = self.get_rollovers( tmp ) 
         self.groups[ : self.num_data_in_buf ] = self.get_groups( tmp ) 
 
+        # print( 'num rollovers: ', np.sum( self.rollovers[ : self.num_data_in_buf]))
+        
         # self.compute_timestamps() 
         self.sort_data()
         self.update_time()
@@ -161,6 +166,14 @@ class TDC( object ) :
 
             # print( 'num data in buf', self.num_data_in_buf )
         
+        if SAVE_FAKE_DATA : 
+            print( 'INFO: saving fake tdc data.' )
+            
+            out = np.vstack( ( self.channels[ : self.num_data_in_buf ],
+                self.rollovers[ : self.num_data_in_buf ],
+                self.times[ : self.num_data_in_buf ] ) )
+            np.savetxt( 'debug_tdc_data.tsv', out, delimiter = '\t' )
+            sys.exit(0) 
         return self.num_data_in_buf
 
 

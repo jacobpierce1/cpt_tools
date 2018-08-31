@@ -1,8 +1,11 @@
 import os.path
 
 
-calibrant_mass = 132905451.961
-calibrant_omega =  657844.45
+calibrant_Z = 55
+calibrant_A = 133 # atomic mass 
+# calibrant_mass = 132905451.961
+calibrant_omega =  675000.3
+# calibrant_omega =  657844.45
 
 
 

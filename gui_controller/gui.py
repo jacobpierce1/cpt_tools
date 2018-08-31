@@ -66,7 +66,7 @@ class IonEntry( object ) :
         labels = [ 'Z', 'A', 'q' ]
                     
         entries = [ None, None, None ]
-        defaults = [ '55', '137', '1' ]
+        defaults = [ '55', '133', '1' ]
 
         ion_param_validator = QIntValidator( 0, 1000 ) 
 
@@ -242,7 +242,7 @@ class PlotterWidget( object ) :
         self.r_lower_cut_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
         self.r_lower_cut_entry.setValidator( QDoubleValidator( 0, 10000, 3 ) )
         
-        self.r_upper_cut_entry = QLineEdit( str(0) )
+        self.r_upper_cut_entry = QLineEdit( str(10) )
         self.r_upper_cut_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
         self.r_upper_cut_entry.setValidator( QDoubleValidator( 0, 10000, 3 ) )
 
@@ -313,13 +313,14 @@ class PlotterWidget( object ) :
         # fits_layout.addLayout( self.radius_fit_widget.layout ) 
         
         fits_box.setLayout( self.fit_widget.layout )
-        layout.addWidget( fits_box ) 
+        # layout.addWidget( fits_box ) 
 
         self.metadata_widget = MetadataWidget( self.plotter.cpt_data )
         layout.addWidget( self.metadata_widget.box )
 
         canvas_layout = QVBoxLayout()
         canvas_layout.addWidget( self.canvas )
+        canvas_layout.addWidget( fits_box ) 
 
         self.coords_label = QLabel() 
         
@@ -375,9 +376,9 @@ class PlotterWidget( object ) :
         self.plotter.cpt_data.tof_cut_lower = float( self.tof_lower_cut_entry.text() )
         self.plotter.cpt_data.tof_cut_upper = float( self.tof_upper_cut_entry.text() )
 
-        self.plotter.tof_hist.n_bins = float( self.tof_hist_nbins_entry.text() )
-        self.plotter.radius_hist.n_bins = float( self.r_hist_nbins_entry.text() )
-        self.plotter.angle_hist.n_bins = float( self.angle_hist_nbins_entry.text() )
+        self.plotter.tof_hist.n_bins = int( self.tof_hist_nbins_entry.text() )
+        self.plotter.radius_hist.n_bins = int( self.r_hist_nbins_entry.text() )
+        self.plotter.angle_hist.n_bins = int( self.angle_hist_nbins_entry.text() )
         
         self.plotter.cpt_data.tof_cut_lower = float( self.tof_lower_cut_entry.text() )
         self.plotter.cpt_data.tof_cut_upper = float( self.tof_upper_cut_entry.text() )
@@ -467,7 +468,7 @@ class FitWidget( object ) :
 
         self.table = QTableWidget( nrows, ncols ) 
         self.table.setMinimumWidth( 400 ) 
-
+        self.table.setMaximumHeight(200)
         # size_policy = QSizePolicy( QSizePolicy.Maximum,
         #                            QSizePolicy.Maximum )
         
@@ -776,7 +777,7 @@ class gui( QTabWidget ):
         self.tabor_table.setVerticalHeaderLabels( [ 'omega', 'phase', 'amp',
                                                'loops', 'length' ] )
         
-        defaults = [ [ 1600.0, 656252.0, 657844.5 ],
+        defaults = [ [ 1600.0, 656252.0, 0.5 ],
                      [ -140.0, 0.0, 0.0 ],
                      [ 0.0005, 0.2, 0.5 ],
                      [ 1, 100, 208 ],
@@ -1200,8 +1201,8 @@ class gui( QTabWidget ):
         print( omega_plus ) 
         
         frequencies = [ omega_plus, omega_c ]
-        for i in range( 1, len( frequencies ) ) :
-            self.tabor_table.cellWidget(0,i).setText( '%.1f' % frequencies[i] )
+        for i in range( 2 ) :
+            self.tabor_table.cellWidget(0,i+1).setText( '%.1f' % frequencies[i] )
         
         self.processor.tabor_params = self.fetch_tabor_params() 
         

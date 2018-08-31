@@ -11,6 +11,9 @@ from .nuclear_data import nuclear_data
 # cesium_133_mass = 132905451.961
 # cesium_133_omega =  657844.45
 
+calibrant_mass = nuclear_data.masses[ calibrant_Z, calibrant_A - calibrant_Z ]
+
+
 
 # mass is the mass of the ion, not mass of atom
 def mass_to_omega( ion_mass, q, atomic_mass = 0 ) :

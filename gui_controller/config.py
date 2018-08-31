@@ -26,4 +26,4 @@ USE_GUI = 0
 # GUI defaults
 
 DEFAULT_Z = 55
-DEFAULT_A = 137
+DEFAULT_A = 133
