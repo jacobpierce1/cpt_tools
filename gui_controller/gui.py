@@ -54,7 +54,44 @@ code_path = os.path.abspath( os.path.dirname( __file__ ) ) + '/'
 # code_path = sys.path[0] + '/'
 # code_path = code_path[ : code_path.rfind( '/' ) ] + '/'
 
+MU_UNICODE = '\u03bc'
 
+
+class IonEntry( object ) :
+
+    def __init__( self ) :
+
+        self.layout = QFormLayout()
+        
+        labels = [ 'Z', 'A', 'q' ]
+                    
+        entries = [ None, None, None ]
+        defaults = [ '55', '137', '1' ]
+
+        ion_param_validator = QIntValidator( 0, 1000 ) 
+
+        for i in range( len( labels ) ) :
+            entries[i] = QLineEdit( defaults[i] ) 
+            entries[i].setValidator( ion_param_validator )
+            self.layout.addRow( labels[i], entries[i] )
+
+        self.z_entry, self.a_entry, self.q_entry = entries 
+        
+
+    def fetch( self ) :
+        z = self.z_entry.text() 
+        a = int( self.a_entry.text() )
+        q = int( self.q_entry.text() )
+
+        try :
+            z = int( z )
+        except ValueError : 
+            z = cpt_tools.element_to_z
+
+        return [ z, a, q ] 
+
+        
+        
 
 class MetadataWidget( object ) :
 
@@ -157,29 +194,21 @@ class PlotterWidget( object ) :
         # mcp_hitmap_settings.addWidget( self.mcp_kde_bw_entry ) 
 
         # mcp hitmap bounds inputs
-        self.mcp_hitmap_left_xbound_entry = QLineEdit( str(-5) )
-        self.mcp_hitmap_right_xbound_entry = QLineEdit( str(5) )
-        self.mcp_hitmap_left_ybound_entry = QLineEdit( str(-5) )
-        self.mcp_hitmap_right_ybound_entry = QLineEdit( str(5) )
 
+        self.mcp_bounds_entries = np.zeros( (2,2), dtype = object )
+        mcp_bounds_layouts = np.zeros(2, dtype = object ) 
+        defaults = np.array( [[-5,5], [-5,5]] )
         mcp_hitmap_bounds_validator = QDoubleValidator( -1000, 1000, 10 )
-        self.mcp_hitmap_left_xbound_entry.setValidator( mcp_hitmap_bounds_validator )
-        self.mcp_hitmap_right_xbound_entry.setValidator( mcp_hitmap_bounds_validator )
-        self.mcp_hitmap_left_ybound_entry.setValidator( mcp_hitmap_bounds_validator ) 
-        self.mcp_hitmap_right_ybound_entry.setValidator( mcp_hitmap_bounds_validator )
-
-        self.mcp_hitmap_left_xbound_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
-        self.mcp_hitmap_right_xbound_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
-        self.mcp_hitmap_left_ybound_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
-        self.mcp_hitmap_right_ybound_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
-
-        mcp_hitmap_xbounds_entry = QHBoxLayout()
-        mcp_hitmap_ybounds_entry = QHBoxLayout()
-        mcp_hitmap_xbounds_entry.addWidget( self.mcp_hitmap_left_xbound_entry ) 
-        mcp_hitmap_xbounds_entry.addWidget( self.mcp_hitmap_right_xbound_entry ) 
-        mcp_hitmap_ybounds_entry.addWidget( self.mcp_hitmap_left_ybound_entry ) 
-        mcp_hitmap_ybounds_entry.addWidget( self.mcp_hitmap_right_ybound_entry ) 
-
+        
+        for i in range(2) :
+            mcp_bounds_layouts[i] = QHBoxLayout()
+            for j in range(2) :
+                self.mcp_bounds_entries[i,j] = QLineEdit( str( defaults[i,j] ) )
+                self.mcp_bounds_entries[i,j].setValidator( mcp_hitmap_bounds_validator )
+                self.mcp_bounds_entries[i,j].setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
+                mcp_bounds_layouts[i].addWidget( self.mcp_bounds_entries[i,j] )
+            
+                
         self.tof_hist_nbins_entry =  QLineEdit( str(0) )
         self.tof_hist_nbins_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
         self.tof_hist_nbins_entry.setValidator( hist_nbins_validator )
@@ -220,7 +249,11 @@ class PlotterWidget( object ) :
         r_bounds.addWidget( self.r_lower_cut_entry )
         r_bounds.addWidget( self.r_upper_cut_entry ) 
 
-        layout = QVBoxLayout() 
+        layout = QVBoxLayout()
+
+        reload_button = QPushButton( 'Reload Parameters' ) 
+        reload_button.clicked.connect( self.reload_visualization_params )         
+        layout.addWidget( reload_button ) 
         
         controls_box = QGroupBox( 'Visualization Controls' )
         controls_layout = QFormLayout()
@@ -233,14 +266,23 @@ class PlotterWidget( object ) :
         # controls_layout.addRow( mcp_hitmap_settings )
         controls_layout.addRow( 'MCP bin width (mm):', self.mcp_bin_width_entry )
         controls_layout.addRow( 'MCP KDE bandwidth:', self.mcp_kde_bw_entry )
-        controls_layout.addRow( 'MCP X Bounds:', mcp_hitmap_xbounds_entry ) 
-        controls_layout.addRow( 'MCP Y Bounds:', mcp_hitmap_ybounds_entry ) 
+        controls_layout.addRow( 'MCP X Bounds:', mcp_bounds_layouts[0] ) 
+        controls_layout.addRow( 'MCP Y Bounds:', mcp_bounds_layouts[1] ) 
         controls_layout.addRow( 'TOF hist num bins:', self.tof_hist_nbins_entry )
         controls_layout.addRow( 'Radius hist num bins:', self.r_hist_nbins_entry )
         controls_layout.addRow( 'Angle hist num bins:', self.angle_hist_nbins_entry )
-        reload_button = QPushButton( 'Reload Parameters' ) 
-        reload_button.clicked.connect( self.reload_visualization_params ) 
-        controls_layout.addRow( reload_button ) 
+
+        zoom_buttons = QHBoxLayout()
+
+        zoom_in_button = QPushButton( 'Zoom In' )
+        zoom_in_button.clicked.connect( self.zoom_in )
+        zoom_buttons.addWidget( zoom_in_button ) 
+
+        zoom_out_button = QPushButton( 'Zoom Out' )
+        zoom_out_button.clicked.connect( self.zoom_out )
+        zoom_buttons.addWidget( zoom_out_button )
+        
+        controls_layout.addRow( zoom_buttons ) 
         
         controls_box.setLayout( controls_layout )
         layout.addWidget( controls_box ) 
@@ -318,11 +360,13 @@ class PlotterWidget( object ) :
     def reload_visualization_params( self ) :
         self.plotter.mcp_bin_width = float( self.mcp_bin_width_entry.text() )
         self.plotter.mcp_kde_bandwidth = float( self.mcp_kde_bw_entry.text() )
-        self.plotter.mcp_x_bounds = [ float( self.mcp_hitmap_left_xbound_entry.text() ),
-                                      float( self.mcp_hitmap_right_xbound_entry.text() ) ]
-        self.plotter.mcp_y_bounds = [ float( self.mcp_hitmap_left_ybound_entry.text() ),
-                                      float( self.mcp_hitmap_right_ybound_entry.text() ) ]
-        
+
+        self.plotter.mcp_x_bounds = np.array( [ float( self.mcp_bounds_entries[0,j].text() )
+                                                for j in range(2) ] )
+
+        self.plotter.mcp_y_bounds = np.array( [ float( self.mcp_bounds_entries[1,j].text() )
+                                                for j in range(2) ] )
+                
         self.plotter.tof_hist_nbins = int( self.tof_hist_nbins_entry.text() ) 
         self.plotter.r_hist_nbins = int( self.r_hist_nbins_entry.text() ) 
         self.plotter.angle_hist_nbins = int( self.angle_hist_nbins_entry.text() )
@@ -330,6 +374,11 @@ class PlotterWidget( object ) :
         self.plotter.cpt_data.tof_cut_lower = float( self.tof_lower_cut_entry.text() )
         self.plotter.cpt_data.tof_cut_upper = float( self.tof_upper_cut_entry.text() )
 
+        self.plotter.tof_hist.n_bins = float( self.tof_hist_nbins_entry.text() )
+        self.plotter.radius_hist.n_bins = float( self.r_hist_nbins_entry.text() )
+        self.plotter.angle_hist.n_bins = float( self.angle_hist_nbins_entry.text() )
+        
+        
         # self.plotter.clear()
         if self.plotter.cpt_data.is_live : 
             self.plotter.cpt_data.reset_cuts()
@@ -340,6 +389,45 @@ class PlotterWidget( object ) :
         self.update()
 
 
+    def zoom_in( self ) :
+
+        bounds = [ self.plotter.mcp_x_bounds, self.plotter.mcp_y_bounds ]
+        new_bounds = [ None, None ]
+        for i in range(2) :
+            new_bounds[i] = bounds[i] + np.array( [ 2.5, -2.5 ] )
+            print( new_bounds[i] )
+            if new_bounds[i][1] <= new_bounds[i][0] :
+                print( 'WARNING: unable to zoom in' ) 
+                return 
+
+        for i in range(2) :
+            for j in range(2) : 
+                self.mcp_bounds_entries[i,j].setText( str( new_bounds[i][j] ) )
+
+        self.reload_visualization_params() 
+        self.update()
+        
+        
+    def zoom_out( self ) :
+        
+        bounds = [ self.plotter.mcp_x_bounds, self.plotter.mcp_y_bounds ]
+        new_bounds = [ None, None ]
+        for i in range(2) :
+            new_bounds[i] = bounds[i] + np.array( [ -2.5, 2.5 ] )
+            print( new_bounds[i] ) 
+            if new_bounds[i][1] <= new_bounds[i][0] :
+                print( 'WARNING: unable to zoom in' ) 
+                return 
+
+        for i in range(2) :
+            for j in range(2) : 
+                self.mcp_bounds_entries[i,j].setText( str( new_bounds[i][j] ) )
+
+        self.reload_visualization_params() 
+        self.update()
+
+        
+        
     def set_cpt_data( self, cpt_data ) :
         self.plotter.set_cpt_data( cpt_data ) 
         self.metadata_widget.cpt_data = cpt_data
@@ -436,10 +524,14 @@ class FitWidget( object ) :
             return
 
         bounds = [ left_x_bound, right_x_bound ]    
-        params, params_errors, redchisqr = self.hists[i].apply_fit( bounds ) 
-
+        fit = self.hists[i].apply_fit( bounds ) 
+        if fit is None :
+            return
+        
+        params, params_errors, redchisqr = fit
+        
         if params_errors is not None : 
-            labels = [ '%.2f\u00b1%.2f' % ( params[i], params_errors[i] ) for j in range( len(params) ) ]
+            labels = [ '%.2f\u00b1%.2f' % ( params[j], params_errors[j] ) for j in range( len(params) ) ]
         else :
             labels = [ '%.2f' % params[j] for j in range( len(params) ) ]
             
@@ -637,26 +729,29 @@ class gui( QTabWidget ):
         tab_idx = self.controls_tab_idx
         
         tabor_box = QGroupBox( 'Tabor Controls' ) 
-        tabor_layout = QFormLayout()
+        tabor_layout = QVBoxLayout()
         tabor_box.setLayout( tabor_layout ) 
         
         # don't expand to take more room than necessary 
-        tabor_layout.setFieldGrowthPolicy( 0 ) 
+        # tabor_layout.setFieldGrowthPolicy( 0 ) 
             
         # subtitle = self.make_subtitle( 'Tabor Controls' ) 
         # tabor_layout.addRow( subtitle )
         
         self.load_tabor_button = QPushButton( 'Load Tabor Parameters' )
         self.load_tabor_button.clicked.connect( self.load_tabor_button_clicked ) 
-        tabor_layout.addRow( self.load_tabor_button ) 
-        
+        tabor_layout.addWidget( self.load_tabor_button ) 
+
+        tmp = QFormLayout()
         
         self.num_steps_entry = QLineEdit( '5' )
-        tabor_layout.addRow( 'num steps:', self.num_steps_entry ) 
+        tmp.addRow( 'Num Steps:', self.num_steps_entry ) 
 
         self.tacc_entry = QLineEdit( '68' )
-        tabor_layout.addRow( 'Accumulation Time:', self.tacc_entry ) 
+        tmp.addRow( 'Accumulation Time (%ss):' % MU_UNICODE, self.tacc_entry ) 
 
+        tabor_layout.addLayout( tmp ) 
+        
         nrows = 5
         ncols = 3 
         
@@ -702,29 +797,15 @@ class gui( QTabWidget ):
                 tmp.setValidator( validators[i][j] )
                 self.tabor_table.setCellWidget( i,j, tmp )
 
-        tabor_layout.addRow( self.tabor_table )
+        tabor_layout.addWidget( self.tabor_table )
 
         self.set_params_from_ion_data_button = QPushButton( 'Set Params From Ion Data' )
         self.set_params_from_ion_data_button.clicked.connect(
             self.set_params_from_ion_data_button_clicked ) 
-        tabor_layout.addRow( self.set_params_from_ion_data_button )
+        tabor_layout.addWidget( self.set_params_from_ion_data_button )
 
-
-        # ion_entry_layout = QFormLayout()
-        # ion_entry_layout.addRow( 'Z:', self.z_entry )
-
-        labels = [ 'Z:', 'N:', 'q:' ]
-        entries = [ None, None, None ]
-        defaults = [ '55', '82', '1' ]
-
-        ion_param_validator = QIntValidator( 0, 1000 ) 
-
-        for i in range( len( labels ) ) :
-            entries[i] = QLineEdit( defaults[i] ) 
-            entries[i].setValidator( ion_param_validator )
-            tabor_layout.addRow( labels[i], entries[i] )
-
-        self.tabor_z_entry, self.tabor_n_entry, self.tabor_q_entry = entries
+        self.tabor_ion_entry = IonEntry()
+        tabor_layout.addLayout( self.tabor_ion_entry.layout ) 
 
         self.set_params_from_ion_data_button_clicked()
         
@@ -755,8 +836,8 @@ class gui( QTabWidget ):
         buttons_layout.addWidget( self.save_button ) 
         daq_layout.addRow( buttons_layout ) 
                 
-        self.ion_name_entry = QLineEdit()
-        daq_layout.addRow( 'Suspected Ion', self.ion_name_entry )
+        self.alternate_name_entry = QLineEdit()
+        daq_layout.addRow( 'Alternate Name', self.alternate_name_entry )
         
         # self.session_name_entry = QLineEdit()
         # daq_layout.addRow( 'Session Name', self.session_name_entry )
@@ -876,6 +957,7 @@ class gui( QTabWidget ):
         tab_idx = self.analysis_1_tab_idx 
         
         self.analysis_data_dirs_qlist = QListWidget()
+        self.analysis_data_dirs_qlist.itemClicked.connect( self.set_analysis_plotter_data ) 
         # self.analysis_data_dirs_qlist.addItem( 'test' )
 
         analysis_controls_box = QGroupBox( 'Choose Files for Analysis' ) 
@@ -891,7 +973,8 @@ class gui( QTabWidget ):
         # analysis_controls_layout.addLayout( tmp ) 
         
         analysis_controls_layout.addWidget( self.analysis_data_dirs_qlist )
-
+        
+        
         buttons = QHBoxLayout()
         add_button = QPushButton( 'Add' )
         add_button.clicked.connect( self.add_button_clicked ) 
@@ -966,18 +1049,15 @@ class gui( QTabWidget ):
 
         property_lookup_box = QGroupBox( 'Nuclide Property Lookup' )
         # tmp_layout = QVBoxLayout
-        tmp = QFormLayout()
-        self.tools_z_entry = QLineEdit( '55' ) 
-        self.tools_n_entry = QLineEdit( '82' )
-        self.tools_q_entry = QLineEdit( '0' )
+        tmp = QVBoxLayout()
+
+        self.tools_property_ion_entry = IonEntry()
+        tmp.addLayout( self.tools_property_ion_entry.layout )
         
         self.tools_property_button = QPushButton( 'Look Up' ) 
         self.tools_property_button.clicked.connect( self.property_lookup_button_clicked ) 
         
-        tmp.addRow( 'Z', self.tools_z_entry )
-        tmp.addRow( 'N', self.tools_n_entry )
-        tmp.addRow( 'q', self.tools_q_entry )
-        tmp.addRow( self.tools_property_button ) 
+        tmp.addWidget( self.tools_property_button ) 
         # tmp_layout.addLayout( tmp ) 
         property_lookup_box.setLayout( tmp )
 
@@ -991,7 +1071,7 @@ class gui( QTabWidget ):
         for i in range( len( property_lookup_cols ) ) :
             self.property_lookup_table.setCellWidget( 0, i, QLabel( '' ) )
                                 
-        tmp.addRow( self.property_lookup_table ) 
+        tmp.addWidget( self.property_lookup_table ) 
 
         layout.addWidget( mass_identifier_box ) 
         layout.addWidget( property_lookup_box ) 
@@ -1004,28 +1084,28 @@ class gui( QTabWidget ):
     def help_tab_init( self ) :
         layout = QVBoxLayout()
 
-        subtitles = [ 'Histogram Bin Sizes' ]
+        # subtitles = [ 'Histogram Bin Sizes' ]
 
-        messages = [
-            'For all histograms, the default, recommended value of 0 uses the Freedman-Diaconis rule to dynamically select the bin size during each update.'
-        ]
+        # messages = [
+        #     'For all histograms, the default, recommended value of 0 uses the Freedman-Diaconis rule to dynamically select the bin size during each update.'
+        # ]
 
-        for i in range( len( subtitles ) ) :
+        # for i in range( len( subtitles ) ) :
 
-            subtitle = QLabel( subtitles[i] )
-            subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE, QFont.Bold ) )
+        #     subtitle = QLabel( subtitles[i] )
+        #     subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE, QFont.Bold ) )
 
-            message = QLabel( messages[i] )
-            message.setWordWrap( 1 ) 
+        #     message = QLabel( messages[i] )
+        #     message.setWordWrap( 1 ) 
             
-            layout.addWidget( subtitle )
-            layout.addWidget( message )
+        #     layout.addWidget( subtitle )
+        #     layout.addWidget( message )
 
         try : 
             label = QLabel()
             morrison_path = code_path + '../images/jim-morrison-og.jpg'
-            print( morrison_path )
-            print( os.path.exists( morrison_path ) ) 
+            # print( morrison_path )
+            # print( os.path.exists( morrison_path ) ) 
             pixmap = QPixmap( morrison_path ) 
             label.setPixmap( pixmap )        
             layout.addWidget( label )
@@ -1093,18 +1173,7 @@ class gui( QTabWidget ):
             self.tdc.clear()
             self.processor.clear() 
         
-            tacc = int( self.tacc_entry.text() ) 
-            nsteps = int( self.num_steps_entry.text() )
-            types = [ float, float, float, int, int ]
-            data = [ [ types[i]( self.tabor_table.cellWidget( i, j ).text() ) 
-                       for j in range(3) ] 
-            for i in range( 5) ]
-
-            print( data )
-            freqs, phases, amps, loops, steps = data 
-            
-            tabor_params = tabor.TaborParams( tacc, nsteps, freqs, phases,
-                                              amps, loops, steps )
+            tabor_params = self.fetch_tabor_params() 
             
             if config.USE_TABOR :
                 self.tabor.load_params( tabor_params ) 
@@ -1114,25 +1183,50 @@ class gui( QTabWidget ):
                 print( 'Done.' )
 
             self.tdc.resume()
+
+
+    def fetch_tabor_params( self ) :
+        tacc = int( self.tacc_entry.text() ) 
+        nsteps = int( self.num_steps_entry.text() )
+        types = [ float, float, float, int, int ]
+        data = [ [ types[i]( self.tabor_table.cellWidget( i, j ).text() ) 
+                   for j in range(3) ] 
+                 for i in range( 5) ]
+        
+        print( data )
+        freqs, phases, amps, loops, steps = data 
             
-            
+        tabor_params = tabor.TaborParams( tacc, nsteps, freqs, phases,
+                                          amps, loops, steps )
+
+        return tabor_params 
+        
         
     def set_params_from_ion_data_button_clicked( self ) :
         print( 'INFO: setting tabor params from ion data...' ) 
-        Z = int( self.tabor_z_entry.text() )
-        N = int( self.tabor_n_entry.text() )
-        q = int( self.tabor_q_entry.text() )
+        Z, A, q = self.tabor_ion_entry.fetch()
+        N = A - Z 
+
+        self.processor.Z = Z
+        self.processor.A = A
+        # self.processor.q = q 
         
         mass = cpt_tools.nuclear_data.masses[Z,N]
         omega_c = cpt_tools.mass_to_omega( mass, q, atomic_mass = 1 ) 
         omega_minus = float( self.tabor_table.cellWidget( 0, 0 ).text() )
         omega_plus = omega_c - omega_minus
 
+        print( omega_minus )
+        print( omega_c )
+        print( omega_plus ) 
+        
         frequencies = [ omega_plus, omega_c ]
         for i in range( 1, len( frequencies ) ) :
             self.tabor_table.cellWidget(0,i).setText( '%.1f' % frequencies[i] )
         
+        self.processor.tabor_params = self.fetch_tabor_params() 
         
+            
     def toggle_daq_button_clicked( self, toggle = 1 ) :
         print( 'INFO: toggling DAQ...' ) 
         
@@ -1158,25 +1252,23 @@ class gui( QTabWidget ):
 
         
     def save_button_clicked( self ) : 
-        print( 'INFO: saving data...' )
-        # session_name = self.session_name_entry.text()
-
-        # if not session_name :
-        #     print( 'ERROR: session name is required' ) 
-        #     return 0 
-        
-        # session_dir_path = self.data_dir_path + '/' #  + session_name + '/'
-        # print( session_dir_path ) 
-        
-        # if session_dir_path != self.session_dir_path :
-        #     self.session_dir_path = session_dir_path
-        #     os.makedirs( self.session_dir_path, exist_ok = 1 )
+  
+        alternate_name = self.alternate_name_entry.text()
+        if alternate_name : 
+            prefix = alternate_name
+        else :
+            prefix = None
             
-        # np.save( self.session_dir_path + 'test', [1,2,3] )
-        # path = self.session_dir_path + 'test.cpt'
-        # self.processor.save( path ) 
-        self.processor.save()
+        self.processor.save( prefix = prefix )
 
+        comment = self.comment_entry.toPlainText()
+        experimenter = self.experimenter_entry.text() 
+
+        if len( comment ) > 0 : 
+            cpt_tools.write_log( comment, experimenter ) 
+
+        self.comment_entry.setPlainText( '' )
+        
         
 
     def batch_generate_linspace( self ) :
@@ -1193,6 +1285,10 @@ class gui( QTabWidget ):
 
     def add_button_clicked( self ) :
         path = QFileDialog.getOpenFileName( self, 'Select File' )[0]
+
+        if not path :
+            return 
+        
         print( 'path: ', path )
         # name = dir_path[ dir_path.rfind( '/' ) + 1 : ] 
         # self.analysis_data_dirs_qlist.addItem( name ) 
@@ -1204,17 +1300,26 @@ class gui( QTabWidget ):
         # self.anal
         # print( 'initial set' ) 
         # print( self.analysis_plotter_widget.cpt_data ) 
-        self.analyzer.data_list.append( new_cpt_data )
+        # self.analyzer.data_list.append( new_cpt_data )
          # = new_cpt_data
+
+        self.analyzer.append( new_cpt_data ) 
+         
         self.analysis_plotter_widget.update( update_first = 1 )
 
+        
+    def set_analysis_plotter_data( self, widget ) :
+        row = self.analysis_data_dirs_qlist.currentRow()
+        self.analysis_plotter_widget.set_cpt_data( self.analyzer.data_list[row] ) 
+        self.analysis_plotter_widget.update()
+        
         # print( self.analysis_plotter_widget.cpt_data.
 
         
     def delete_button_clicked( self ) :
         row = self.analysis_data_dirs_qlist.currentRow() 
         self.analysis_data_dirs_qlist.takeItem( row ) 
-        del self.analysis_data_list[ row ]
+        # del self.analysis_data_list[ row ]
         
         
     def toggle_isolated_dataset( self ) :
@@ -1234,9 +1339,9 @@ class gui( QTabWidget ):
         
     def property_lookup_button_clicked( self ) :
 
-        Z = int( self.tools_z_entry.text() )
-        N = int( self.tools_n_entry.text() )
-        q = int( self.tools_q_entry.text() )
+        Z, A, q = self.tools_property_ion_entry.fetch() 
+
+        N = A - Z 
         
         # freq = cpt_tools.nuclear_data.
 

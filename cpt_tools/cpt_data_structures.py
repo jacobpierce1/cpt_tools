@@ -8,6 +8,8 @@ import config
 import os
 from datetime import datetime
 
+import numpy as np 
+
 from cpt_tools import z_to_element, element_to_z, DEFAULT_STORAGE_DIRECTORY
 
 
@@ -89,7 +91,8 @@ class CPTdata( object ) :
         self.Z = np.nan
         self.A = np.nan
         self.tabor_params = TaborParams.empty()
-        
+
+        self.timestamp = time.time() 
         self.duration = 0 
         self.num_events = 0
         self.is_live = 0
@@ -137,17 +140,18 @@ class CPTdata( object ) :
         # ret.Z = int( data[0] )
         # ret.N = int( data[1] )
         ret.Z = data[0]
-        ret.N = data[1]
-        ret.duration = data[2]
-        ret.num_mcp_hits = int( data[3] )
-        ret.num_penning_ejects = int( data[4] )
-        ret.tabor_params = TaborParams.unflatten( data[ 5 : 5 + num_tabor_params ] )
+        ret.A = data[1]
+        ret.timestamp = data[2]
+        ret.duration = data[3]
+        ret.num_mcp_hits = int( data[4] )
+        ret.num_penning_ejects = int( data[5] )
+        ret.tabor_params = TaborParams.unflatten( data[ 6 : 6 + num_tabor_params ] )
 
-        cpt_header = data[ 5 + num_tabor_params : 8 + num_tabor_params ]
+        cpt_header = data[ 6 + num_tabor_params : 9 + num_tabor_params ]
         if not np.all( cpt_header == cpt_header_key ) :
             raise CPTexception( 'ERROR: the cpt header in %s does not match the cpt header key. the most likely source is that the file format has been changed and this file has the old format.' % path )
 
-        all_data = data[ 8 + num_tabor_params : ]
+        all_data = data[ 9 + num_tabor_params : ]
         ret.all_data = all_data.reshape( len( all_data ) // 4, 4 ) 
         
         ret.tofs = ret.all_data[:,0]
@@ -425,7 +429,7 @@ class LiveCPTdata( CPTdata ) :
         tof_mask = ( tofs > self.tof_cut_lower ) & ( tofs < self.tof_cut_upper ) 
 
         mask = radius_mask & tof_mask
-        indices = np.where( mask )[0] + self.num_events_prev 
+        indices = np.where( mask )[0] + start_idx
         num_added_cut_data = len( indices ) 
         
         self.cut_data_indices[ self.num_cut_data
@@ -451,38 +455,44 @@ class LiveCPTdata( CPTdata ) :
         self.angles[ self.num_events_prev : self.num_events ] = angles
 
         
-    def save( self, path = None, name = None ) :
+    def save( self, path = None, name = None, prefix = None ) :
 
+        if prefix is None :
+            prefix = create_element_prefix( self.Z, self.A ) 
+        
         if path is None :
             path = DEFAULT_STORAGE_DIRECTORY
+            path += '/data/' + prefix + '/' 
 
         if name is None :
-            name = create_data_name( self.tabor_params, self.Z, self.A ) 
+            name = create_data_name( self.tabor_params, prefix ) 
 
-        file_path = path + '/' + name
+        file_path = path + name
+
+        print( 'INFO: saving file: ', file_path )
 
         try :
             self._save( file_path )
         except( OSError ) :
             os.makedirs( path, exist_ok = 1 ) 
             self._save( file_path )
-            
-            
-    def _save( self, file_path ) : 
-        with open( file_path, 'wb' ) as f :
-            header_prefix = np.array( [ self.Z, self.A,
-                                        self.duration, self.num_penning_ejects, self.num_mcp_hits ] )
-            
-            tmp = np.concatenate( ( header_prefix, self.tabor_params.flatten(), cpt_header_key,
-                                    self.all_data[ : self.num_events ].flatten() ) )
-            tmp.tofile( f )  
+
 
             
-    
+    def _save( self, file_path ) :
 
-# default data name 
-def create_data_name( tabor_params, Z, A ) :
+                
+        #with open( file_path, 'wb' ) as f :
+        header_prefix = np.array( [ self.Z, self.A, self.timestamp, self.duration,
+                                    self.num_penning_ejects, self.num_mcp_hits ] )
+            
+        tmp = np.concatenate( ( header_prefix, self.tabor_params.flatten(), cpt_header_key,
+                                self.all_data[ : self.num_events ].flatten() ) )
+        tmp.tofile( file_path )  
 
+            
+
+def create_element_prefix( Z, A ) :
     if np.isnan( Z ) :
         prefix = 'unknown'
         if not np.isnan( A ) :
@@ -490,13 +500,23 @@ def create_data_name( tabor_params, Z, A ) :
     
     else :
         if not isinstance( Z, str ) :
-            Z = z_to_element( Z ) 
-        Z[0] = Z[0].upper()
+            Z = z_to_element( Z )
+        print( Z ) 
+        Z = Z.capitalize()
         prefix = str(A) + Z 
+    return prefix 
 
-    date_str = datetime.now().strftime( '%y-%m-%d' ) 
+
+
+# default data name 
+def create_data_name( tabor_params, prefix = None ) :
+
+    if prefix is None : 
+        prefix = create_element_prefix( Z, A )
+
+    date_str = datetime.now().strftime( '%Y-%m-%d_%H-%M' ) 
         
-    data_name = '%s_%s' % ( prefix, date_str )
+    data_name = '%s_%s' % ( date_str, prefix )
 
     w_c = tabor_params.freqs[2]
     if not np.isnan( w_c ) :
@@ -507,7 +527,7 @@ def create_data_name( tabor_params, Z, A ) :
         data_name += '_%dustacc' % tacc
 
     data_name += '.cpt'
-        
+    
     return data_name 
 
                   # 133Cs_234.030mswc_2018-08-24_260ms_wcloops-228_w+pulse-50-0.22Vpp_tofF-400V_w-amp-0.0075

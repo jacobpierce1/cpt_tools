@@ -26,7 +26,7 @@ mcp_hitmap_cmap = colorcet.m_rainbow
 # it is all implemented here.
 class PlotterHist( object ) :
 
-    def __init__( self, ax, title, data, cut_data_indices ) :
+    def __init__( self, ax, title, data, cut_data_indices, is_live ) :
 
         self.ax = ax 
         self.title = title
@@ -40,7 +40,7 @@ class PlotterHist( object ) :
         self.fit_bounds = None
 
         self.plot_with_cuts = 0
-        self.is_live = 0 
+        self.is_live = is_live
 
         # print( self.data )
         
@@ -57,27 +57,29 @@ class PlotterHist( object ) :
             if self.is_live : 
                 valid_indices = self.cut_data_indices[ : self.num_cut_data ]
             else :
-                valid_indices = self.cut_data_indices 
+                valid_indices = self.cut_data_indices
             data = self.data[ valid_indices ] 
         else :
             data = self.data[ : self.num_events ]
-
-        # print( 'plotting data: ', data )
         
         bins = self.n_bins
         if bins == 0 :
             bins = 'doane'
 
         if self.fit_params is not None :
-            density = 0
+            # density = 0
             x = np.linspace( * self.fit_bounds, 100 ) 
             self.ax.plot( x, analysis.gaussian( self.fit_params, x ),
                               c = 'r' )
+            
+            self.hist, self.bins = np.histogram( data, bins = bins )
+            self.ax.scatter( self.bins[:-1], self.hist, s = 1 ) 
+            
             # self.hist_fit_added = 1 
         else :
             density = 0 
             
-        self.hist, self.bins, _ = self.ax.hist( data, bins = bins, density = density )
+            self.hist, self.bins, _ = self.ax.hist( data, bins = bins, density = density )
 
         
     def set_data_params( self, num_events, num_cut_data ) :
@@ -112,20 +114,18 @@ class Plotter( object ) :
         self.cpt_data = cpt_data
 
         self.f, self.axarr = plt.subplots( 2, 2 )
-        self.f.subplots_adjust( hspace = 0.5, wspace = 0.5 )
+        self.f.subplots_adjust( hspace = 0.5, wspace = 0.7 )
         
         self.init_mcp_hitmap( self.axarr[0][0], self.f )
 
-        print( self.cpt_data.tofs ) 
-        
         self.tof_hist = PlotterHist( self.axarr[0,1], 'TOF', self.cpt_data.tofs,
-                                     self.cpt_data.cut_data_indices )
+                                     self.cpt_data.cut_data_indices, self.cpt_data.is_live )
 
         self.radius_hist = PlotterHist( self.axarr[1,0], 'Radius', self.cpt_data.radii, 
-                                        self.cpt_data.cut_data_indices ) 
+                                        self.cpt_data.cut_data_indices, self.cpt_data.is_live ) 
         
         self.angle_hist = PlotterHist( self.axarr[1,1], 'Angle', self.cpt_data.angles,
-                                       self.cpt_data.cut_data_indices ) 
+                                       self.cpt_data.cut_data_indices, self.cpt_data.is_live ) 
 
         self.all_hists = [ self.tof_hist, self.radius_hist, self.angle_hist ] 
 
@@ -135,8 +135,8 @@ class Plotter( object ) :
         self.use_kde = 0 
         self.kde_bandwidth = 0.003
         self.mcp_bin_width = 0.25
-        self.mcp_x_bounds = [ -5.0, 5.0 ]
-        self.mcp_y_bounds = [ -5.0, 5.0 ]
+        self.mcp_x_bounds = np.array( [ -5.0, 5.0 ] )
+        self.mcp_y_bounds = np.array( [ -5.0, 5.0 ] )
 
         self.tof_hist_nbins = 0
         self.r_hist_nbins = 0
@@ -170,19 +170,17 @@ class Plotter( object ) :
         ybins = np.arange( self.mcp_y_bounds[0], self.mcp_y_bounds[1]
                            + self.mcp_bin_width / 2,
                            self.mcp_bin_width )
-
+        
         if self.rebuild_mcp_plot :
             self.rebuild_mcp_plot = 0
             self.mcp_hitmap_plot.clear()
             if  self.mcp_hitmap_cbar : 
                 self.mcp_hitmap_cbar.ax.clear() 
-            # if self.mcp_hitmap_cbar is not None : 
-            #     self.mcp_hitmap_cbar.clear() 
-            
+
             title = 'MCP Hitmap'
             self.mcp_hitmap_plot.set_title( title )
-            self.mcp_hitmap_plot.set_xlabel( 'X' )
-            self.mcp_hitmap_plot.set_ylabel( 'Y' ) 
+            # self.mcp_hitmap_plot.set_xlabel( 'X' )
+            # self.mcp_hitmap_plot.set_ylabel( 'Y' ) 
 
             image, xedges, yedges, self.mcp_hitmap_im = self.mcp_hitmap_plot.hist2d(
                 data[:,0], data[:,1], ( xbins, ybins ),
@@ -191,7 +189,7 @@ class Plotter( object ) :
             
             xticks = xedges[:: len(xedges) // 5 ]
             yticks = yedges[:: len(yedges) // 5 ]
-            
+                        
             self.mcp_hitmap_plot.set_xticks( xticks ) 
             self.mcp_hitmap_plot.set_yticks( yticks ) 
             self.mcp_hitmap_plot.set_xlim( xedges[0], xedges[-1] ) 
@@ -208,10 +206,7 @@ class Plotter( object ) :
             else :
                 self.mcp_hitmap_cbar = self.mcp_hitmap_f.colorbar( self.mcp_hitmap_im,
                                                                cax = self.mcp_hitmap_cbar.ax )
-                
-            # self.mcp_hitmap_cbar.set_ticks( np.arange( n_cbar_ticks ) )
-            # self.mcp_hitmap_cbar.set_clim( 0, 0 )
-        
+                        
         else : 
             if not self.use_kde :
                 # xbins = np.linspace( * self.mcp_x_bounds, self.mcp_bin_width + 1 ) 

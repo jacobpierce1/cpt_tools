@@ -2,6 +2,9 @@ import config
 import ctypes 
 import os 
 
+import numpy as np
+
+
 code_path = os.path.abspath( os.path.dirname( __file__ ) )
 _dll_path = code_path + '\..\Load_big_tabor\Debug\Load_big_tabor.dll' # '\Load_big_tabor.dll'
 print( _dll_path ) 

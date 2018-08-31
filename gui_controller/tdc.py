@@ -135,8 +135,8 @@ class TDC( object ) :
                 self.data_buf.ctypes.data_as( ctypes.POINTER( ctypes.c_uint ) ), 
                 _max_tdc_buf_size );
                 
-            print( self.data_buf )
-            print( self.num_data_in_buf )
+            # print( self.data_buf )
+            # print( self.num_data_in_buf )
 
         if self.num_data_in_buf == 0 :
             return
@@ -151,7 +151,7 @@ class TDC( object ) :
         # self.compute_timestamps() 
         self.sort_data()
         self.update_time()
-        print( self.duration )
+        # print( self.duration )
         
         if config.BENCHMARK :
             end = time.time()
@@ -259,4 +259,4 @@ class TDC( object ) :
 
     def update_time( self ) :
         if self.collecting_data : 
-            self.duration += time.time() - self.start_time 
+            self.duration = time.time() - self.start_time 
