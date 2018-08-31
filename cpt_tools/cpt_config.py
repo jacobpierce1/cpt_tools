@@ -6,6 +6,17 @@ calibrant_omega =  657844.45
 
 
 
-DEFAULT_STORAGE_DIRECTORY = os.path.expanduser('~') + '/savard_group/cpt/cpt_tools/debug/test_storage/'
+# IS_WINDOWS = ( os.name == 'nt' )
+
+code_path = os.path.abspath( os.path.dirname( __file__ ) ) + '/'
+
+DEFAULT_STORAGE_DIRECTORY = code_path + '../debug/test_storage/'
+
+# if not IS_WINDOWS : 
+#     DEFAULT_STORAGE_DIRECTORY = ( os.path.expanduser('~')
+#                                   + '/savard_group/cpt/cpt_tools/debug/test_storage/' )
+# else :
+#     DEFAULT_STORAGE_DIRECTORY = 
+
 # default_storage_directory = '~/savard_group/cpt/data/'
 

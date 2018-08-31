@@ -350,6 +350,7 @@ class PlotterWidget( object ) :
     def plot_with_cuts_clicked( self ) :
         plot_with_cuts = self.plot_with_cuts_button.checkState() 
         self.plotter.set_plot_with_cuts( plot_with_cuts ) 
+        self.reload_visualization_params() 
         
     def set_use_kde( self ) :
         self.plotter.use_kde = 1 
@@ -378,11 +379,15 @@ class PlotterWidget( object ) :
         self.plotter.radius_hist.n_bins = float( self.r_hist_nbins_entry.text() )
         self.plotter.angle_hist.n_bins = float( self.angle_hist_nbins_entry.text() )
         
+        self.plotter.cpt_data.tof_cut_lower = float( self.tof_lower_cut_entry.text() )
+        self.plotter.cpt_data.tof_cut_upper = float( self.tof_upper_cut_entry.text() )
+        self.plotter.cpt_data.r_cut_lower = float( self.r_lower_cut_entry.text() )
+        self.plotter.cpt_data.r_cut_upper = float( self.r_upper_cut_entry.text() )
         
-        # self.plotter.clear()
+        
         if self.plotter.cpt_data.is_live : 
             self.plotter.cpt_data.reset_cuts()
-        # self.plotter.cpt_data.apply_cuts()
+        self.plotter.cpt_data.apply_cuts()
         
         self.plotter.rebuild_mcp_plot = 1
 
@@ -962,15 +967,6 @@ class gui( QTabWidget ):
 
         analysis_controls_box = QGroupBox( 'Choose Files for Analysis' ) 
         analysis_controls_layout = QVBoxLayout()
-
-        # tmp = QHBoxLayout()
-        # tmp.addWidget( QLabel( 'Display Isolated Dataset' ) )
-        # self.analysis_display_isolated_dataset = 0
-        # self.isolated_dataset_checkbox = QCheckBox()
-        # self.isolated_dataset_checkbox.setCheckState( self.analysis_display_isolated_dataset )
-        # self.isolated_dataset_checkbox.clicked.connect( self.toggle_isolated_dataset ) 
-        # tmp.addWidget( self.isolated_dataset_checkbox )
-        # analysis_controls_layout.addLayout( tmp ) 
         
         analysis_controls_layout.addWidget( self.analysis_data_dirs_qlist )
         
@@ -986,27 +982,10 @@ class gui( QTabWidget ):
 
         analysis_controls_box.setLayout( analysis_controls_layout ) 
         
-        # layout.addWidget( self.analysis_data_dirs_qlist )
-        # layout.addWidget( self.canvases[ tab_idx ] )
-        # self.analysis_tab.setLayout( layout )
-
-        # plotting 
-        # f, axarr = plt.subplots( 2, 2 )
-        # f.subplots_adjust( hspace = 0.5 )
-        # self.canvases[ tab_idx ] = FigureCanvas( self.analysis_plotter.f )
-
-        # self.tab_updaters[ tab_idx ] = [ self.analysis_plotter_widget.update ]
-
         layout = QHBoxLayout()
         layout.addWidget( analysis_controls_box )
         layout.addLayout( self.analysis_plotter_widget.grid_layout ) 
-        
-        # layout = QGridLayout()
-        # layout.addWidget( analysis_controls_box, 0, 0, 0, 1, QtCore.Qt.AlignLeft )
-        # layout.setColumnStretch( 0, 0.5 ) 
-        # layout.addWidget( self.canvases[ tab_idx ], 0, 1, 1, 1 )
-        # layout.setColumnStretch( 1, 1 ) 
-        
+                
         self.analysis_1_tab.setLayout( layout )
 
 
@@ -1340,13 +1319,8 @@ class gui( QTabWidget ):
     def property_lookup_button_clicked( self ) :
 
         Z, A, q = self.tools_property_ion_entry.fetch() 
-
         N = A - Z 
         
-        # freq = cpt_tools.nuclear_data.
-
-        # print( cpt_tools.nuclear_data.half_lives )
-
         mass = cpt_tools.nuclear_data.masses[ Z, N ]
         half_life = cpt_tools.nuclear_data.half_lives[Z,N]
         cf_yield =  cpt_tools.nuclear_data.cf_yields[Z,N]
@@ -1363,25 +1337,9 @@ class gui( QTabWidget ):
         self.property_lookup_table.cellWidget( 0, 2 ).setText( '%.2e' % half_life )
         self.property_lookup_table.cellWidget( 0, 3 ).setText( '%.2e' % cf_yield )
         self.property_lookup_table.cellWidget( 0, 4 ).setText( '%.2e' % abund )
+
+
         
-    # def session_path_button_clicked( self ) :
-    #     print( 'INFO: setting session path' )
-    #     session_dir = self.session_path_entry.text()
-
-    #     data_name = self.data_name_entry.text() 
-        
-    #     print( session_dir )
-    #     print( data_name )
-
-    #     dir_path = str( QFileDialog.getExistingDirectory( self, "Select Directory") )
-
-    #     print( dir_path ) 
-        
-        # def analysis_dir_list_clicked( self ) :
-        
-
-
-
 def setTableWidth( table ):
 
     table.setVisible(False)
