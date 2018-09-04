@@ -10,7 +10,8 @@ from datetime import datetime
 
 import numpy as np 
 
-from cpt_tools import z_to_element, element_to_z, DEFAULT_STORAGE_DIRECTORY
+from cpt_tools import ( z_to_element, element_to_z, DEFAULT_STORAGE_DIRECTORY,
+                        lock_file, unlock_file )
 
 
 
@@ -159,8 +160,9 @@ class CPTdata( object ) :
         ret.mcp_positions = ret.all_data[:,2:]
 
         ret.num_events = len( ret.tofs )
-        ret.num_penning_ejects = 0
-        ret.num_mcp_hits = 0 
+        print( 'ret.num_events: ', ret.num_events ) 
+        # ret.num_penning_ejects = 0
+        # ret.num_mcp_hits = 0 
 
         ret.compute_polar()
         ret.apply_cuts()
@@ -202,26 +204,11 @@ class CPTdata( object ) :
         self.r_cut_upper = x 
 
     def apply_cuts( self ) :
-        pass
+        radius_mask = ( self.radii > self.r_cut_lower ) & ( self.radii < self.r_cut_upper )
+        tof_mask = ( self.tofs > self.tof_cut_lower ) & ( self.tofs < self.tof_cut_upper ) 
 
-
-    # # the sum of channels 0,1 and 2,3 should always add up to the same number.
-    # # return 0 if the data does not satisfy this 
-    # def satisfies_delay_sum_cut( self ) :
-    #     pass
-
-
-    # # check if tof of the data point falls in range of a tof 
-    # def satisfies_tof_cut( self, tof ) :        
-    #     if tof > self.tof_cut_lower and tof < self.tof_cut_upper :
-    #         return 1
-    #     return 0 
-
-    
-    # def satisfies_r_cut( self, r ) :
-    #     if r < self.r_cut_upper and r > self.r_cut_lower : 
-    #         return 1
-    #     return 0 
+        mask = radius_mask & tof_mask
+        self.cut_data_indices = np.where( mask )[0]
 
 
     # compute polar for all data. this function is implemented differently for the
@@ -495,7 +482,8 @@ class LiveCPTdata( CPTdata ) :
             
         tmp = np.concatenate( ( header_prefix, self.tabor_params.flatten(), cpt_header_key,
                                 self.all_data[ : self.num_events ].flatten() ) )
-        tmp.tofile( file_path )  
+        tmp.tofile( file_path )
+        lock_file( file_path ) 
 
             
 

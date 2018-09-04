@@ -4,40 +4,80 @@ import scipy.stats as st
 import scipy.optimize as opt
 import matplotlib.pyplot as plt 
 
+import cpt_tools
 
 
 class CPTanalyzer( object ) :
 
     def __init__( self ) :
 
-        # this will store CPTdata objects 
+        self.num_data = 0 
+
+        self.Z = 0
+        self.A = 0
+        self.N = 0
+
+        self.ame_mass = 0
+        self.ame_freq = 0
+        
+        self.current_mass_estimate = 0 
+        self.current_freq_estimate = 0 
+        
         self.data_list = [] 
 
         self.min_timestamp = np.nan
-    
+
+        # don't use numpy arrays for increased efficiency in deleting entries in the middle
         self.radii = []
         self.angles = []
         self.taccs = [] 
         self.timestamps = []
 
         # references are defined to have a tacc of 0.
-        self.reference_indices = None
+        self.reference_indices = [] 
                 
         self.f, self.axarr = plt.subplots( 3 ) 
-        self.f.subplots_adjust( hspace = 0.5 )
+        self.f.subplots_adjust( hspace = 0.8 )
 
         self.ref_drift_plot = self.axarr[0]
         self.radius_plot = self.axarr[1]
+        self.residual_plot = self.axarr[2] 
 
+        self.active_data_idx = None
+        
         
     def __del__( self ) :
         pass
 
 
+    # def compute_reference_indices( self ) :
+    #     self.reference_indices = np.where( 
+            
+    
     # apply fits and update plots 
     def append( self, cpt_data ) :
 
-        self.data_list.append( cpt_data ) 
+        self.data_list.append( cpt_data )
+        self.radii.append( None )
+        self.angles.append( None )
+        self.timestamps.append( cpt_data.timestamp )
+
+        tacc = cpt_data.tabor_params.tacc
+        self.taccs.append( tacc ) 
+
+        if tacc == 0 :
+            self.reference_indices.append( self.num_data )
+
+        self.num_data += 1 
+        self.update() 
+        
+    # def set_active_fit( self, params, errors, i ) :
+        
+        
+        
+        
+    # def apply_fit( self, i, bounds ) :
+        
         
         # if cpt_data.tacc == 0 :
         #     self.reference_timestamps.append( cpt_data.timestamp )
@@ -48,18 +88,18 @@ class CPTanalyzer( object ) :
         #     self.timestamps.append( cpt_data.timestamp )
             
         
-        self.update() 
-        pass 
+        # self.update() 
+        # pass 
 
 
-    def update_min_timestamp( self ) :
-        self.min_timestamp = np.inf
+    # def update_min_timestamp( self ) :
+    #     self.min_timestamp = np.inf
 
-        if self.timestamps :
-            self.min_timestamp = min( self.min_timestamp, min( self.timestamps ) )
+    #     if self.timestamps :
+    #         self.min_timestamp = min( self.min_timestamp, min( self.timestamps ) )
 
-        if self.reference_timestamps :
-            self.min_timestamp = min( self.min_timestamp, min( self.reference_timestamps ) )
+    #     if self.reference_timestamps :
+    #         self.min_timestamp = min( self.min_timestamp, min( self.reference_timestamps ) )
             
     
     def update_ref_drift_plot( self ) :
@@ -69,11 +109,11 @@ class CPTanalyzer( object ) :
         self.ref_drift_plot.set_ylabel( 'Absolute Angle' )
         self.ref_drift_plot.set_title( 'Reference Drift' )
                 
-        if len( self.reference_timestamps ) < 0 :
-            return
+        # if len( self.reference_timestamps ) < 0 :
+        #     return
         
-        min_timestamp = min( self.reference_timestamps ) 
-        self.references
+        # min_timestamp = min( self.reference_timestamps ) 
+        # self.references
 
 
     def update_radius_plot( self ) :
@@ -82,13 +122,44 @@ class CPTanalyzer( object ) :
         self.radius_plot.set_ylabel( 'Radius' )
         self.radius_plot.set_title( 'Radius vs. Accumulation Time' ) 
 
-        if len( self.timestamps ) > 0 :
+        if self.num_data > 0 :
             pass 
+
+
+    def update_residual_plot( self ) :
+        self.residual_plot.clear()
+        self.residual_plot.set_xlabel( 'Accumulation Time' )
+        self.residual_plot.set_ylabel( 'Residual' ) 
+        self.residual_plot.set_title( 'Residuals' ) 
+
 
         
     def update( self ) :
-        pass
+
+        self.update_ref_drift_plot()
+        self.update_radius_plot()
+        self.update_residual_plot() 
+
+
+    def set_ion_params( self, Z, A, Q ) :
+        self.Z = Z
+        self.A = A
+        self.q =  Q
+        self.N = A - Z
+        self.ame_mass = cpt_tools.nuclear_data.masses[ self.Z, self.N ]
+        self.ame_freq = cpt_tools.mass_to_omega( self.ame_mass, self.q, atomic_mass = 1 ) 
+
+
+    # def compute_ame_phase_estimate( self, tacc, ref_angle ) :
+
+    #     return 
+
     
+
+    # compute new mass estimate using all the aggregated data.
+    def compute_new_mass_estimate( self ) :
+        pass
+        
         
 def gaussian( params, x ) :
     return params[0] * np.exp( - ( x - params[1] ) ** 2

@@ -15,71 +15,63 @@ plt.rc( 'font', ** { 'size' : 6 } )
 
 kde_min = -5
 kde_max = 5
-n_kde_data = 100
+n_kde_data = 200
 n_cbar_ticks = 5
 
-mcp_hitmap_cmap = colorcet.m_rainbow
-
+# mcp_hitmap_cmap = colorcet.m_rainbow
+# mcp_hitmap_cmap = colorcet.m_rainbow_bgyrm_35_85_c69
+# mcp_hitmap_cmap = colorcet.m_linear_kryw_0_100_c71
+mcp_hitmap_cmap = colorcet.m_linear_bmw_5_95_c86
 
 
 # all 3 1d histograms have the same functionality.
 # it is all implemented here.
 class PlotterHist( object ) :
 
-    def __init__( self, ax, title, data, cut_data_indices, is_live ) :
+    def __init__( self, ax, title, data, cpt_data ) :
 
         self.ax = ax 
         self.title = title
         self.data = data
-        self.cut_data_indices = cut_data_indices 
+        self.cpt_data = cpt_data
+        
+        # self.cut_data_indices = cut_data_indices 
         self.plot = None
-        self.num_cut_data = 0
-        self.num_events = 0
+        #self.num_cut_data = 0
+        #self.num_events = 0
         self.n_bins = 0
         self.fit_params = None
         self.fit_bounds = None
-
+        
         self.plot_with_cuts = 0
-        self.is_live = is_live
-
-        # print( self.data )
         
 
     def update( self ) : 
         self.ax.clear() 
         self.ax.set_title( self.title )
 
-        # print( 'self.plot_with_cuts: ', self.plot_with_cuts )
-        # print( 'self.is_live: ', self.is_live )
-        # print( 'self.num_events: ', self.num_events ) 
-        
         if self.plot_with_cuts :
-            if self.is_live : 
-                valid_indices = self.cut_data_indices[ : self.num_cut_data ]
+            if self.cpt_data.is_live : 
+                valid_indices = self.cpt_data.cut_data_indices[ : self.cpt_data.num_cut_data ]
             else :
-                valid_indices = self.cut_data_indices
-            data = self.data[ valid_indices ] 
+                valid_indices = self.cpt_data.cut_data_indices
+            data = self.data[ valid_indices ]
+
         else :
-            data = self.data[ : self.num_events ]
+            data = self.data[ : self.cpt_data.num_events ]
         
         bins = self.n_bins
         if bins == 0 :
             bins = 'doane'
 
         if self.fit_params is not None :
-            # density = 0
             x = np.linspace( * self.fit_bounds, 100 ) 
-            self.ax.plot( x, analysis.gaussian( self.fit_params, x ),
-                              c = 'r' )
-            
+            self.ax.plot( x, analysis.gaussian( self.fit_params, x ), c = 'r' )            
             self.hist, self.bins = np.histogram( data, bins = bins )
             self.ax.scatter( self.bins[:-1], self.hist, s = 1 ) 
-            
-            # self.hist_fit_added = 1 
+        
         else :
-            density = 0 
-            
-            self.hist, self.bins, _ = self.ax.hist( data, bins = bins, density = density )
+            self.hist, self.bins, _ = self.ax.hist( data, bins = bins )
 
         
     def set_data_params( self, num_events, num_cut_data ) :
@@ -118,14 +110,17 @@ class Plotter( object ) :
         
         self.init_mcp_hitmap( self.axarr[0][0], self.f )
 
+        print( 'plotter: self.cpt_data.num_events', self.cpt_data.num_events ) 
+
+        # DO NOT CHANGE THE ORDER OF THESE 
         self.tof_hist = PlotterHist( self.axarr[0,1], 'TOF', self.cpt_data.tofs,
-                                     self.cpt_data.cut_data_indices, self.cpt_data.is_live )
+                                     self.cpt_data )
 
         self.radius_hist = PlotterHist( self.axarr[1,0], 'Radius', self.cpt_data.radii, 
-                                        self.cpt_data.cut_data_indices, self.cpt_data.is_live ) 
+                                        self.cpt_data ) 
         
         self.angle_hist = PlotterHist( self.axarr[1,1], 'Angle', self.cpt_data.angles,
-                                       self.cpt_data.cut_data_indices, self.cpt_data.is_live ) 
+                                       self.cpt_data ) 
 
         self.all_hists = [ self.tof_hist, self.radius_hist, self.angle_hist ] 
 
@@ -133,7 +128,7 @@ class Plotter( object ) :
         self.plot_with_cuts = 0
 
         self.use_kde = 0 
-        self.kde_bandwidth = 0.003
+        self.kde_bandwidth = 0.1
         self.mcp_bin_width = 0.25
         self.mcp_x_bounds = np.array( [ -5.0, 5.0 ] )
         self.mcp_y_bounds = np.array( [ -5.0, 5.0 ] )
@@ -147,19 +142,20 @@ class Plotter( object ) :
         self.angle_fit_params = None
 
 
-
     # deallocate matplotlib resources 
     def release( self ) : 
         self.f.clear() 
     
 
-        
     def update_mcp_hitmap( self ) :
 
         self.mcp_hitmap_plot = self.axarr[0][0]
         
-        if self.plot_with_cuts : 
-            valid_indices = self.cpt_data.cut_data_indices[ : self.cpt_data.num_cut_data ]
+        if self.plot_with_cuts :
+            if self.cpt_data.is_live : 
+                valid_indices = self.cpt_data.cut_data_indices[ : self.cpt_data.num_cut_data ]
+            else :
+                valid_indices = self.cpt_data.cut_data_indices
             data = self.cpt_data.mcp_positions[ valid_indices ] 
         else :
             data = self.cpt_data.mcp_positions[ : self.cpt_data.num_events ]
@@ -179,13 +175,12 @@ class Plotter( object ) :
 
             title = 'MCP Hitmap'
             self.mcp_hitmap_plot.set_title( title )
-            # self.mcp_hitmap_plot.set_xlabel( 'X' )
-            # self.mcp_hitmap_plot.set_ylabel( 'Y' ) 
 
             image, xedges, yedges, self.mcp_hitmap_im = self.mcp_hitmap_plot.hist2d(
                 data[:,0], data[:,1], ( xbins, ybins ),
                 cmap = mcp_hitmap_cmap # , range = ( (-100,100), (-100,100) )
             )
+            image = image.T
             
             xticks = xedges[:: len(xedges) // 5 ]
             yticks = yedges[:: len(yedges) // 5 ]
@@ -196,7 +191,7 @@ class Plotter( object ) :
             self.mcp_hitmap_plot.set_ylim( yedges[0], yedges[-1] )
             
         
-            self.mcp_hitmap_plot.grid()
+            self.mcp_hitmap_plot.grid( linewidth = 0.25 )
 
             if not self.mcp_hitmap_cbar :
                 divider = make_axes_locatable( self.mcp_hitmap_plot ) 
@@ -207,34 +202,34 @@ class Plotter( object ) :
                 self.mcp_hitmap_cbar = self.mcp_hitmap_f.colorbar( self.mcp_hitmap_im,
                                                                cax = self.mcp_hitmap_cbar.ax )
                         
-        else : 
-            if not self.use_kde :
-                # xbins = np.linspace( * self.mcp_x_bounds, self.mcp_bin_width + 1 ) 
-                # ybins = np.linspace( * self.mcp_y_bounds, self.mcp_bin_width + 1 )                
-                xbins = np.arange( self.mcp_x_bounds[0], self.mcp_x_bounds[1]  + self.mcp_bin_width / 2,
-                                   self.mcp_bin_width )
-                ybins = np.arange( self.mcp_y_bounds[0], self.mcp_y_bounds[1]  + self.mcp_bin_width / 2,
-                                   self.mcp_bin_width )
-                image, xedges, yedges = np.histogram2d( data[:,0], data[:,1], bins = ( xbins, ybins ) )
-                
-            else :
-                # kernel = scipy.stats.gaussian_kde( [ [1]*4, [1]*4 ], bw_method = 0.005 )
-                try : 
-                    kernel = scipy.stats.gaussian_kde( data, bw_method = 0.003 )
-                except :
-                    print( 'Warning: KDE computation failed...' )
-                    return
+        # else : 
+        if not self.use_kde :
+            # xbins = np.linspace( * self.mcp_x_bounds, self.mcp_bin_width + 1 ) 
+            # ybins = np.linspace( * self.mcp_y_bounds, self.mcp_bin_width + 1 )                
+            xbins = np.arange( self.mcp_x_bounds[0], self.mcp_x_bounds[1]  + self.mcp_bin_width / 2,
+                               self.mcp_bin_width )
+            ybins = np.arange( self.mcp_y_bounds[0], self.mcp_y_bounds[1]  + self.mcp_bin_width / 2,
+                               self.mcp_bin_width )
+            image, xedges, yedges = np.histogram2d( data[:,0], data[:,1], bins = ( xbins, ybins ) )
+            image = image.T
             
-                x = np.linspace( kde_min, kde_max, n_kde_data + 1 )
-                y = np.linspace( kde_min, kde_max, n_kde_data + 1 )
-            
-                xx, yy = np.meshgrid( x, y )
-                positions = np.vstack([xx.ravel(), yy.ravel()])
-                image = ( np.reshape( kernel( positions ).T, xx.shape)
-                          * len( self.cpt_data.candidate_mcp_positions[0] ) )
+        else :
+            # kernel = scipy.stats.gaussian_kde( [ [1]*4, [1]*4 ], bw_method = 0.005 )
+            try : 
+                kernel = scipy.stats.gaussian_kde( data.T, bw_method = self.mcp_kde_bandwidth )
+            except :
+                print( 'Warning: KDE computation failed...' )
+                return
 
-            self.mcp_hitmap_im.set_data( image.T ) 
-            
+            x = np.linspace( kde_min, kde_max, n_kde_data + 1 )
+            y = np.linspace( kde_min, kde_max, n_kde_data + 1 )
+
+            xx, yy = np.meshgrid( x, y )
+            positions = np.vstack([xx.ravel(), yy.ravel()])
+            image = np.reshape( kernel( positions ).T, xx.shape)
+                   
+        self.mcp_hitmap_im.set_data( image ) 
+
         image_min = np.min( image )
         image_max = np.max( image ) 
         ticks = np.linspace( image_min, image_max, n_cbar_ticks, dtype = int )
@@ -258,7 +253,7 @@ class Plotter( object ) :
         self.update_mcp_hitmap()
         for hist in self.all_hists :
             # if self.cpt_data.is_live : 
-            hist.set_data_params( self.cpt_data.num_events, self.cpt_data.num_cut_data ) 
+            # hist.set_data_params( self.cpt_data.num_events, self.cpt_data.num_cut_data ) 
             hist.update()
 
             
@@ -270,7 +265,10 @@ class Plotter( object ) :
             
     def set_cpt_data( self, cpt_data ) :
         self.cpt_data = cpt_data
+        
         self.tof_hist.data = cpt_data.tofs
         self.radius_hist.data = cpt_data.radii
         self.angle_hist.data = cpt_data.angles
-        
+
+        for hist in self.all_hists :
+            hist.cpt_data = cpt_data

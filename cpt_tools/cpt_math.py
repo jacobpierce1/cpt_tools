@@ -11,11 +11,13 @@ from .nuclear_data import nuclear_data
 # cesium_133_mass = 132905451.961
 # cesium_133_omega =  657844.45
 
+import numpy as np
+
 calibrant_mass = nuclear_data.masses[ calibrant_Z, calibrant_A - calibrant_Z ]
 
 
 
-# mass is the mass of the ion, not mass of atom
+# atomic_mass: 1 if the first argument is the atomic mass instead of ion mass
 def mass_to_omega( ion_mass, q, atomic_mass = 0 ) :
 
     if atomic_mass :
@@ -29,7 +31,7 @@ def mass_to_omega( ion_mass, q, atomic_mass = 0 ) :
 
 
 
-# once again, return mass of the ion, not of the atom
+# atomic_mass: 1 if the first argument is the atomic mass instead of ion mass
 def omega_to_mass( omega, q, atomic_mass = 0 ) :
     mass = ( q * calibrant_omega
              * ( calibrant_mass - nuclear_data.electron_mass )
@@ -42,19 +44,25 @@ def omega_to_mass( omega, q, atomic_mass = 0 ) :
 
 
 
-def find_wc( wc_guess, diff_phi_rad_abs, diff_phi_rad_unc, tacc ):
-    Ni = int(wc_guess * tacc)
-    wc_abs = (diff_phi_rad_abs + 2 * pi * Ni) / (2 * pi * tacc)
-    wc_unc = diff_phi_rad_unc / (2 * pi * tacc)
+# def find_wc( wc_guess, diff_phi_rad_abs, diff_phi_rad_unc, tacc ):
+#     Ni = int(wc_guess * tacc)
+#     wc_abs = (diff_phi_rad_abs + 2 * np.pi * Ni) / (2 * pi * tacc)
+#     wc_unc = diff_phi_rad_unc / (2 * np.pi * tacc)
 
-    Nf = Ni
+#     Nf = Ni
 
-    if (wc_abs - wc_guess) > 1:
-        Nf = Ni - 1
-        wc_abs = (diff_phi_rad_abs + 2 * pi * Nf) / (2 * pi * tacc)
+#     if (wc_abs - wc_guess) > 1:
+#         Nf = Ni - 1
+#         wc_abs = (diff_phi_rad_abs + 2 * pi * Nf) / (2 * pi * tacc)
 
-    if (wc_abs - wc_guess) < -1:
-        Nf = Ni + 1
-        wc_abs = (diff_phi_rad_abs + 2 * pi * Nf) / (2 * pi * tacc)
+#     if (wc_abs - wc_guess) < -1:
+#         Nf = Ni + 1
+#         wc_abs = (diff_phi_rad_abs + 2 * pi * Nf) / (2 * pi * tacc)
 
-    return wc_abs, wc_unc, Ni, Nf
+#     return wc_abs, wc_unc, Ni, Nf
+
+
+
+def compute_phase( mass, q, tacc, ref_angle, atomic_mass = 0 ) :
+    offset = ( 2 * np.pi * mass_to_omega( mass, q, atomic_mass ) * tacc ) % 2 * np.pi
+    return ref_angle + np.degrees( offset ) 

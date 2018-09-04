@@ -27,3 +27,9 @@ USE_GUI = 0
 
 DEFAULT_Z = 55
 DEFAULT_A = 133
+
+
+# change font in plots 
+from matplotlib import rcParams
+rcParams['font.family'] = 'sans-serif'
+rcParams['font.sans-serif'] = ['Arial']

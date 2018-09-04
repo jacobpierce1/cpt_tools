@@ -1,0 +1,15 @@
+GUI
+
+gui.py has two separate functions: to load and handle all gui behavior, as well as connect all the isolated components of the program (Tabor, TDC, mass identifier, file IO, etc.). In principle it would be possible, but not really necessary, to separate this into a module for the gui functionality and another "main" module which connects everything. I didn't think that was a useful abstraction, so I didn't design it this way.
+
+
+
+TABOR
+
+The Tabor is controlled through a modification of Load_big_tabor. Historically, this was the name of a MS Visual Studio solution which connects to the Tabor, loads waveforms, logs the parameters, and then exits. My only modification of the program was to change _tmain to a non-main function, and to change the build product to a dynamically linked library. The location of the file is Load_big_tabor/debug/Load_big_tabor.dll. This dll can be loaded in the python gui program. The function can then be called.
+
+
+
+TDC
+
+Occasionally, the TDC reports error messages. At the time of writing, these are just ignored. The only error message I have seen to date is 0b01000000101000000000000000000010, which is an error with 2 counts of 0xa0. The manual says regarding this error: "TDC error, reset acquisition.' However, the data keeps coming in as usual after the error is recorded without a reset. I have also seen invalid falling transitions accompanying these, such as on channel 64.

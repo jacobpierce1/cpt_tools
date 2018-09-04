@@ -18,6 +18,8 @@ import scipy
 import time
 from functools import partial
 
+import gui_helpers
+
 
 # from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QAction, QTabWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel, QLineEdit, QRadioButton, QTableWidget
 
@@ -40,14 +42,6 @@ signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 # CONFIG
 
-SUBTITLE_FONT = 'arial'
-SUBTITLE_SIZE = 16
-SUBTITLE_WEIGHT = 3
-
-DEFAULT_KDE_BW = 0.03
-
-PLOTTER_WIDGET_QLINEEDIT_WIDTH = 70
-MAX_SIZE_POLICY = size_policy = QSizePolicy( QSizePolicy.Maximum, QSizePolicy.Maximum )
 
 
 code_path = os.path.abspath( os.path.dirname( __file__ ) ) + '/'
@@ -55,588 +49,6 @@ code_path = os.path.abspath( os.path.dirname( __file__ ) ) + '/'
 # code_path = code_path[ : code_path.rfind( '/' ) ] + '/'
 
 MU_UNICODE = '\u03bc'
-
-
-class IonEntry( object ) :
-
-    def __init__( self ) :
-
-        self.layout = QFormLayout()
-        
-        labels = [ 'Z', 'A', 'q' ]
-                    
-        entries = [ None, None, None ]
-        defaults = [ '55', '133', '1' ]
-
-        ion_param_validator = QIntValidator( 0, 1000 ) 
-
-        for i in range( len( labels ) ) :
-            entries[i] = QLineEdit( defaults[i] ) 
-            entries[i].setValidator( ion_param_validator )
-            self.layout.addRow( labels[i], entries[i] )
-
-        self.z_entry, self.a_entry, self.q_entry = entries 
-        
-
-    def fetch( self ) :
-        z = self.z_entry.text() 
-        a = int( self.a_entry.text() )
-        q = int( self.q_entry.text() )
-
-        try :
-            z = int( z )
-        except ValueError : 
-            z = cpt_tools.element_to_z
-
-        return [ z, a, q ] 
-
-        
-        
-
-class MetadataWidget( object ) :
-
-    def __init__( self, cpt_data ) :
-
-        self.cpt_data = cpt_data
-        
-        self.box = QGroupBox( 'Metadata' )
-        
-        h_labels = [ 'Counts', 'Rate (Hz)' ]
-        v_labels = [ 'MCP Hits', 'Valid data', 'Penning Eject' ]
-        
-        self.table = QTableWidget( len( v_labels ), len( h_labels ) )
-        
-        size_policy = QSizePolicy( QSizePolicy.Maximum,
-                                   QSizePolicy.Maximum )
-        
-        self.table.setSizePolicy( size_policy )
-                
-        self.table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
-        self.table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
-        
-        self.table.setHorizontalHeaderLabels( h_labels )
-        self.table.setVerticalHeaderLabels( v_labels )
-
-        for i in range( len( v_labels ) ) :
-            for j in range( len( h_labels ) ) :
-                self.table.setCellWidget( i, j, QLabel( '0' ) )
-
-        self.time_label_str = 'Active time since data reset: '
-        self.time_label = QLabel( self.time_label_str )
-        # self.time_label_idx = len( time_label_str )
-
-        vbox = QVBoxLayout()
-        vbox.addWidget( self.table )
-        vbox.addWidget( self.time_label )
-        vbox.setAlignment( QtCore.Qt.AlignTop ) 
-        self.box.setLayout( vbox ) 
-
-        
-    def update( self ) :
-                
-        counts = [ self.cpt_data.num_mcp_hits, self.cpt_data.num_events,
-                   self.cpt_data.num_penning_ejects ]
-
-        for i in range( len( counts ) ) :
-            self.table.cellWidget( i, 0 ).setText( '%d' % counts[i] )
-
-            if self.cpt_data.duration > 0 : 
-                rate = counts[i] / self.cpt_data.duration
-            else :
-                rate = np.nan
-                
-            self.table.cellWidget( i, 1 ).setText( '%.2f' % rate ) 
-
-        self.time_label.setText( self.time_label_str + '%d'
-                                 % int( self.cpt_data.duration ) )
-            
-        
-        
-
-
-class PlotterWidget( object ) :
-
-    def __init__( self, plotter = None ) :
-
-        if not plotter :
-            plotter = plotting.Plotter()
-            
-        self.plotter = plotter
-
-        self.canvas = FigureCanvas( self.plotter.f )
-        self.canvas.mpl_connect( 'motion_notify_event', self.mouse_moved )        
-
-        # mcp hitmap type
-        self.plot_with_cuts_button = QCheckBox()
-        self.plot_with_cuts = 0
-        self.plot_with_cuts_button.setCheckState( self.plot_with_cuts ) 
-        self.plot_with_cuts_button.clicked.connect( self.plot_with_cuts_clicked ) 
-        
-        mcp_hitmap_buttons = QHBoxLayout()
-        self.mcp_kde_button = QRadioButton( 'KDE' )
-        self.mcp_hist_button = QRadioButton( 'Hist' )
-        self.mcp_kde_button.clicked.connect( self.set_use_kde )
-        self.mcp_hist_button.click()
-        self.mcp_hist_button.clicked.connect( self.disable_use_kde ) 
-        mcp_hitmap_buttons.addWidget( self.mcp_kde_button ) 
-        mcp_hitmap_buttons.addWidget( self.mcp_hist_button )
-        
-        # mcp hitmap histo bin size and kde bandwidth
-        # mcp_hitmap_settings = QHBoxLayout()
-        hist_nbins_validator =  QIntValidator( 0, 10000 ) 
-        self.mcp_bin_width_entry = QLineEdit( str( self.plotter.mcp_bin_width ) )
-        self.mcp_bin_width_entry.setValidator( QDoubleValidator(0., 10000., 10 ) )
-        self.mcp_bin_width_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
-        self.mcp_kde_bw_entry = QLineEdit( str( DEFAULT_KDE_BW ) )
-        self.mcp_kde_bw_entry.setValidator( QDoubleValidator( 0.0, 10000., 10 ) )
-        self.mcp_kde_bw_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
-        # mcp_hitmap_settings.addWidget( self.mcp_hist_bin_size_entry ) 
-        # mcp_hitmap_settings.addWidget( self.mcp_kde_bw_entry ) 
-
-        # mcp hitmap bounds inputs
-
-        self.mcp_bounds_entries = np.zeros( (2,2), dtype = object )
-        mcp_bounds_layouts = np.zeros(2, dtype = object ) 
-        defaults = np.array( [[-5,5], [-5,5]] )
-        mcp_hitmap_bounds_validator = QDoubleValidator( -1000, 1000, 10 )
-        
-        for i in range(2) :
-            mcp_bounds_layouts[i] = QHBoxLayout()
-            for j in range(2) :
-                self.mcp_bounds_entries[i,j] = QLineEdit( str( defaults[i,j] ) )
-                self.mcp_bounds_entries[i,j].setValidator( mcp_hitmap_bounds_validator )
-                self.mcp_bounds_entries[i,j].setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
-                mcp_bounds_layouts[i].addWidget( self.mcp_bounds_entries[i,j] )
-            
-                
-        self.tof_hist_nbins_entry =  QLineEdit( str(0) )
-        self.tof_hist_nbins_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
-        self.tof_hist_nbins_entry.setValidator( hist_nbins_validator )
-        
-        self.r_hist_nbins_entry =  QLineEdit( str(0) )
-        self.r_hist_nbins_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
-        self.r_hist_nbins_entry.setValidator( hist_nbins_validator )
-        
-        self.angle_hist_nbins_entry =  QLineEdit( str(0) )
-        self.angle_hist_nbins_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
-        self.angle_hist_nbins_entry.setValidator( hist_nbins_validator ) 
-
-        
-        # tof cut entry 
-        tof_bounds = QHBoxLayout()
-        
-        self.tof_lower_cut_entry = QLineEdit( str( self.plotter.cpt_data.tof_cut_lower ) )
-        self.tof_lower_cut_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
-        self.tof_lower_cut_entry.setValidator( QDoubleValidator(0., 10000., 10 ) )
-
-        self.tof_upper_cut_entry = QLineEdit( str( self.plotter.cpt_data.tof_cut_upper ) )
-        self.tof_upper_cut_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
-        self.tof_upper_cut_entry.setValidator( QDoubleValidator(0., 10000., 10 ) )
-
-        tof_bounds.addWidget( self.tof_lower_cut_entry ) 
-        tof_bounds.addWidget( self.tof_upper_cut_entry )
-
-        r_bounds = QHBoxLayout() 
-        
-        self.r_lower_cut_entry = QLineEdit( str(0) )
-        self.r_lower_cut_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
-        self.r_lower_cut_entry.setValidator( QDoubleValidator( 0, 10000, 3 ) )
-        
-        self.r_upper_cut_entry = QLineEdit( str(10) )
-        self.r_upper_cut_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
-        self.r_upper_cut_entry.setValidator( QDoubleValidator( 0, 10000, 3 ) )
-
-        r_bounds.addWidget( self.r_lower_cut_entry )
-        r_bounds.addWidget( self.r_upper_cut_entry ) 
-
-        layout = QVBoxLayout()
-
-        reload_button = QPushButton( 'Reload Parameters' ) 
-        reload_button.clicked.connect( self.reload_visualization_params )         
-        layout.addWidget( reload_button ) 
-        
-        controls_box = QGroupBox( 'Visualization Controls' )
-        controls_layout = QFormLayout()
-        # subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE,
-        #                                QFont.Bold ) )
-
-        # controls_layout.addRow( subtitle )
-        controls_layout.addRow( 'Plot with Cuts', self.plot_with_cuts_button ) 
-        controls_layout.addRow( 'Hitmap Type:', mcp_hitmap_buttons )
-        # controls_layout.addRow( mcp_hitmap_settings )
-        controls_layout.addRow( 'MCP bin width (mm):', self.mcp_bin_width_entry )
-        controls_layout.addRow( 'MCP KDE bandwidth:', self.mcp_kde_bw_entry )
-        controls_layout.addRow( 'MCP X Bounds:', mcp_bounds_layouts[0] ) 
-        controls_layout.addRow( 'MCP Y Bounds:', mcp_bounds_layouts[1] ) 
-        controls_layout.addRow( 'TOF hist num bins:', self.tof_hist_nbins_entry )
-        controls_layout.addRow( 'Radius hist num bins:', self.r_hist_nbins_entry )
-        controls_layout.addRow( 'Angle hist num bins:', self.angle_hist_nbins_entry )
-
-        zoom_buttons = QHBoxLayout()
-
-        zoom_in_button = QPushButton( 'Zoom In' )
-        zoom_in_button.clicked.connect( self.zoom_in )
-        zoom_buttons.addWidget( zoom_in_button ) 
-
-        zoom_out_button = QPushButton( 'Zoom Out' )
-        zoom_out_button.clicked.connect( self.zoom_out )
-        zoom_buttons.addWidget( zoom_out_button )
-        
-        controls_layout.addRow( zoom_buttons ) 
-        
-        controls_box.setLayout( controls_layout )
-        layout.addWidget( controls_box ) 
-        
-        # subtitle = QLabel( 'Data Cuts' )
-        # subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE, QFont.Bold ) )
-        # controls_layout.addRow( subtitle )
-
-        cuts_box = QGroupBox( 'Data Cuts' ) 
-        cuts_layout = QFormLayout() 
-        cuts_layout.addRow( 'TOF lower / upper bounds:', tof_bounds ) 
-        cuts_layout.addRow( 'Radius Cut:', r_bounds ) 
-        cuts_box.setLayout( cuts_layout )
-        layout.addWidget( cuts_box ) 
-
-        fits_box = QGroupBox( 'Gaussian Fitting' )
-        # fits_layout = QVBoxLayout()
-        # fits_layout.setSpacing(0)
-        
-        self.fit_widget = FitWidget( self.plotter.all_hists ) 
-
-               # self.tof_fit_widget = FitWidget( 'TOF', self.plotter.tof_hist )
-               # self.angle_fit_widget = FitWidget( 'Angle', self.plotter.angle_hist )
-               # self.radius_fit_widget = FitWidget( 'Radius', self.plotter.radius_hist )
-
-        # fits_layout.addLayout( self.tof_fit_widget.layout ) 
-        # fits_layout.addLayout( self.angle_fit_widget.layout ) 
-        # fits_layout.addLayout( self.radius_fit_widget.layout ) 
-        
-        fits_box.setLayout( self.fit_widget.layout )
-        # layout.addWidget( fits_box ) 
-
-        self.metadata_widget = MetadataWidget( self.plotter.cpt_data )
-        layout.addWidget( self.metadata_widget.box )
-
-        canvas_layout = QVBoxLayout()
-        canvas_layout.addWidget( self.canvas )
-        canvas_layout.addWidget( fits_box ) 
-
-        self.coords_label = QLabel() 
-        
-        canvas_layout.addWidget( self.coords_label )
-
-        self.grid_layout = QGridLayout()
-        self.grid_layout.addLayout( layout, 0, 0, 0, 1, QtCore.Qt.AlignLeft )
-        self.grid_layout.setColumnStretch( 0, 0.5 ) 
-        self.grid_layout.addLayout( canvas_layout, 0, 1, 1, 1 )
-        self.grid_layout.setColumnStretch( 1, 1 ) 
-
-        
-    def update( self, update_first = 0 ) :
-        if not update_first : 
-            self.canvas.draw()
-            
-        self.plotter.update_all()
-        self.metadata_widget.update()
-
-        if update_first :
-            self.canvas.draw()
-
-            
-    # deallocate plotter 
-    def release( self ) :
-        plotter.release()
-        
-    def plot_with_cuts_clicked( self ) :
-        plot_with_cuts = self.plot_with_cuts_button.checkState() 
-        self.plotter.set_plot_with_cuts( plot_with_cuts ) 
-        self.reload_visualization_params() 
-        
-    def set_use_kde( self ) :
-        self.plotter.use_kde = 1 
-
-    def disable_use_kde( self ) :
-        self.plotter.use_kde = 0 
-
-    def reload_visualization_params( self ) :
-        self.plotter.mcp_bin_width = float( self.mcp_bin_width_entry.text() )
-        self.plotter.mcp_kde_bandwidth = float( self.mcp_kde_bw_entry.text() )
-
-        self.plotter.mcp_x_bounds = np.array( [ float( self.mcp_bounds_entries[0,j].text() )
-                                                for j in range(2) ] )
-
-        self.plotter.mcp_y_bounds = np.array( [ float( self.mcp_bounds_entries[1,j].text() )
-                                                for j in range(2) ] )
-                
-        self.plotter.tof_hist_nbins = int( self.tof_hist_nbins_entry.text() ) 
-        self.plotter.r_hist_nbins = int( self.r_hist_nbins_entry.text() ) 
-        self.plotter.angle_hist_nbins = int( self.angle_hist_nbins_entry.text() )
-
-        self.plotter.cpt_data.tof_cut_lower = float( self.tof_lower_cut_entry.text() )
-        self.plotter.cpt_data.tof_cut_upper = float( self.tof_upper_cut_entry.text() )
-
-        self.plotter.tof_hist.n_bins = int( self.tof_hist_nbins_entry.text() )
-        self.plotter.radius_hist.n_bins = int( self.r_hist_nbins_entry.text() )
-        self.plotter.angle_hist.n_bins = int( self.angle_hist_nbins_entry.text() )
-        
-        self.plotter.cpt_data.tof_cut_lower = float( self.tof_lower_cut_entry.text() )
-        self.plotter.cpt_data.tof_cut_upper = float( self.tof_upper_cut_entry.text() )
-        self.plotter.cpt_data.r_cut_lower = float( self.r_lower_cut_entry.text() )
-        self.plotter.cpt_data.r_cut_upper = float( self.r_upper_cut_entry.text() )
-        
-        
-        if self.plotter.cpt_data.is_live : 
-            self.plotter.cpt_data.reset_cuts()
-        self.plotter.cpt_data.apply_cuts()
-        
-        self.plotter.rebuild_mcp_plot = 1
-
-        self.update()
-
-
-    def zoom_in( self ) :
-
-        bounds = [ self.plotter.mcp_x_bounds, self.plotter.mcp_y_bounds ]
-        new_bounds = [ None, None ]
-        for i in range(2) :
-            new_bounds[i] = bounds[i] + np.array( [ 2.5, -2.5 ] )
-            print( new_bounds[i] )
-            if new_bounds[i][1] <= new_bounds[i][0] :
-                print( 'WARNING: unable to zoom in' ) 
-                return 
-
-        for i in range(2) :
-            for j in range(2) : 
-                self.mcp_bounds_entries[i,j].setText( str( new_bounds[i][j] ) )
-
-        self.reload_visualization_params() 
-        self.update()
-        
-        
-    def zoom_out( self ) :
-        
-        bounds = [ self.plotter.mcp_x_bounds, self.plotter.mcp_y_bounds ]
-        new_bounds = [ None, None ]
-        for i in range(2) :
-            new_bounds[i] = bounds[i] + np.array( [ -2.5, 2.5 ] )
-            print( new_bounds[i] ) 
-            if new_bounds[i][1] <= new_bounds[i][0] :
-                print( 'WARNING: unable to zoom in' ) 
-                return 
-
-        for i in range(2) :
-            for j in range(2) : 
-                self.mcp_bounds_entries[i,j].setText( str( new_bounds[i][j] ) )
-
-        self.reload_visualization_params() 
-        self.update()
-
-        
-        
-    def set_cpt_data( self, cpt_data ) :
-        self.plotter.set_cpt_data( cpt_data ) 
-        self.metadata_widget.cpt_data = cpt_data
-        
-
-    def mouse_moved( self, mouse_event ) :
-        if mouse_event.inaxes:
-            x, y = mouse_event.xdata, mouse_event.ydata
-            self.coords_label.setText( '(%.2f, %.2f)' % (x ,y ) )
-
-
-
-            
-                                       
-class FitWidget( object ) :
-
-    def __init__( self, plotter_hist_list ) :
-
-        self.layout = QVBoxLayout()
-
-        self.hists = plotter_hist_list 
-
-        params_labels = [ 'A', '\u03c3', '\u03bc', '\u03c72' ]
-        self.num_params = len( params_labels ) 
-
-        h_labels = [ '', '', 'Left', 'Right' ]
-        h_labels.extend( params_labels ) 
-        v_labels = [ x.title for x in plotter_hist_list ] 
-        
-        nrows = len( v_labels )
-        ncols = len( h_labels ) 
-
-        self.table = QTableWidget( nrows, ncols ) 
-        self.table.setMinimumWidth( 400 ) 
-        self.table.setMaximumHeight(200)
-        # size_policy = QSizePolicy( QSizePolicy.Maximum,
-        #                            QSizePolicy.Maximum )
-        
-        # self.table.setSizePolicy( size_policy )
-                
-        self.table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
-        self.table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
-        # header = self.table.horizontalHeader() 
-        # header.setSectionResizeMode( 0, QHeaderView.Stretch )
-        # for j in range( 1, len( h_labels ) ) : 
-        #     header.setSectionResizeMode( j, QHeaderView.ResizeToContents )
-        
-        self.table.setHorizontalHeaderLabels( h_labels )
-        self.table.setVerticalHeaderLabels( v_labels )
-
-        self.bounds_entries = [] 
-        self.params_labels = []
-        fit_buttons = []
-        delete_buttons = [] 
-        
-        for i in range( len( plotter_hist_list ) ) :
-            
-            self.bounds_entries.append( [ QLineEdit(), QLineEdit() ] )
-            self.params_labels.append( [ QLabel() for i in range( self.num_params ) ] )
-
-            fit_buttons.append( QPushButton( 'Fit' ) )
-            delete_buttons.append( QPushButton( 'Delete' ) )
- 
-            fit_buttons[i].clicked.connect( lambda state, a=i : self.fit_button_clicked( a ) )
-            delete_buttons[i].clicked.connect( lambda state, a=i : self.delete_button_clicked( a ) )
-            # fit_buttons[i].clicked.emit() 
-
-            self.table.setCellWidget( i, 0, fit_buttons[i] )
-            self.table.setCellWidget( i, 1, delete_buttons[i] ) 
-
-            self.table.setCellWidget( i, 2, self.bounds_entries[i][0] )
-            self.table.setCellWidget( i, 3, self.bounds_entries[i][1] )
-
-            for j in range( self.num_params ) :
-                self.table.setCellWidget( i, 4 + j, self.params_labels[i][j] )
-
-            # self.left_x_bound_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
-            # self.right_x_bound_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
-        
-        # self.layout.setSpacing(0)
-        # self.layout.addLayout( label_layout ) 
-
-        self.layout.addWidget( self.table )
-        
-
-        
-    def fit_button_clicked( self, i ) :
-                
-        try : 
-            left_x_bound = float( self.bounds_entries[i][0].text() )
-            right_x_bound = float( self.bounds_entries[i][1].text() )
-        except :
-            print( 'WARNING: please specify bounds for fit' )
-            return
-
-        bounds = [ left_x_bound, right_x_bound ]    
-        fit = self.hists[i].apply_fit( bounds ) 
-        if fit is None :
-            return
-        
-        params, params_errors, redchisqr = fit
-        
-        if params_errors is not None : 
-            labels = [ '%.2f\u00b1%.2f' % ( params[j], params_errors[j] ) for j in range( len(params) ) ]
-        else :
-            labels = [ '%.2f' % params[j] for j in range( len(params) ) ]
-            
-        labels.append( '%.2f' % redchisqr )
-        for j in range( len(params) + 1 ) : 
-            self.params_labels[i][j].setText( labels[j] ) 
-            
-        # ret = analysis.gaussian_fit( self.cpt_data ) 
-        
-
-    def delete_button_clicked( self, i ) :
-        self.hists[i].remove_fit() 
-    
-
-
-
-
-class CombinedAnalysisWidget( object ) :
-
-    def __init__( self ) :
-                
-        data_box = QGroupBox( 'Processed Data' ) 
-        data_layout = QVBoxLayout()
-        data_box.setLayout( data_layout ) 
-
-        self.mass_label_str = 'Current Mass Estimate: '
-        self.mass_estimate_label = QLabel( self.mass_label_str + '?' ) 
-        
-        data_cols = [ 'Accumulation \nTime (ms)', 'Measured \u0394\u03B8 (deg)' ]
-        self.data_table = QTableWidget( 1, len( data_cols ) )
-        self.data_table.setHorizontalHeaderLabels( data_cols )
-        self.data_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
-        # self.data_table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
-
-
-        data_layout.addWidget( self.mass_estimate_label ) 
-        data_layout.addWidget( self.data_table )
-
-        for i in range( len( data_cols ) ) :
-            self.data_table.setColumnWidth( i, 100 ) 
-        # self.data_table.setSizePolicy( MAX_SIZE_POLICY )
-
-        
-        self.data_table.setMinimumWidth( 250 ) 
-        # self.data_table.resizeColumnsToContents()
-        
-        # self.data_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch)
-
-        # self.data_table.setSizeAdjustPolicy( QAbstractScrollArea.AdjustToContents )
-        # self.data_table.resizeColumnsToContents()
-        # self.data_table.resizeColumnsToContents()
-
-        
-        # setTableWidth( self.data_table ) 
-        
-        predictions_box = QGroupBox( 'Predictions' ) 
-        predictions_layout = QVBoxLayout()
-        predictions_box.setLayout( predictions_layout )
-                
-        predictions_cols = [ 'Accumulation \nTime (ms)',
-                             'Corrected \u0394\u03B8 \nPrediction (deg)',
-                             'AME \u0394\u03B8 \nPrediction (deg)' ]
-        self.predictions_table = QTableWidget( 1, len( predictions_cols ) )
-        self.predictions_table.setHorizontalHeaderLabels( predictions_cols )
-        self.predictions_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
-        # self.predictions_table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
-        self.predictions_table.setMinimumWidth( 400 )
-        predictions_layout.addWidget( self.predictions_table ) 
-        # self.predictions_table.setSizePolicy( MAX_SIZE_POLICY )
-
-
-        canvas_box = QGroupBox( 'Visualization' ) 
-        canvas_layout = QVBoxLayout() 
-        self.analyzer = analysis.CPTanalyzer()
-        self.canvas = FigureCanvas( self.analyzer.f )
-        canvas_layout.addWidget( self.canvas )
-        canvas_box.setLayout( canvas_layout ) 
-
-        
-        self.layout = QHBoxLayout() 
-        self.layout.addWidget( data_box )
-        self.layout.addWidget( predictions_box ) 
-        self.layout.addWidget( canvas_box )        
-
-        # self.layout = QGridLayout()
-        # # self.layout.addWidget( data_box, 0, 0, 0, 0, QtCore.Qt.AlignLeft )
-        # self.layout.addWidget( data_box, 0, 0 )
-        # # self.layout.setColumnStretch( 0, 1 ) 
-        # self.layout.addWidget( predictions_box, 0, 1 )
-        # # self.layout.setColumnStretch( 1, 0.25 ) 
-        # #self.layout.addWidget( canvas_box, 0, 2 ) 
-        # # self.layout.setColumnStretch( 2, 0 ) 
-        
-
-    # def update( self ) :
-    #     self.analyzer.update()
-    #     self.canvas.draw() 
-        
-
 
         
         
@@ -666,30 +78,30 @@ class gui( QTabWidget ):
                 
         ( self.controls_tab_idx,
           self.processed_data_tab_idx,
-          self.analysis_1_tab_idx,
-          self.analysis_2_tab_idx,
+          self.isolated_analysis_tab_idx,
+          self.combined_analysis_tab_idx,
           self.tools_tab_idx,
           self.help_tab_idx ) = range(6)
         
         self.controls_tab = QWidget() 
         self.processed_data_tab = QWidget()
         # self.unprocessed_data_tab = QWidget()
-        self.analysis_1_tab = QWidget()
-        self.analysis_2_tab = QWidget()
+        self.isolated_analysis_tab = QWidget()
+        self.combined_analysis_tab = QWidget()
         self.tools_tab = QWidget() 
         self.help_tab = QWidget()
         
         tabs = [ self.controls_tab, self.processed_data_tab,
                  # self.unprocessed_data_tab,
-                 self.analysis_1_tab,
-                 self.analysis_2_tab,
+                 self.isolated_analysis_tab,
+                 self.combined_analysis_tab,
                  self.tools_tab,
                  self.help_tab ]
 
         tab_idxs = [ self.controls_tab_idx, self.processed_data_tab_idx,
                      # self.unprocessed_data_tab_idx,
-                     self.analysis_1_tab_idx,
-                     self.analysis_2_tab_idx,
+                     self.isolated_analysis_tab_idx,
+                     self.combined_analysis_tab_idx,
                      self.tools_tab_idx,
                      self.help_tab_idx ]
 
@@ -708,8 +120,8 @@ class gui( QTabWidget ):
         self.controls_tab_init()
         self.processed_data_tab_init()
         # self.unprocessed_data_tab_init()
-        self.analysis_1_tab_init()
-        self.analysis_2_tab_init() 
+        self.isolated_analysis_tab_init()
+        self.combined_analysis_tab_init() 
         self.tools_tab_init() 
         self.help_tab_init() 
         
@@ -743,6 +155,22 @@ class gui( QTabWidget ):
             
         # subtitle = self.make_subtitle( 'Tabor Controls' ) 
         # tabor_layout.addRow( subtitle )
+
+        tmp = QHBoxLayout()
+        tmp.setAlignment( QtCore.Qt.AlignLeft )
+        self.tabor_save_checkbox = QCheckBox()
+        self.tabor_save_checkbox.setCheckState(2)
+        tmp.addWidget( self.tabor_save_checkbox )
+        tmp.addWidget( QLabel( 'Automatically save when loading tabor' ) )
+        tabor_layout.addLayout( tmp )
+
+        tmp = QHBoxLayout()
+        tmp.setAlignment( QtCore.Qt.AlignLeft )
+        self.tabor_clear_checkbox = QCheckBox()
+        self.tabor_clear_checkbox.setCheckState(2)
+        tmp.addWidget( self.tabor_clear_checkbox )
+        tmp.addWidget( QLabel( 'Automatically clear when loading tabor' ) )
+        tabor_layout.addLayout( tmp ) 
         
         self.load_tabor_button = QPushButton( 'Load Tabor Parameters' )
         self.load_tabor_button.clicked.connect( self.load_tabor_button_clicked ) 
@@ -810,7 +238,12 @@ class gui( QTabWidget ):
             self.set_params_from_ion_data_button_clicked ) 
         tabor_layout.addWidget( self.set_params_from_ion_data_button )
 
-        self.tabor_ion_entry = IonEntry()
+        set_analysis_ion_data_button = QPushButton( 'Set Analysis Ion Data' )
+        set_analysis_ion_data_button.clicked.connect(
+            self.set_analysis_ion_data )
+        tabor_layout.addWidget( set_analysis_ion_data_button ) 
+        
+        self.tabor_ion_entry = gui_helpers.IonEntry()
         tabor_layout.addLayout( self.tabor_ion_entry.layout ) 
 
         self.set_params_from_ion_data_button_clicked()
@@ -854,7 +287,7 @@ class gui( QTabWidget ):
         self.comment_entry = QTextEdit()
         daq_layout.addRow( 'Session Comments', self.comment_entry ) 
 
-        metadata_widget = MetadataWidget( self.processor )
+        metadata_widget = gui_helpers.MetadataWidget( self.processor )
 
 
         batch_box = QGroupBox( 'Batch Instructions' )
@@ -920,7 +353,7 @@ class gui( QTabWidget ):
 
         tab_idx = self.processed_data_tab_idx
         
-        processed_data_plotter_widget = PlotterWidget( self.plotter )
+        processed_data_plotter_widget = gui_helpers.PlotterWidget( self.plotter )
         
         # matplotlib canvas 
         self.canvases[ tab_idx ] = processed_data_plotter_widget.canvas
@@ -954,15 +387,16 @@ class gui( QTabWidget ):
 
         
         
-    def analysis_1_tab_init( self ):
+    def isolated_analysis_tab_init( self ):
 
         self.analyzer = analysis.CPTanalyzer()
         analysis_plotter = plotter.Plotter( CPTdata() ) 
-        self.analysis_plotter_widget = PlotterWidget( analysis_plotter ) 
+        self.analysis_plotter_widget = gui_helpers.PlotterWidget( analysis_plotter ) 
         
-        tab_idx = self.analysis_1_tab_idx 
+        tab_idx = self.isolated_analysis_tab_idx 
         
         self.analysis_data_dirs_qlist = QListWidget()
+        self.analysis_data_dirs_qlist.setMinimumWidth( 200 ) 
         self.analysis_data_dirs_qlist.itemClicked.connect( self.set_analysis_plotter_data ) 
         # self.analysis_data_dirs_qlist.addItem( 'test' )
 
@@ -987,15 +421,17 @@ class gui( QTabWidget ):
         layout.addWidget( analysis_controls_box )
         layout.addLayout( self.analysis_plotter_widget.grid_layout ) 
                 
-        self.analysis_1_tab.setLayout( layout )
+        self.isolated_analysis_tab.setLayout( layout )
 
 
         
-    def analysis_2_tab_init( self ) :
+    def combined_analysis_tab_init( self ) :
 
-        tmp = CombinedAnalysisWidget() 
+        self.set_analysis_ion_data()
+        self.combined_analysis_widget = gui_helpers.CombinedAnalysisWidget( self.analyzer )
+        self.combined_analysis_widget.update()
         
-        self.analysis_2_tab.setLayout( tmp.layout )
+        self.combined_analysis_tab.setLayout( self.combined_analysis_widget.layout )
 
         
 
@@ -1008,7 +444,7 @@ class gui( QTabWidget ):
         mass_identifier_box = QGroupBox( 'Mass Identifier' )
         # mass_identifier_box.setStyleSheet( '
         tmp = QFormLayout()
-        self.tools_freq_entry = QLineEdit( '616024' ) 
+        self.tools_freq_entry = QLineEdit( '675000.3' ) 
         tmp.addRow( 'Cyclotron Frequency', self.tools_freq_entry )
         self.tools_freq_delta_entry = QLineEdit( '0.5' ) 
         tmp.addRow( 'Cyclotron Frequency Uncertainty', self.tools_freq_delta_entry )
@@ -1031,7 +467,7 @@ class gui( QTabWidget ):
         # tmp_layout = QVBoxLayout
         tmp = QVBoxLayout()
 
-        self.tools_property_ion_entry = IonEntry()
+        self.tools_property_ion_entry = gui_helpers.IonEntry()
         tmp.addLayout( self.tools_property_ion_entry.layout )
         
         self.tools_property_button = QPushButton( 'Look Up' ) 
@@ -1141,28 +577,39 @@ class gui( QTabWidget ):
 
 
     def load_tabor_button_clicked( self ) :
+
+        self.tdc.pause()
+
+        save = self.tabor_save_checkbox.isChecked()
+        clear = self.tabor_clear_checkbox.isChecked() 
+
+        if save :
+            print( 'INFO: saving' )
+            self.save_button_clicked() 
+                
+        if clear :
+            print( 'INFO: clearing' ) 
+            self.processor.clear()
+            self.tdc.clear()
+                
         thread = threading.Thread( target = self.load_tabor_button_clicked_target )
         thread.start()
+
+        self.tdc.resume()
         
 
     def load_tabor_button_clicked_target( self ) :
         with self.thread_lock : 
             print( 'INFO: loading tabor...' )
 
-            self.tdc.pause()
-            self.tdc.clear()
-            self.processor.clear() 
-        
             tabor_params = self.fetch_tabor_params() 
             
             if config.USE_TABOR :
                 self.tabor.load_params( tabor_params ) 
             else :
                 print( 'INFO: simulating tabor load...' )
-                time.sleep( 5 )
+                time.sleep( 3 )
                 print( 'Done.' )
-
-            self.tdc.resume()
 
 
     def fetch_tabor_params( self ) :
@@ -1205,6 +652,15 @@ class gui( QTabWidget ):
             self.tabor_table.cellWidget(0,i+1).setText( '%.1f' % frequencies[i] )
         
         self.processor.tabor_params = self.fetch_tabor_params() 
+        #self.analyzer.set_ion_params( ion_params )
+        
+
+    def set_analysis_ion_data( self )  :
+        Z, A, q = self.tabor_ion_entry.fetch()
+        self.analyzer.set_ion_params( Z, A, q )
+        self.processor.Z = Z
+        self.processor.A = A
+        
         
             
     def toggle_daq_button_clicked( self, toggle = 1 ) :
@@ -1287,18 +743,24 @@ class gui( QTabWidget ):
          
         self.analysis_plotter_widget.update( update_first = 1 )
 
+        self.combined_analysis_widget.update()
+        
         
     def set_analysis_plotter_data( self, widget ) :
         row = self.analysis_data_dirs_qlist.currentRow()
         self.analysis_plotter_widget.set_cpt_data( self.analyzer.data_list[row] ) 
         self.analysis_plotter_widget.update()
+        self.analyzer.active_data_idx = row 
         
         # print( self.analysis_plotter_widget.cpt_data.
 
         
     def delete_button_clicked( self ) :
         row = self.analysis_data_dirs_qlist.currentRow() 
-        self.analysis_data_dirs_qlist.takeItem( row ) 
+        self.analysis_data_dirs_qlist.takeItem( row )
+
+        row = self.analysis_data_dirs_qlist.currentRow()
+        self.analyzer.active_data_idx = row 
         # del self.analysis_data_list[ row ]
         
         
@@ -1327,7 +789,6 @@ class gui( QTabWidget ):
         cf_yield =  cpt_tools.nuclear_data.cf_yields[Z,N]
         abund = cpt_tools.nuclear_data.rel_abundances[Z,N]
         
-
         if q > 0 : 
             omega = cpt_tools.mass_to_omega( mass, q, 1 )
         else :
@@ -1340,21 +801,6 @@ class gui( QTabWidget ):
         self.property_lookup_table.cellWidget( 0, 4 ).setText( '%.2e' % abund )
 
 
-        
-def setTableWidth( table ):
-
-    table.setVisible(False)
-    table.verticalScrollBar().setValue(0)
-    table.resizeColumnsToContents()
-    table.setVisible(True)
-        
-    width = table.verticalHeader().width()
-    width += table.horizontalHeader().length()
-
-    if table.verticalScrollBar().isVisible():
-        width += table.verticalScrollBar().width()
-        width += table.frameWidth() * 2
-        table.setFixedWidth(width)
 
 
         
