@@ -20,7 +20,7 @@ _max_tdc_buf_size = 2**14
 code_path = os.path.abspath( os.path.dirname( __file__ ) )
 os.chdir( code_path ) 
 _dll_path = code_path + '\hptdc_driver_3.4.3_x86_c_wrap.dll'
-print( _dll_path ) 
+print( 'INFO: loading TDC dll: ', _dll_path ) 
 fake_data_path = os.path.join( code_path, '..', 'debug', 'test_data_tabor_on.npy' )
 
 SAVE_FAKE_DATA = 0
@@ -52,8 +52,8 @@ class TDC( object ) :
             self.tdc_driver_lib.TDCManager_Start( self.tdc_ctx )
                 
             # verify that the TDC is functioning as expected
-            state = self.get_state()
-            print( 'state: ', state )
+            # state = self.get_state()
+            # print( 'state: ', state )
             self.collecting_data = 1
                 
             # register this function to be called when the program 
@@ -165,7 +165,7 @@ class TDC( object ) :
             print( 'BENCHMARK: read %d hits in %f ms'
                    % ( self.num_data_in_buf, diff ) )
             print( 'Num rollovers: %d ' % np.sum( self.rollovers[ : self.num_data_in_buf ] ))
-            print( 'State: %d' % self.get_state() )
+            # print( 'State: %d' % self.get_state() )
             # print( 'num data in buf', self.num_data_in_buf )
         
         if SAVE_FAKE_DATA : 

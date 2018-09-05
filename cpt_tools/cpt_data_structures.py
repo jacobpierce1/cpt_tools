@@ -4,7 +4,7 @@
 import numpy as np 
 import dill
 import time
-import config
+# import config
 import os
 from datetime import datetime
 
@@ -308,7 +308,7 @@ class LiveCPTdata( CPTdata ) :
                 if chan != 6 :
                     i += 1 
                     continue
-                print( 'first pass complete' )
+                # print( 'first pass complete' )
                 self.first_pass = 0
 
             # new trigger reached (automatically happens after first pass)

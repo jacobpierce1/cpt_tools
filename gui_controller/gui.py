@@ -179,65 +179,11 @@ class gui( QTabWidget ) :
         self.tabor_status_label = QLabel()
         tabor_layout.addWidget( self.tabor_status_label ) 
         self.toggle_tabor_label( -1 ) 
-        
-        tmp = QFormLayout()
-        
-        self.num_steps_entry = QLineEdit( '5' )
-        tmp.addRow( 'Num Steps:', self.num_steps_entry ) 
 
-        self.tacc_entry = QLineEdit( '68' )
-        tmp.addRow( 'Accumulation Time (%ss):' % MU_UNICODE, self.tacc_entry ) 
-
-        tabor_layout.addLayout( tmp ) 
+        self.tabor_params_widget = gui_helpers.TaborParamsWidget( 1, 1 )
+        tabor_layout.addLayout( self.tabor_params_widget.layout ) 
+        self.tabor_table = self.tabor_params_widget.table
         
-        nrows = 5
-        ncols = 3 
-        
-        self.tabor_table = QTableWidget( nrows, ncols )
-        self.tabor_table.setMinimumHeight( 150 ) 
-        
-        # combination of size policy change and resizemode change
-        # makes the table not expand more than necessary 
-        # size_policy = QSizePolicy( QSizePolicy.Maximum, QSizePolicy.Maximum )
-        
-        # self.tabor_table.setSizePolicy( size_policy )
-        # self.load_tabor_button.setSizePolicy( size_policy ) 
-        
-        self.tabor_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
-        self.tabor_table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
-        
-        self.tabor_table.setHorizontalHeaderLabels( [ 'w_-', 'w_+', 'w_c' ] )
-        self.tabor_table.setVerticalHeaderLabels( [ 'omega', 'phase', 'amp',
-                                               'loops', 'length' ] )
-        
-        defaults = [ [ 1600.0, 656252.0, 0.5 ],
-                     [ -140.0, 0.0, 0.0 ],
-                     [ 0.0005, 0.2, 0.5 ],
-                     [ 1, 100, 208 ],
-                     [ 3, 1, 1 ]
-        ]
-                
-        omega_validator = QDoubleValidator( 0, 1e8, 4 ) 
-        phase_validator = QDoubleValidator( -180.0, 180.0, 4 ) 
-        amp_validator = QDoubleValidator( 0, 1.0, 4 ) 
-        int_validator = QIntValidator( 0, 300 ) 
-        
-        validators = [
-            [ omega_validator ] * 3,
-            [ phase_validator ] * 3,
-            [ amp_validator ] * 3,
-            [ int_validator ] * 3,
-            [ int_validator ] * 3
-        ]
-        
-        for i in range( nrows ) :
-            for j in range( ncols ) :
-                tmp = QLineEdit( str( defaults[i][j] ) )
-                tmp.setValidator( validators[i][j] )
-                self.tabor_table.setCellWidget( i,j, tmp )
-
-        tabor_layout.addWidget( self.tabor_table )
-
         self.set_params_from_ion_data_button = QPushButton( 'Set Params From Ion Data' )
         self.set_params_from_ion_data_button.clicked.connect(
             self.set_params_from_ion_data_button_clicked ) 
@@ -297,6 +243,9 @@ class gui( QTabWidget ) :
         daq_layout.addRow( 'Session Comments', self.comment_entry ) 
 
         metadata_widget = gui_helpers.MetadataWidget( self.processor )
+
+
+        # current_tabor_params_box = QBoxWidget( 
         
 
         batch_box = QGroupBox( 'Batch Instructions' )
@@ -679,7 +628,7 @@ class gui( QTabWidget ) :
         with self.thread_lock : 
             print( 'INFO: loading tabor...' )
 
-            tabor_params = self.fetch_tabor_params() 
+            tabor_params = self.tabor_params_widget.fetch()
             
             if config.USE_TABOR :
                 self.tabor.load_params( tabor_params ) 
@@ -692,25 +641,12 @@ class gui( QTabWidget ) :
         self.toggle_tabor_label( 1 ) 
 
         
-    def fetch_tabor_params( self ) :
-        tacc = int( self.tacc_entry.text() ) 
-        nsteps = int( self.num_steps_entry.text() )
-        types = [ float, float, float, int, int ]
-        data = [ [ types[i]( self.tabor_table.cellWidget( i, j ).text() ) 
-                   for j in range(3) ] 
-                 for i in range( 5) ]
+    # def fetch_tabor_params( self ) :
         
-        print( data )
-        freqs, phases, amps, loops, steps = data 
-            
-        tabor_params = cpt_tools.TaborParams( tacc, nsteps, freqs, phases,
-                                              amps, loops, steps )
-
-        return tabor_params 
         
 
-    def set_tabor_params( self, tabor_params ) :
-        print( 'Setting tabor params...' )
+    # def set_tabor_params( self, tabor_params ) :
+    #     print( 'Setting tabor params...' )
 
 
         
@@ -749,7 +685,7 @@ class gui( QTabWidget ) :
         for i in range( 2 ) :
             self.tabor_table.cellWidget(0,i+1).setText( '%.1f' % frequencies[i] )
         
-        self.processor.tabor_params = self.fetch_tabor_params() 
+        self.processor.tabor_params = self.tabor_params_widget.fetch() 
         #self.analyzer.set_ion_params( ion_params )
         
 
@@ -874,7 +810,7 @@ class gui( QTabWidget ) :
 
         toggle_color( self.batch_start_button, 1 )
         self.batch_start_button.setText( 'Batch Running' )
-        tabor_params = self.fetch_tabor_params()
+        tabor_params = self.tabor_params_widget.fetch()
         
         batch_thread = threading.Thread( target = self.run_batch, args = (tabor_params, batch_data,
                                                                           stop_time, stop_counts ) )
@@ -900,7 +836,7 @@ class gui( QTabWidget ) :
             
             self.tacc_entry.setText( str( tacc ) ) 
             
-            self.set_tabor_params( tabor_params )
+            # self.set_tabor_params( tabor_params )
 
             self.tdc.pause()
             self.toggle_tabor_label( 0 ) 
@@ -1009,7 +945,7 @@ class gui( QTabWidget ) :
 
         if row > 0 : 
             self.set_analysis_plotter_data( row - 1 ) 
-
+        
         self.analysis_plotter_widget.update()
         
         # del self.analysis_data_list[ row ]
