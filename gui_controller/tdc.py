@@ -112,6 +112,7 @@ class TDC( object ) :
         
         
     def get_state( self ) :
+        state = -1
         if not config.USE_FAKE_DATA : 
             state = self.tdc_driver_lib.TDCManager_GetState( self.tdc_ctx )
         return state
@@ -163,7 +164,8 @@ class TDC( object ) :
             diff = ( end - start ) * 1000 
             print( 'BENCHMARK: read %d hits in %f ms'
                    % ( self.num_data_in_buf, diff ) )
-
+            print( 'Num rollovers: %d ' % np.sum( self.rollovers[ : self.num_data_in_buf ] ))
+            print( 'State: %d' % self.get_state() )
             # print( 'num data in buf', self.num_data_in_buf )
         
         if SAVE_FAKE_DATA : 

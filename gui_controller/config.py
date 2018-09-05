@@ -4,7 +4,7 @@ IS_WINDOWS = ( os.name == 'nt' )
 
 USE_TABOR = 1 
 USE_FAKE_DATA = 0
-BENCHMARK = 0
+BENCHMARK = 1
 SAVEDIR = None
 PRINT_TDC_DATA = 0
 
