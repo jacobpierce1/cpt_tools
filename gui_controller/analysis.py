@@ -46,9 +46,17 @@ class CPTanalyzer( object ) :
         self.active_data_idx = None
         
         
-    def __del__( self ) :
-        pass
+    def __del__( self, idx ) :
 
+        del self.radii[ idx ]
+        del self.angles[ idx ]
+        del self.taccs[ idx ]
+        del self.timestamps[ idx ]
+
+        try : 
+            self.reference_indices.remove( idx ) 
+        except :
+            pass
 
     # def compute_reference_indices( self ) :
     #     self.reference_indices = np.where( 
@@ -58,8 +66,8 @@ class CPTanalyzer( object ) :
     def append( self, cpt_data ) :
 
         self.data_list.append( cpt_data )
-        self.radii.append( None )
-        self.angles.append( None )
+        self.radii.append( np.nan )
+        self.angles.append( np.nan )
         self.timestamps.append( cpt_data.timestamp )
 
         tacc = cpt_data.tabor_params.tacc
@@ -117,29 +125,36 @@ class CPTanalyzer( object ) :
 
 
     def update_radius_plot( self ) :
+        print( 'reached' ) 
+        
         self.radius_plot.clear()
         self.radius_plot.set_xlabel( 'Accumulation Time' )
         self.radius_plot.set_ylabel( 'Radius' )
         self.radius_plot.set_title( 'Radius vs. Accumulation Time' ) 
 
-        if self.num_data > 0 :
-            pass 
+        if self.num_data == 0 :
+            return
+        
+        print( 'plotting radii' ) 
+        print( self.taccs )
+        print( self.radii ) 
 
+        self.radius_plot.scatter( self.taccs, self.radii, s = 1, zorder = 2 ) 
 
+        
     def update_residual_plot( self ) :
         self.residual_plot.clear()
         self.residual_plot.set_xlabel( 'Accumulation Time' )
         self.residual_plot.set_ylabel( 'Residual' ) 
         self.residual_plot.set_title( 'Residuals' ) 
-
-
+        
         
     def update( self ) :
 
         self.update_ref_drift_plot()
         self.update_radius_plot()
         self.update_residual_plot() 
-
+                
 
     def set_ion_params( self, Z, A, Q ) :
         self.Z = Z
@@ -160,7 +175,20 @@ class CPTanalyzer( object ) :
     def compute_new_mass_estimate( self ) :
         pass
         
+
+
+
+class GaussianFit( object ) :
+
+    def __init__( self, bounds, params, params_errors, redchisqr ) : 
+        self.bounds = bounds
+        self.params = params
+        self.params_errors = params_errors
+        self.redchisqr = redchisqr 
         
+        
+
+    
 def gaussian( params, x ) :
     return params[0] * np.exp( - ( x - params[1] ) ** 2
                                / ( 2 * params[2] ** 2 ) )
@@ -178,7 +206,8 @@ def _resid( params, func, x, y, dy ) :
 
 
 def fit_gaussian( x, y, bounds ) :
-
+    print( 'called fit_gaussian' ) 
+    
     indices = ( x >= bounds[0] ) & ( x <= bounds[1] )
 
     x_cut = x[ indices ]
@@ -200,13 +229,13 @@ def fit_gaussian( x, y, bounds ) :
 
     params_guess = np.array( [ A_guess, mu_guess, sigma_guess ] )
 
-    print( 'params_guess: ', params_guess )
+    # print( 'params_guess: ', params_guess )
     
     ret = scipy.optimize.leastsq( _resid, params_guess, full_output = 1,
                                   args = ( gaussian, x_cut, y_cut, dy_cut ) )
 
     params, cov, info, mesg, success = ret
-
+    params[2] = np.abs( params[2] ) 
     
 
     if success > 0 :
@@ -221,7 +250,7 @@ def fit_gaussian( x, y, bounds ) :
         else :
             params_errors = None
             
-        return params, params_errors, redchisqr # pvalue
+        return GaussianFit( bounds, params, params_errors, redchisqr ) # pvalue
 
     else :
         print( 'WARNING: fit failed...' )

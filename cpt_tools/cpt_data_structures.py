@@ -158,8 +158,9 @@ class CPTdata( object ) :
         ret.tofs = ret.all_data[:,0]
         ret.timestamps = ret.all_data[:,1]
         ret.mcp_positions = ret.all_data[:,2:]
-
+        
         ret.num_events = len( ret.tofs )
+        # ret.num_cut_data = len( ret.cut_data ) 
         print( 'ret.num_events: ', ret.num_events ) 
         # ret.num_penning_ejects = 0
         # ret.num_mcp_hits = 0 
@@ -209,7 +210,8 @@ class CPTdata( object ) :
 
         mask = radius_mask & tof_mask
         self.cut_data_indices = np.where( mask )[0]
-
+        self.num_cut_data = len( self.cut_data_indices ) 
+        
 
     # compute polar for all data. this function is implemented differently for the
     # live subclass so that only the radii that are yet to be computed
@@ -470,8 +472,7 @@ class LiveCPTdata( CPTdata ) :
         except( OSError ) :
             os.makedirs( path, exist_ok = 1 ) 
             self._save( file_path )
-
-
+            
             
     def _save( self, file_path ) :
 
@@ -482,6 +483,12 @@ class LiveCPTdata( CPTdata ) :
             
         tmp = np.concatenate( ( header_prefix, self.tabor_params.flatten(), cpt_header_key,
                                 self.all_data[ : self.num_events ].flatten() ) )
+
+        try :
+            os.remove( file_path )
+        except OSError :
+            pass
+            
         tmp.tofile( file_path )
         lock_file( file_path ) 
 

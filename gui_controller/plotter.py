@@ -40,8 +40,7 @@ class PlotterHist( object ) :
         #self.num_cut_data = 0
         #self.num_events = 0
         self.n_bins = 0
-        self.fit_params = None
-        self.fit_bounds = None
+        self.fit = None
         
         self.plot_with_cuts = 0
         
@@ -64,11 +63,11 @@ class PlotterHist( object ) :
         if bins == 0 :
             bins = 'doane'
 
-        if self.fit_params is not None :
-            x = np.linspace( * self.fit_bounds, 100 ) 
-            self.ax.plot( x, analysis.gaussian( self.fit_params, x ), c = 'r' )            
+        if self.fit is not None :
+            x = np.linspace( * self.fit.bounds, 100 ) 
+            self.ax.plot( x, analysis.gaussian( self.fit.params, x ), c = 'r', linewidth = 1.0, zorder = 1 )            
             self.hist, self.bins = np.histogram( data, bins = bins )
-            self.ax.scatter( self.bins[:-1], self.hist, s = 1 ) 
+            self.ax.scatter( self.bins[:-1], self.hist, s = 1, zorder = 2 ) 
         
         else :
             self.hist, self.bins, _ = self.ax.hist( data, bins = bins )
@@ -80,16 +79,22 @@ class PlotterHist( object ) :
 
         
     def apply_fit( self, bounds ) :
-        ret = analysis.fit_gaussian( self.bins[:-1], self.hist, bounds )
-        print( ret )
 
+        if self.cpt_data.num_events == 0 :
+            print( 'WARNING: no cpt data available for fit' )
+            return None
+        
+        ret = analysis.fit_gaussian( self.bins[:-1], self.hist, bounds )
+        
         if ret is None :
             self.fit_params = None
             self.fit_bounds = None
-            return 
+            return None
         
-        self.fit_params = ret[0]
-        self.fit_bounds = bounds
+        # self.fit_params = ret.params
+        # self.fit_bounds = bounds
+        self.fit = ret
+        
         return ret 
 
     

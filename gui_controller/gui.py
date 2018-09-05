@@ -2,7 +2,8 @@ import config
 import tdc
 import tabor
 # import processing
-from cpt_tools.cpt_data_structures import CPTdata, LiveCPTdata
+# from cpt_tools.cpt_data_structures import CPTdata, LiveCPTdata, TaborParams
+import cpt_tools
 import plotter
 import analysis
 import cpt_tools
@@ -53,27 +54,24 @@ MU_UNICODE = '\u03bc'
         
         
         
-class gui( QTabWidget ):
+class gui( QTabWidget ) :
+
+    # set_tabor_params_signal = QtCore.pyqtSignal( cpt_tools.TaborParams )
+    # set_batch_data_signal = QtCore.pyqtSignal( list ) 
+
     
     def __init__(self, parent = None):
         super( gui, self ).__init__( parent )
 
-        self.date_str = datetime.datetime.now().strftime( '%Y_%m_%d' )
-        self.data_dir_path = code_path + '../data/'
-        self.session_dir_path = None
-                
-        try :
-            os.makedirs( self.data_dir_path, exist_ok = 1 )
-        except :
-            pass
-
-        self.session_dir_path = self.data_dir_path
+        # self.set_tabor_params_signal.connect( self.set_tabor_params )
+        # self.set_batch_data_signal.connect( self.set_batch_data ) 
         
+        self.date_str = datetime.datetime.now().strftime( '%Y_%m_%d' )
         
         # the 3 custom classes we will be using to manage DAQ, processing, and plots
         self.tdc = tdc.TDC()
         self.tabor = tabor.Tabor() 
-        self.processor = LiveCPTdata( self.tdc ) 
+        self.processor = cpt_tools.LiveCPTdata( self.tdc ) 
         self.plotter = plotter.Plotter( self.processor )
                 
         ( self.controls_tab_idx,
@@ -126,9 +124,11 @@ class gui( QTabWidget ):
         self.help_tab_init() 
         
         self.setWindowTitle("Phase Imaging DAQ and Real-Time Analysis")
-        self.resize( 1300, 900 )
+        self.resize( config.WINDOW_WIDTH, config.WINDOW_HEIGHT )
                 
         self.kill_update_thread = 0
+        self.kill_batch_thread = 0 
+        
         self.thread_lock = threading.Lock() 
         self.update_thread = threading.Thread( target = self.update_loop )
         self.update_thread.start()
@@ -139,7 +139,7 @@ class gui( QTabWidget ):
     def closeEvent( self, event ): 
         # this is checked by the thread which then terminates within 1 second
         self.kill_update_thread = 1 # self.destroy()
-
+        self.kill_batch_thread = 1 
         
         
     def controls_tab_init( self ) :
@@ -190,10 +190,11 @@ class gui( QTabWidget ):
         ncols = 3 
         
         self.tabor_table = QTableWidget( nrows, ncols )
+        self.tabor_table.setMinimumHeight( 150 ) 
         
         # combination of size policy change and resizemode change
         # makes the table not expand more than necessary 
-        size_policy = QSizePolicy( QSizePolicy.Maximum, QSizePolicy.Maximum )
+        # size_policy = QSizePolicy( QSizePolicy.Maximum, QSizePolicy.Maximum )
         
         # self.tabor_table.setSizePolicy( size_policy )
         # self.load_tabor_button.setSizePolicy( size_policy ) 
@@ -265,6 +266,9 @@ class gui( QTabWidget ):
         self.save_button = QPushButton( 'Save' )
         self.save_button.clicked.connect( self.save_button_clicked )
         # self.save_button.setSizePolicy( size_policy )
+
+        save_comment_button = QPushButton( 'Save Comment' )
+        save_comment_button.clicked.connect( self.save_comment ) 
         
         daq_box = QGroupBox( 'DAQ / Output Controls' ) 
         daq_layout = QFormLayout()
@@ -273,9 +277,10 @@ class gui( QTabWidget ):
         buttons_layout.addWidget( self.toggle_daq_button )
         buttons_layout.addWidget( self.clear_button )
         buttons_layout.addWidget( self.save_button ) 
+        buttons_layout.addWidget( save_comment_button ) 
         daq_layout.addRow( buttons_layout ) 
                 
-        self.alternate_name_entry = QLineEdit()
+        self.alternate_name_entry = QLineEdit( config.DEFAULT_ALTERNATE_NAME )
         daq_layout.addRow( 'Alternate Name', self.alternate_name_entry )
         
         # self.session_name_entry = QLineEdit()
@@ -294,7 +299,7 @@ class gui( QTabWidget ):
         batch_layout = QHBoxLayout() 
         batch_box.setLayout( batch_layout )
 
-        self.batch_button = QPushButton( 'Start Batch' ) 
+        # self.batch_button = QPushButton( 'Start Batch' ) 
 
         rows = [ 'Accumulation\nTime (\u03BCs)' ]
         ncols = 20 
@@ -309,8 +314,11 @@ class gui( QTabWidget ):
             self.batch_table.setCellWidget( 0, i, tmp )
         
         batch_input_layout = QFormLayout()
-        batch_start_button = QPushButton( 'Start Batch' ) 
-        batch_input_layout.addRow( batch_start_button ) 
+        self.batch_is_running = 0 
+        self.batch_start_button = QPushButton( 'Start Batch' )
+        # toggle_color( self.batch_start_button, 0 ) 
+        self.batch_start_button.clicked.connect( self.toggle_batch ) 
+        batch_input_layout.addRow( self.batch_start_button ) 
         self.batch_stop_time_entry = QLineEdit()
         batch_input_layout.addRow( 'Stop Time (s)', self.batch_stop_time_entry )
         self.batch_stop_counts_entry = QLineEdit()
@@ -321,7 +329,7 @@ class gui( QTabWidget ):
         self.linspace_start_entry = QLineEdit( '0' ) 
         batch_input_layout.addRow( 'Linspace Start', self.linspace_start_entry )
         self.linspace_stop_entry = QLineEdit( '1000' ) 
-        batch_input_layout.addRow( 'Linspace Stop (ms)', self.linspace_stop_entry )
+        batch_input_layout.addRow( 'Linspace Stop (%ss)' % MU_UNICODE, self.linspace_stop_entry )
         self.linspace_num_data_entry = QLineEdit( '11' ) 
         batch_input_layout.addRow( 'Linspace Num Data', self.linspace_num_data_entry )
         
@@ -390,14 +398,14 @@ class gui( QTabWidget ):
     def isolated_analysis_tab_init( self ):
 
         self.analyzer = analysis.CPTanalyzer()
-        analysis_plotter = plotter.Plotter( CPTdata() ) 
-        self.analysis_plotter_widget = gui_helpers.PlotterWidget( analysis_plotter ) 
+        self.analysis_plotter = plotter.Plotter( cpt_tools.CPTdata() ) 
+        self.analysis_plotter_widget = gui_helpers.PlotterWidget( self.analysis_plotter ) 
         
         tab_idx = self.isolated_analysis_tab_idx 
         
         self.analysis_data_dirs_qlist = QListWidget()
         self.analysis_data_dirs_qlist.setMinimumWidth( 200 ) 
-        self.analysis_data_dirs_qlist.itemClicked.connect( self.set_analysis_plotter_data ) 
+        self.analysis_data_dirs_qlist.itemClicked.connect( self.analysis_data_clicked ) 
         # self.analysis_data_dirs_qlist.addItem( 'test' )
 
         analysis_controls_box = QGroupBox( 'Choose Files for Analysis' ) 
@@ -423,7 +431,64 @@ class gui( QTabWidget ):
                 
         self.isolated_analysis_tab.setLayout( layout )
 
+        # rewire the FitWidget buttons to do what they were doing before, except
+        # also append the data to a list of fits
+        self.active_fits = []
+        self.active_row = None
 
+        for i in range( len( self.analysis_plotter_widget.fit_widget.fit_buttons ) ) :
+            fit_button = self.analysis_plotter_widget.fit_widget.fit_buttons[i]
+            delete_button = self.analysis_plotter_widget.fit_widget.delete_buttons[i]
+
+            fit_button.clicked.disconnect()
+            delete_button.clicked.disconnect() 
+            
+            fit_button.clicked.connect( lambda state, a=i : self.isolated_analysis_fit_rewire( a ) )
+            delete_button.clicked.connect( lambda state, a=i : self.isolated_analysis_delete_rewire( a ) )
+
+            
+    def isolated_analysis_fit_rewire( self, i ) :
+        fit = self.analysis_plotter_widget.fit_widget.fit_button_clicked(i)
+
+        if not fit :
+            return 
+        
+        print( 'isolated_analysis_fit_rewire called' ) 
+        print( self.active_row )
+        print( self.active_fits )
+        print( i ) 
+
+        if self.active_row is None :
+            return
+        
+        self.active_fits[ self.active_row ][i] = fit
+
+        print( 'self.analyzer.angles: ', self.analyzer.angles )
+        print( 'self.analyzer.radii: ', self.analyzer.radii ) 
+        
+        if i == 1 :
+            self.analyzer.radii[ self.active_row ] = fit.params[1]
+        elif i == 2 :
+            self.analyzer.angles[ self.active_row ] = fit.params[1]
+
+        # self.analyzer.update()
+        self.combined_analysis_widget.update() 
+        # self.analysis_plotter_widget.update()
+
+        
+    def isolated_analysis_delete_rewire( self, i ) :
+        self.analysis_plotter_widget.fit_widget.delete_button_clicked(i)
+        del self.active_fits[ self.active_row ] 
+
+        if i == 1 :
+            self.analyzer.radii[ self.active_row ] = np.nan
+        elif i == 2 :
+            self.analyzer.angles[ self.active_row ] = np.nan
+
+        # self.analyzer.update()
+        self.combined_analysis_widget.update() 
+        # self.analysis_plotter_widget.update() 
+        
         
     def combined_analysis_tab_init( self ) :
 
@@ -433,6 +498,7 @@ class gui( QTabWidget ):
         
         self.combined_analysis_tab.setLayout( self.combined_analysis_widget.layout )
 
+        
         
 
     def tools_tab_init( self ) :
@@ -578,6 +644,10 @@ class gui( QTabWidget ):
 
     def load_tabor_button_clicked( self ) :
 
+        if self.batch_is_running :
+            print( 'WARNING: attempted to load tabor while batch is running....' )
+            return 
+        
         self.tdc.pause()
 
         save = self.tabor_save_checkbox.isChecked()
@@ -623,12 +693,17 @@ class gui( QTabWidget ):
         print( data )
         freqs, phases, amps, loops, steps = data 
             
-        tabor_params = tabor.TaborParams( tacc, nsteps, freqs, phases,
-                                          amps, loops, steps )
+        tabor_params = cpt_tools.TaborParams( tacc, nsteps, freqs, phases,
+                                              amps, loops, steps )
 
         return tabor_params 
         
+
+    def set_tabor_params( self, tabor_params ) :
+        print( 'Setting tabor params...' )
         
+        
+    
     def set_params_from_ion_data_button_clicked( self ) :
         print( 'INFO: setting tabor params from ion data...' ) 
         Z, A, q = self.tabor_ion_entry.fetch()
@@ -697,8 +772,12 @@ class gui( QTabWidget ):
             
         self.processor.save( prefix = prefix )
 
+
+        
+    def save_comment( self ) :
+        
         comment = self.comment_entry.toPlainText()
-        experimenter = self.experimenter_entry.text() 
+        experimenter = self.experimenter_entry.text()
 
         if len( comment ) > 0 : 
             cpt_tools.write_log( comment, experimenter ) 
@@ -714,43 +793,180 @@ class gui( QTabWidget ):
         num_data = int( self.linspace_num_data_entry.text() )
 
         data = np.linspace( start, stop, num_data, dtype = int )
+        self.set_batch_data( data ) 
 
-        for i in range( len( data ) ) :
-            self.batch_table.cellWidget( 0, i ).setText( str( data[i] ) )
+            
+    def fetch_batch_data( self ) :
+        data = []
+        for i in range( self.batch_table.columnCount() ) :
+            text = self.batch_table.cellWidget( 0, i ).text()
+            if text :
+                data.append( int( text ) ) 
+        return data 
+
+
+    def set_batch_data( self, batch_data ) :
+        ncols = self.batch_table.columnCount()
+        ndata = min( ncols, len( batch_data) ) 
+        for i in range( ndata )  :
+            self.batch_table.cellWidget( 0, i ).setText( str( batch_data[i] ) )
+        for i in range( ndata, ncols ) :
+            self.batch_table.cellWidget( 0, i ).setText( '' )
+            
+            
+    # def roll_batch_data( self ) :
+    #     self.set_batch_data( self.batch_data ) 
         
+            
+    def toggle_batch( self ) :
+        
+        if self.batch_is_running :
+            self.kill_batch_thread = 1 
+            # self.batch_is_running = 0 
+            # toggle_color( self.batch_start_button, 0 )
+            # self.batch_start_button.setText( 'Batch Paused' )
+            # return 
+        
+        stop_time = self.batch_stop_time_entry.text()
+        try :
+            stop_time = int( stop_time )
+        except :
+            stop_time = None
+
+        stop_counts = self.batch_stop_counts_entry.text()
+        try :
+            stop_counts = int( stop_counts )
+        except :
+            stop_counts = None
+
+        if not stop_time and not stop_counts :
+            print( 'WARNING: can\'t run batch, need at least one of stop_time or stop_counts...' )
+            return 
+
+        batch_data = self.fetch_batch_data()
+
+        if not batch_data :
+            print( 'WARNING: no accumulation times available for batch.....' )
+            return
+
+        toggle_color( self.batch_start_button, 1 )
+        self.batch_start_button.setText( 'Batch Running' )
+        tabor_params = self.fetch_tabor_params()
+        
+        batch_thread = threading.Thread( target = self.run_batch, args = (tabor_params, batch_data,
+                                                                          stop_time, stop_counts ) )
+        batch_thread.start()
+
+        
+
+                                             
+    def run_batch( self, tabor_params, batch_tacc_data, stop_time = None, stop_counts = None ) :
+
+        if self.batch_is_running :
+            print( 'ERROR: batch is already running....' )
+            return
+
+        self.batch_is_running = 1
+
+        self.processor.tabor_params = tabor_params
+        
+        for i in range( len( batch_tacc_data ) ) :
+            tacc = batch_tacc_data[i] 
+            print( 'INFO: running batch data for tacc = %d' % tacc ) 
+            tabor_params.tacc = tacc
+            
+            self.tacc_entry.setText( str( tacc ) ) 
+            
+            self.set_tabor_params( tabor_params )
+
+            self.tdc.pause()
+
+            if config.USE_TABOR :
+                self.tabor.load_params( tabor_params ) 
+            else :
+                print( 'INFO: simulating tabor load...' )
+                time.sleep( 3 )
+                print( 'Done.' )
+            self.tdc.resume()
+            self.tdc.clear()
+            self.processor.clear()
+
+            while( not self.kill_batch_thread ) :
+                # print( 'duration: ', self.processor.duration ) 
+                # print( 'cut data: ', self.processor.num_cut_data ) 
+                if stop_time is not None and self.processor.duration > stop_time :
+                    break
+                if stop_counts is not None and self.processor.num_cut_data > stop_counts :
+                    break
+                time.sleep(1)
+            else :
+                print( 'INFO: successfully killed batch.' ) 
+                break 
+
+            self.save_button_clicked() 
+            self.set_batch_data( batch_tacc_data[ i+1 : ] )                
+
+        print( 'INFO: batch complete.' ) 
+        self.batch_is_running = 0
+        
+        self.batch_start_button.setStyleSheet( '' )
+        self.batch_start_button.setText( 'Start Batch' ) 
+
+        
+                                             
+            
 
     def add_button_clicked( self ) :
-        path = QFileDialog.getOpenFileName( self, 'Select File' )[0]
+        cpt_filter = '*.cpt'
+        paths = QFileDialog.getOpenFileNames( self, 'Select Files for Analysis',
+                                              cpt_tools.DEFAULT_STORAGE_DIRECTORY + '/data/',
+                                              filter = cpt_filter )[0]
 
-        if not path :
-            return 
+        for path in paths : 
         
-        print( 'path: ', path )
-        # name = dir_path[ dir_path.rfind( '/' ) + 1 : ] 
-        # self.analysis_data_dirs_qlist.addItem( name ) 
-        self.analysis_data_dirs_qlist.addItem( path )
-        new_cpt_data = CPTdata.load( path )
-        # print( new_cpt_data.tofs ) 
-        self.analysis_plotter_widget.set_cpt_data( new_cpt_data ) 
-        # self.analysis_plotter_widget.plotter.cpt_data = new_cpt_data
-        # self.anal
-        # print( 'initial set' ) 
-        # print( self.analysis_plotter_widget.cpt_data ) 
-        # self.analyzer.data_list.append( new_cpt_data )
-         # = new_cpt_data
+            print( 'INFO: loading path: ', path )
+            
+            # name = dir_path[ dir_path.rfind( '/' ) + 1 : ] 
+            # self.analysis_data_dirs_qlist.addItem( name ) 
+            self.analysis_data_dirs_qlist.addItem( path )
+            new_cpt_data = cpt_tools.CPTdata.load( path )
+            # print( new_cpt_data.tofs ) 
+            self.analysis_plotter_widget.set_cpt_data( new_cpt_data ) 
 
-        self.analyzer.append( new_cpt_data ) 
-         
-        self.analysis_plotter_widget.update( update_first = 1 )
-
+            self.analyzer.append( new_cpt_data ) 
+            self.active_fits.append( [ None, None, None ] )
+            
+        # self.analysis_plotter_widget.update( update_first = 1 )
         self.combined_analysis_widget.update()
-        
-        
-    def set_analysis_plotter_data( self, widget ) :
+        self.active_row = len( self.active_fits ) - 1
+        self.analysis_data_dirs_qlist.setCurrentRow( self.active_row )
+        self.set_analysis_plotter_data( self.active_row ) 
+
+            
+    def analysis_data_clicked( self ) :
         row = self.analysis_data_dirs_qlist.currentRow()
+        # self.active_row = row
+        self.set_analysis_plotter_data( row ) 
+        
+        
+    def set_analysis_plotter_data( self, row ) :
+        # row = self.analysis_data_dirs_qlist.currentRow()
         self.analysis_plotter_widget.set_cpt_data( self.analyzer.data_list[row] ) 
+        # self.analysis_plotter_widget.update()
+        self.analyzer.active_data_idx = row
+
+        self.active_row = row
+
+        print( self.active_row ) 
+        print( self.active_fits )
+        
+
+        for i in range(3) :
+            fit = self.active_fits[ self.active_row ][i] 
+            self.analysis_plotter.all_hists[i].fit = self.active_fits[ self.active_row ][i]
+            self.analysis_plotter_widget.fit_widget.set_fit_params( fit, i ) 
+            
         self.analysis_plotter_widget.update()
-        self.analyzer.active_data_idx = row 
         
         # print( self.analysis_plotter_widget.cpt_data.
 
@@ -764,8 +980,8 @@ class gui( QTabWidget ):
         # del self.analysis_data_list[ row ]
         
         
-    def toggle_isolated_dataset( self ) :
-        self.plot_isolated_dataset = self.isolated_dataset_checkbox.checkState()
+    # def toggle_isolated_dataset( self ) :
+    #     self.plot_isolated_dataset = self.isolated_dataset_checkbox.checkState()
 
 
 
@@ -801,6 +1017,13 @@ class gui( QTabWidget ):
         self.property_lookup_table.cellWidget( 0, 4 ).setText( '%.2e' % abund )
 
 
+
+# state = 0 -> read, state = 1 ->> green 
+def toggle_color( widget, state ) : 
+    if state :
+        widget.setStyleSheet("background-color:#89E552;")
+    else : 
+        widget.setStyleSheet("background-color: #E55959")
 
 
         

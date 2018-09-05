@@ -40,7 +40,7 @@ class CombinedAnalysisWidget( object ) :
         data_layout = QVBoxLayout()
         data_box.setLayout( data_layout ) 
         
-        data_cols = [ 'Accumulation \nTime (\u03bc)', 'Measured \u0394\u03B8 (deg)' ]
+        data_cols = [ 'Accumulation \nTime (\u03bcs)', 'Measured \u0394\u03B8 (deg)' ]
         self.data_table = QTableWidget( 1, len( data_cols ) )
         self.data_table.setHorizontalHeaderLabels( data_cols )
         self.data_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
@@ -65,14 +65,14 @@ class CombinedAnalysisWidget( object ) :
         # self.predictions_status_label.setStyleSheet( 'color: #E55959' ) 
         # predictions_layout.addWidget( self.predictions_status_label )
         
-        predictions_cols = [ 'Accumulation \nTime (ms)',
+        predictions_cols = [ 'Accumulation \nTime (\u03bcs)',
                              'Corrected \u0394\u03B8 \nPrediction (deg)',
                              'AME \u0394\u03B8 \nPrediction (deg)' ]
         self.predictions_table = QTableWidget( NUM_PREDICTIONS, len( predictions_cols ) )
         self.predictions_table.setHorizontalHeaderLabels( predictions_cols )
         self.predictions_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
         # self.predictions_table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
-        self.predictions_table.setMinimumWidth( 400 )
+        self.predictions_table.setMinimumWidth( 300 )
         predictions_layout.addWidget( self.predictions_table ) 
         
 

@@ -1,6 +1,6 @@
 import cpt_tools
 from gui_helpers.gui_config import * 
-
+import numpy as np
 
         
 
@@ -13,7 +13,7 @@ class MetadataWidget( object ) :
         self.box = QGroupBox( 'Metadata' )
         
         h_labels = [ 'Counts', 'Rate (Hz)' ]
-        v_labels = [ 'MCP Hits', 'Valid data', 'Penning Eject' ]
+        v_labels = [ 'MCP Hits', 'Valid data', 'Cut Data', 'Penning Eject' ]
         
         self.table = QTableWidget( len( v_labels ), len( h_labels ) )
         
@@ -46,7 +46,7 @@ class MetadataWidget( object ) :
     def update( self ) :
                 
         counts = [ self.cpt_data.num_mcp_hits, self.cpt_data.num_events,
-                   self.cpt_data.num_penning_ejects ]
+                   self.cpt_data.num_cut_data, self.cpt_data.num_penning_ejects ]
 
         for i in range( len( counts ) ) :
             self.table.cellWidget( i, 0 ).setText( '%d' % counts[i] )

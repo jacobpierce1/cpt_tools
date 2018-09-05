@@ -2,8 +2,12 @@ import cpt_tools
 from gui_helpers.gui_config import * 
 
 
-            
-                                       
+chisqr_str = '\u03c72'
+mu_str = '\u03bc'
+sigma_str = '\u03c3'
+
+
+
 class FitWidget( object ) :
 
     def __init__( self, plotter_widget, analyzer = None ) :
@@ -14,7 +18,7 @@ class FitWidget( object ) :
         
         self.layout = QVBoxLayout()
 
-        params_labels = [ 'A', '\u03c3', '\u03c72', '\u03bc' ]
+        params_labels = [ 'A', mu_str, sigma_str, chisqr_str ]
         self.num_params = len( params_labels ) 
 
         h_labels = [ '', '', 'Left', 'Right' ]
@@ -45,23 +49,23 @@ class FitWidget( object ) :
 
         self.bounds_entries = [] 
         self.params_labels = []
-        fit_buttons = []
-        delete_buttons = [] 
+        self.fit_buttons = []
+        self.delete_buttons = [] 
         
         for i in range( len( self.hists ) ) :
             
             self.bounds_entries.append( [ QLineEdit(), QLineEdit() ] )
             self.params_labels.append( [ QLabel() for i in range( self.num_params ) ] )
 
-            fit_buttons.append( QPushButton( 'Fit' ) )
-            delete_buttons.append( QPushButton( 'Delete' ) )
+            self.fit_buttons.append( QPushButton( 'Fit' ) )
+            self.delete_buttons.append( QPushButton( 'Delete' ) )
  
-            fit_buttons[i].clicked.connect( lambda state, a=i : self.fit_button_clicked( a ) )
-            delete_buttons[i].clicked.connect( lambda state, a=i : self.delete_button_clicked( a ) )
-            # fit_buttons[i].clicked.emit() 
+            self.fit_buttons[i].clicked.connect( lambda state, a=i : self.fit_button_clicked( a ) )
+            self.delete_buttons[i].clicked.connect( lambda state, a=i : self.delete_button_clicked( a ) )
+            # self.fit_buttons[i].clicked.emit() 
 
-            self.table.setCellWidget( i, 0, fit_buttons[i] )
-            self.table.setCellWidget( i, 1, delete_buttons[i] ) 
+            self.table.setCellWidget( i, 0, self.fit_buttons[i] )
+            self.table.setCellWidget( i, 1, self.delete_buttons[i] ) 
 
             self.table.setCellWidget( i, 2, self.bounds_entries[i][0] )
             self.table.setCellWidget( i, 3, self.bounds_entries[i][1] )
@@ -80,7 +84,9 @@ class FitWidget( object ) :
 
         
     def fit_button_clicked( self, i ) :
-                
+
+        print( self.bounds_entries[i][0].text() )
+        
         try : 
             left_x_bound = float( self.bounds_entries[i][0].text() )
             right_x_bound = float( self.bounds_entries[i][1].text() )
@@ -93,31 +99,36 @@ class FitWidget( object ) :
         if fit is None :
             print( 'ERROR: fit failed' ) 
             return
+
+        self.set_fit_params( fit, i ) 
+        self.plotter.update_all()
+        self.plotter_widget.reload_visualization_params()
+        return fit 
+
+
+    def set_fit_params( self, fit, i ) :
+
+        if fit is None :
+            for j in range( self.num_params ) :
+                self.params_labels[i][j].setText( '' )
+            return 
+                    
+        params = fit.params 
+        params_errors = fit.params_errors
+        redchisqr = fit.redchisqr
         
-        params, params_errors, redchisqr = fit
+        # params, params_errors, redchisqr = fit
         
         if params_errors is not None : 
-            labels = [ '%.2f\u00b1%.2f' % ( params[j], params_errors[j] ) for j in range( len(params) ) ]
+            labels = [ '%.1f\u00b1%.1f' % ( params[j], params_errors[j] ) for j in range( len(params) ) ]
         else :
-            labels = [ '%.2f' % params[j] for j in range( len(params) ) ]
+            labels = [ '%.1f' % params[j] for j in range( len(params) ) ]
             
-        labels.append( '%.2f' % redchisqr )
+        labels.append( '%.1f' % redchisqr )
         for j in range( len(params) + 1 ) : 
             self.params_labels[i][j].setText( labels[j] )
 
-        self.plotter.update_all()
-        self.plotter_widget.reload_visualization_params()
-
-        # if self.analyzer is not None :
-        #     if i == 1 :
-        #         self.analyzer.set_active_radius( 
-
-            # self.analyzer.set_active_fit_params( fit ) 
-            
-        # ret = analysis.gaussian_fit( self.cpt_data ) 
-
-
-    # def 
+    
         
 
     def delete_button_clicked( self, i ) :

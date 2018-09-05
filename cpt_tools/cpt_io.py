@@ -11,6 +11,8 @@ from cpt_tools import DEFAULT_STORAGE_DIRECTORY
 
 def write_log( message, author = None ) :
 
+    print( 'ABOUT TO WRITE LOG' ) 
+    
     time_str = datetime.now().strftime( '%Y-%m-%d %H:%M' ) 
 
     if author is None or author == '' :
@@ -26,7 +28,9 @@ def write_log( message, author = None ) :
     with open( log_path, 'a+' ) as f:
         f.write( log_message ) 
         
-    lock_file( log_path ) 
+    lock_file( log_path )
+
+    print( 'WROTE LOG' ) 
 
 
 

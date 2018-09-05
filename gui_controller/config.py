@@ -21,6 +21,9 @@ else :
 USE_GUI = 0 
 
 
+WINDOW_WIDTH = 1500
+WINDOW_HEIGHT = 1100
+DEFAULT_ALTERNATE_NAME = 'debug'
 
 
 # GUI defaults
