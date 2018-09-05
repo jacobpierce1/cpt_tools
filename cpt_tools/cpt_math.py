@@ -66,3 +66,7 @@ def omega_to_mass( omega, q, atomic_mass = 0 ) :
 def compute_phase( mass, q, tacc, ref_angle, atomic_mass = 0 ) :
     offset = ( 2 * np.pi * mass_to_omega( mass, q, atomic_mass ) * tacc ) % 2 * np.pi
     return ref_angle + np.degrees( offset ) 
+
+
+def freq_to_phase( freq, tacc, ref_angle, atomic_mass = 0 ) :
+    pass 

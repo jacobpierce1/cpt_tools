@@ -1002,7 +1002,16 @@ class gui( QTabWidget ) :
         self.analysis_data_dirs_qlist.takeItem( row )
 
         row = self.analysis_data_dirs_qlist.currentRow()
-        self.analyzer.active_data_idx = row 
+        self.analyzer.active_data_idx = row
+
+        self.analyzer.delete_index( row )
+        del self.active_fits[ row ]
+
+        if row > 0 : 
+            self.set_analysis_plotter_data( row - 1 ) 
+
+        self.analysis_plotter_widget.update()
+        
         # del self.analysis_data_list[ row ]
         
         

@@ -34,7 +34,7 @@ class CPTanalyzer( object ) :
         self.timestamps = []
 
         # references are defined to have a tacc of 0.
-        self.reference_indices = [] 
+        self.reference_mask = [] 
                 
         self.f, self.axarr = plt.subplots( 3 ) 
         self.f.subplots_adjust( hspace = 0.8 )
@@ -46,17 +46,19 @@ class CPTanalyzer( object ) :
         self.active_data_idx = None
         
         
-    def __del__( self, idx ) :
+    def delete_index( self, idx ) :
 
+        del self.data_list[ idx ] 
         del self.radii[ idx ]
         del self.angles[ idx ]
         del self.taccs[ idx ]
         del self.timestamps[ idx ]
-
-        try : 
-            self.reference_indices.remove( idx ) 
-        except :
-            pass
+        del self.reference_mask[ idx ]
+        
+        # try : 
+        #     self.reference_mask.remove( idx ) 
+        # except :
+        #     pass
 
     # def compute_reference_indices( self ) :
     #     self.reference_indices = np.where( 
@@ -69,13 +71,15 @@ class CPTanalyzer( object ) :
         self.radii.append( np.nan )
         self.angles.append( np.nan )
         self.timestamps.append( cpt_data.timestamp )
-
+        
         tacc = cpt_data.tabor_params.tacc
         self.taccs.append( tacc ) 
 
         if tacc == 0 :
-            self.reference_indices.append( self.num_data )
-
+            self.reference_mask.append( 1 )
+        else :
+            self.reference_mask.append( 0 ) 
+            
         self.num_data += 1 
         self.update() 
         
@@ -113,10 +117,27 @@ class CPTanalyzer( object ) :
     def update_ref_drift_plot( self ) :
 
         self.ref_drift_plot.clear()
-        self.ref_drift_plot.set_xlabel( 'Timestamp' )
+        self.ref_drift_plot.set_xlabel( 'Relative Timestamp' )
         self.ref_drift_plot.set_ylabel( 'Absolute Angle' )
         self.ref_drift_plot.set_title( 'Reference Drift' )
-                
+
+        if self.num_data == 0 :
+            return
+
+        references = np.array( self.reference_mask, dtype = bool ) 
+        
+        ref_phase = np.array( self.angles )[ references ]
+        ref_timestamps = np.array( self.timestamps )[ references ]
+        ref_timestamps -= min( ref_timestamps )
+
+        print( 'plotting ref_drift_plot' )
+        print( self.reference_mask ) 
+        print( ref_timestamps )
+        print( ref_phase ) 
+
+        self.ref_drift_plot.scatter( ref_timestamps, ref_phase, s = 1, c = 'r',
+                                     zorder = 2 ) 
+        
         # if len( self.reference_timestamps ) < 0 :
         #     return
         
@@ -146,7 +167,7 @@ class CPTanalyzer( object ) :
         self.residual_plot.clear()
         self.residual_plot.set_xlabel( 'Accumulation Time' )
         self.residual_plot.set_ylabel( 'Residual' ) 
-        self.residual_plot.set_title( 'Residuals' ) 
+        self.residual_plot.set_title( 'Mass Fit Residuals' ) 
         
         
     def update( self ) :
@@ -173,11 +194,39 @@ class CPTanalyzer( object ) :
 
     # compute new mass estimate using all the aggregated data.
     def compute_new_mass_estimate( self ) :
-        pass
+
+        reference_mask = np.array( self.reference_mask, dtype = bool )
+        non_reference_mask = ~ reference_mask
+
+        reference_indices = np.where( reference_mask == 1 )[0]
+        non_reference_indices = np.where( reference_mask == 0 )[0]
+
+        reference_timestamps = self.timestamps[ reference_mask ] 
         
+        num_non_references = len( non_reference_indices )
+        measured_phases = np.zeros( num_non_references ) 
+        
+        
+        for i in range( num_non_references ) :
 
+            #find closest reference
+            idx = non_reference_indices[i]  # index in self.timestamps 
+            timestamp = self.timestamps[ idx ]
+            ref_idx = np.argmin( np.abs( reference_timestamps - timestamp ) )  # index in reference_timestamps
+            ref_idx = references
 
+            phase = self.angles[ idx ] - self.angles[ ref_idx ]
+            measured_phases[i] = phase 
 
+        taccs = self.taccs[ non_reference_mask ]
+        
+        scipy.optimize.leastsq( mass_estimate_resid, [ self.ame_freq_estimate ],
+                                args = ( taccs, phases ) )
+            
+
+        
+        
+                                
 class GaussianFit( object ) :
 
     def __init__( self, bounds, params, params_errors, redchisqr ) : 
@@ -258,3 +307,7 @@ def fit_gaussian( x, y, bounds ) :
     
         
     
+
+def mass_estimate_resid( frequency, q, taccs, phases ) :
+    
+    pass
