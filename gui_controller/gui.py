@@ -176,6 +176,10 @@ class gui( QTabWidget ) :
         self.load_tabor_button.clicked.connect( self.load_tabor_button_clicked ) 
         tabor_layout.addWidget( self.load_tabor_button ) 
 
+        self.tabor_status_label = QLabel()
+        tabor_layout.addWidget( self.tabor_status_label ) 
+        self.toggle_tabor_label( -1 ) 
+        
         tmp = QFormLayout()
         
         self.num_steps_entry = QLineEdit( '5' )
@@ -293,7 +297,7 @@ class gui( QTabWidget ) :
         daq_layout.addRow( 'Session Comments', self.comment_entry ) 
 
         metadata_widget = gui_helpers.MetadataWidget( self.processor )
-
+        
 
         batch_box = QGroupBox( 'Batch Instructions' )
         batch_layout = QHBoxLayout() 
@@ -648,8 +652,6 @@ class gui( QTabWidget ) :
             print( 'WARNING: attempted to load tabor while batch is running....' )
             return 
         
-        self.tdc.pause()
-
         save = self.tabor_save_checkbox.isChecked()
         clear = self.tabor_clear_checkbox.isChecked() 
 
@@ -661,14 +663,19 @@ class gui( QTabWidget ) :
             print( 'INFO: clearing' ) 
             self.processor.clear()
             self.tdc.clear()
-                
+
+            
         thread = threading.Thread( target = self.load_tabor_button_clicked_target )
         thread.start()
 
-        self.tdc.resume()
+        
         
 
     def load_tabor_button_clicked_target( self ) :
+        
+        self.tdc.pause()
+        self.toggle_tabor_label( 0 )
+        
         with self.thread_lock : 
             print( 'INFO: loading tabor...' )
 
@@ -681,7 +688,10 @@ class gui( QTabWidget ) :
                 time.sleep( 3 )
                 print( 'Done.' )
 
+        self.tdc.resume()
+        self.toggle_tabor_label( 1 ) 
 
+        
     def fetch_tabor_params( self ) :
         tacc = int( self.tacc_entry.text() ) 
         nsteps = int( self.num_steps_entry.text() )
@@ -701,9 +711,22 @@ class gui( QTabWidget ) :
 
     def set_tabor_params( self, tabor_params ) :
         print( 'Setting tabor params...' )
+
+
         
+    # 1 = tabor loading, 0 = tabor loaded, -1 = tabor uninitialized  
+    def toggle_tabor_label( self, state ) :
+        if state == -1 :
+            self.tabor_status_label.setText( 'Tabor Uninitialized' )
+            self.tabor_status_label.setStyleSheet("background-color: #E55959")
+        elif state == 0 :
+            self.tabor_status_label.setText( 'Tabor Loading...' )
+            self.tabor_status_label.setStyleSheet("background-color: #D9EB45")
+        elif state == 1 :
+            self.tabor_status_label.setText( 'Tabor Loaded' )
+            self.tabor_status_label.setStyleSheet("background-color:#89E552;")
+            
         
-    
     def set_params_from_ion_data_button_clicked( self ) :
         print( 'INFO: setting tabor params from ion data...' ) 
         Z, A, q = self.tabor_ion_entry.fetch()
@@ -880,13 +903,16 @@ class gui( QTabWidget ) :
             self.set_tabor_params( tabor_params )
 
             self.tdc.pause()
-
+            self.toggle_tabor_label( 0 ) 
+            
             if config.USE_TABOR :
                 self.tabor.load_params( tabor_params ) 
             else :
                 print( 'INFO: simulating tabor load...' )
                 time.sleep( 3 )
                 print( 'Done.' )
+
+            self.toggle_tabor_label(1)
             self.tdc.resume()
             self.tdc.clear()
             self.processor.clear()

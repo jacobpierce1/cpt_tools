@@ -11,4 +11,5 @@
 */Debug/*
 */ipch/
 *.DS_Store
+*/test_storage/*
 >>>>>>> cpt_master_controller/master
