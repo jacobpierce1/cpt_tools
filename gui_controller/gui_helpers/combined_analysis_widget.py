@@ -72,7 +72,7 @@ class CombinedAnalysisWidget( object ) :
         self.predictions_table.setHorizontalHeaderLabels( predictions_cols )
         self.predictions_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
         # self.predictions_table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
-        self.predictions_table.setMinimumWidth( 300 )
+        self.predictions_table.setMinimumWidth( 320 )
         predictions_layout.addWidget( self.predictions_table ) 
         
 
