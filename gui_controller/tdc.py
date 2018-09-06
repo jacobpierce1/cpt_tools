@@ -102,12 +102,13 @@ class TDC( object ) :
     def resume( self ) :
         if not controller_config.USE_FAKE_DATA : 
             self.tdc_driver_lib.TDCManager_Continue( self.tdc_ctx )
-        self.start_time = time.time()
+        # self.start_time = time.time()
         self.collecting_data = 1
 
     def clear( self ) :
         # if not controller_config.USE_FAKE_DATA :
         #     self.tdc_driver_lib.TDCManager_ClearBuffer( self.tdc_ctx )
+        self.start_time = time.time() 
         self.num_data_in_buf = 0
         
         
@@ -245,8 +246,10 @@ class TDC( object ) :
 
         
     def reset( self ) :
-        self.num_data_in_buf = 0 
-
+        self.num_data_in_buf = 0
+        self.duration = 0 
+        self.start_time = time.time() 
+        
     def get_channels( self, hits ) :
         return np.right_shift( np.bitwise_and( hits, channel_mask ), 24 )
 

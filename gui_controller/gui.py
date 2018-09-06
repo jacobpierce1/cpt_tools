@@ -717,9 +717,10 @@ class gui( QTabWidget ) :
         
     def clear_button_clicked( self ) :
         print( 'INFO: clearing data' ) 
-        time.sleep(1)
-        self.tdc.clear()
+        # time.sleep(1)
         self.processor.clear()
+        self.tdc.clear()
+        
 
         
     def save_button_clicked( self ) : 
@@ -886,6 +887,9 @@ class gui( QTabWidget ) :
                                               cpt_tools.DEFAULT_STORAGE_DIRECTORY + '/data/',
                                               filter = cpt_filter )[0]
 
+        if not paths :
+            return 
+        
         for path in paths : 
         
             print( 'INFO: loading path: ', path )
