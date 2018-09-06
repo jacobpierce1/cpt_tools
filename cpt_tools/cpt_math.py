@@ -44,22 +44,22 @@ def omega_to_mass( omega, q, atomic_mass = 0 ) :
 
 
 
-# def find_wc( wc_guess, diff_phi_rad_abs, diff_phi_rad_unc, tacc ):
-#     Ni = int(wc_guess * tacc)
-#     wc_abs = (diff_phi_rad_abs + 2 * np.pi * Ni) / (2 * pi * tacc)
-#     wc_unc = diff_phi_rad_unc / (2 * np.pi * tacc)
+def find_wc( wc_guess, diff_phi_rad_abs, diff_phi_rad_unc, tacc ):
+    Ni = int(wc_guess * tacc)
+    wc_abs = (diff_phi_rad_abs + 2 * np.pi * Ni) / (2 * pi * tacc)
+    wc_unc = diff_phi_rad_unc / (2 * np.pi * tacc)
 
-#     Nf = Ni
+    Nf = Ni
 
-#     if (wc_abs - wc_guess) > 1:
-#         Nf = Ni - 1
-#         wc_abs = (diff_phi_rad_abs + 2 * pi * Nf) / (2 * pi * tacc)
+    if (wc_abs - wc_guess) > 1:
+        Nf = Ni - 1
+        wc_abs = (diff_phi_rad_abs + 2 * pi * Nf) / (2 * pi * tacc)
 
-#     if (wc_abs - wc_guess) < -1:
-#         Nf = Ni + 1
-#         wc_abs = (diff_phi_rad_abs + 2 * pi * Nf) / (2 * pi * tacc)
+    if (wc_abs - wc_guess) < -1:
+        Nf = Ni + 1
+        wc_abs = (diff_phi_rad_abs + 2 * pi * Nf) / (2 * pi * tacc)
 
-#     return wc_abs, wc_unc, Ni, Nf
+    return wc_abs, wc_unc, Ni, Nf
 
 
 

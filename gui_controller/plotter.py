@@ -113,8 +113,10 @@ class Plotter( object ) :
 
     def __init__( self, cpt_data ) :
 
+        self.active_fig = 0 
+        
         self.cpt_data = cpt_data
-
+        
         self.f, self.axarr = plt.subplots( 2, 2 )
         self.f.subplots_adjust( hspace = 0.5, wspace = 0.7 )
         
@@ -140,8 +142,9 @@ class Plotter( object ) :
         self.use_kde = 0 
         self.kde_bandwidth = 0.1
         self.mcp_bin_width = 0.25
-        self.mcp_x_bounds = np.array( [ -5.0, 5.0 ] )
-        self.mcp_y_bounds = np.array( [ -5.0, 5.0 ] )
+        center = cpt_tools.mcp_center_coords.astype( int )  
+        self.mcp_x_bounds = np.array( [ center[0] - 5.0, center[0] + 5.0 ] )
+        self.mcp_y_bounds = np.array( [ center[1] - 5.0, center[1] + 5.0 ] )
 
         self.tof_hist_nbins = 0
         self.r_hist_nbins = 0
@@ -269,13 +272,58 @@ class Plotter( object ) :
         self.mcp_hitmap_cax = None
 
 
+    def make_hist( self, ax, data, num_data ) :
+        self.ax.clear() 
+        self.ax.set_title( self.title )
+
+        if self.cpt_data is None :
+            return 
+
+        if self.plot_with_cuts :
+            if self.cpt_data.is_live : 
+                valid_indices = self.cpt_data.cut_data_indices[ : self.cpt_data.num_cut_data ]
+            else :
+                valid_indices = self.cpt_data.cut_data_indices
+            data = self.data[ valid_indices ]
+
+        else :
+            data = self.data[ : self.cpt_data.num_events ]
+        
+        bins = self.n_bins
+        if bins == 0 :
+            bins = 'doane'
+
+        if self.fit is not None :
+            x = np.linspace( * self.fit.bounds, 100 ) 
+            self.ax.plot( x, analysis.gaussian( self.fit.params, x ), c = 'r', linewidth = 1.0, zorder = 1 )            
+            self.hist, self.bins = np.histogram( data, bins = bins )
+            self.ax.scatter( self.bins[:-1], self.hist, s = 1, zorder = 2 ) 
+        
+        else :
+            self.hist, self.bins, _ = self.ax.hist( data, bins = bins )
+        
+
+    # def update_angle_plot( self ) :
+    #     ax = self.axarr[0][0]
+    #     make_hist( ax, 
+        
         
     def update_all( self ) :
-        self.update_mcp_hitmap()
-        for hist in self.all_hists :
-            # if self.cpt_data.is_live : 
-            # hist.set_data_params( self.cpt_data.num_events, self.cpt_data.num_cut_data ) 
-            hist.update()
+        if self.active_fig == 0 :
+            self.update_mcp_hitmap()
+            for hist in self.all_hists :
+                # if self.cpt_data.is_live : 
+                # hist.set_data_params( self.cpt_data.num_events, self.cpt_data.num_cut_data ) 
+                hist.update()
+                
+        else :
+            pass
+                
+        # elif self.active_fig == 1 :
+        #     self.update_radius_plot()
+        #     self.update_angle_plot() 
+        #     self.update_x_plot()
+        #     self.update_y_plot() 
 
             
     def set_plot_with_cuts( self, plot_with_cuts ) :

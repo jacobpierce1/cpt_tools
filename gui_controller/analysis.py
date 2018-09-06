@@ -175,7 +175,7 @@ class CPTanalyzer( object ) :
         self.update_ref_drift_plot()
         self.update_radius_plot()
         self.update_residual_plot() 
-        self.update_mass_estimate()
+        # self.update_mass_estimate()
         
 
     def set_ion_params( self, Z, A, Q ) :

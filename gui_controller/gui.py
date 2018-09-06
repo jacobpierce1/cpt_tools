@@ -87,21 +87,21 @@ class gui( QTabWidget ) :
         self.isolated_analysis_tab = QWidget()
         self.combined_analysis_tab = QWidget()
         self.tools_tab = QWidget() 
-        self.help_tab = QWidget()
+        # self.help_tab = QWidget()
         
         tabs = [ self.controls_tab, self.processed_data_tab,
                  # self.unprocessed_data_tab,
                  self.isolated_analysis_tab,
                  self.combined_analysis_tab,
-                 self.tools_tab,
-                 self.help_tab ]
+                 self.tools_tab ]
+                 # self.help_tab ]
 
         tab_idxs = [ self.controls_tab_idx, self.processed_data_tab_idx,
                      # self.unprocessed_data_tab_idx,
                      self.isolated_analysis_tab_idx,
                      self.combined_analysis_tab_idx,
-                     self.tools_tab_idx,
-                     self.help_tab_idx ]
+                     self.tools_tab_idx ]
+        # self.help_tab_idx ]
 
         tab_names = [ 'DAQ / Tabor / Output', 'Data Stream',
                       # 'Unprocessed Data',
@@ -121,7 +121,7 @@ class gui( QTabWidget ) :
         self.isolated_analysis_tab_init()
         self.combined_analysis_tab_init() 
         self.tools_tab_init() 
-        self.help_tab_init() 
+        # self.help_tab_init() 
         
         self.setWindowTitle("Phase Imaging DAQ and Real-Time Analysis")
         self.resize( controller_config.WINDOW_WIDTH, controller_config.WINDOW_HEIGHT )

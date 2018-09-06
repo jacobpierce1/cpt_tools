@@ -11,6 +11,12 @@ class PlotterWidget( object ) :
 
     def __init__( self, plotter = None ) :
 
+        plot_selector_layout = QHBoxLayout()
+        button_names = [ 'Main', 'Projections', 'TDC' ]
+        for i in range( len( button_names ) ) :
+            button = QPushButton( button_names[i] )
+            plot_selector_layout.addWidget( button ) 
+        
         if not plotter :
             plotter = plotting.Plotter()
             
@@ -105,11 +111,12 @@ class PlotterWidget( object ) :
 
         layout = QVBoxLayout()
 
+        
         reload_button = QPushButton( 'Reload Parameters' ) 
         reload_button.clicked.connect( self.reload_visualization_params )         
         layout.addWidget( reload_button ) 
         
-        controls_box = QGroupBox( 'Visualization Controls' )
+        controls_box = QGroupBox( 'Visualization Controlps' )
         controls_layout = QFormLayout()
         # subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE,
         #                                QFont.Bold ) )
@@ -162,6 +169,7 @@ class PlotterWidget( object ) :
         layout.addWidget( self.metadata_widget.box )
 
         canvas_layout = QVBoxLayout()
+        canvas_layout.addLayout( plot_selector_layout ) 
         canvas_layout.addWidget( self.canvas )
         canvas_layout.addWidget( fits_box ) 
 
