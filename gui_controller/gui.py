@@ -908,7 +908,7 @@ class gui( QTabWidget ) :
         # print( self.active_fits ) 
         
         self.set_analysis_plotter_data( self.active_row )
-        self.analyzer.update() 
+        # self.analyzer.update() 
 
             
     def analysis_data_clicked( self ) :

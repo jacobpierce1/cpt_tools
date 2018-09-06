@@ -196,16 +196,19 @@ class CPTanalyzer( object ) :
     # compute new mass estimate using all the aggregated data.
     def update_mass_estimate( self ) :
 
-        reference_mask = np.array( self.reference_mask, dtype = bool )
-        non_reference_mask = ~ reference_mask
+        reference_mask = np.array( self.reference_mask, dtype = bool ) & ( ~ np.isnan( self.angles ) )
+        non_reference_mask = ( ~ reference_mask ) & ( ~ np.isnan( self.angles ) )
 
-        print( reference_mask )
-        print( non_reference_mask )
-        print( self.timestamps ) 
+        # print( reference_mask )
+        # print( non_reference_mask )
+        # print( self.timestamps ) 
 
-        reference_indices = np.where( reference_mask == 1 )[0]
-        non_reference_indices = np.where( reference_mask == 0 )[0]
+        reference_indices = np.where( reference_mask == 1 )[0] 
+        non_reference_indices = np.where( non_reference_mask == 1 )[0]
 
+        print( reference_indices )
+        print( non_reference_indices )
+        
         if np.sum( reference_mask ) == 0 or np.sum( non_reference_mask ) == 0 :
             self.current_mass_estimate = np.nan
             self.current_freq_estimate = np.nan
@@ -233,9 +236,10 @@ class CPTanalyzer( object ) :
             measured_phases[i] = phase 
 
         taccs = np.array( self.taccs )[ non_reference_mask ]
-        
-        ret = scipy.optimize.leastsq( mass_estimate_resid, [ self.ame_freq_estimate ],
-                                      args = ( taccs, phases ), full_output = 1  )
+
+        # return 
+        ret = scipy.optimize.leastsq( freq_estimate_resid, [ self.ame_freq ],
+                                      args = ( taccs, measured_phases ), full_output = 1  )
             
         print( ret ) 
         
@@ -322,6 +326,10 @@ def fit_gaussian( x, y, bounds ) :
         
     
 
-def mass_estimate_resid( frequency, q, taccs, phases ) :
+def freq_estimate_resid( frequency, taccs, phases ) :
     
-    pass
+    phase_predictions = cpt_tools.freq_to_phase( frequency, taccs )
+    print( taccs ) 
+    print( phases )
+    print( phase_predictions ) 
+    return phases - phase_predictions

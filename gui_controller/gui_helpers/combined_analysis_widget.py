@@ -140,8 +140,8 @@ class CombinedAnalysisWidget( object ) :
             ame_prediction = 50
             while( np.abs( ame_prediction - 5 ) > 5 ) :
                 tacc += 1 
-                ame_prediction = cpt_tools.compute_phase( self.analyzer.ame_mass, self.analyzer.q,
-                                                      tacc, 0, atomic_mass = 1 )
+                ame_prediction = cpt_tools.mass_to_phase( self.analyzer.ame_mass, self.analyzer.q,
+                                                          tacc, atomic_mass = 1 )
                 
             self.predictions_table.setCellWidget( i, 0, QLabel( str( tacc ) ) )
             
