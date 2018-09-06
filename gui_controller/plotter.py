@@ -1,5 +1,6 @@
 import controller_config
 import analysis 
+import cpt_tools
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -165,7 +166,8 @@ class Plotter( object ) :
             self.mcp_hitmap_plot.clear()
             if  self.mcp_hitmap_cbar : 
                 self.mcp_hitmap_cbar.ax.clear() 
-        
+
+                
         if self.plot_with_cuts :
             if self.cpt_data.is_live : 
                 valid_indices = self.cpt_data.cut_data_indices[ : self.cpt_data.num_cut_data ]
@@ -248,7 +250,11 @@ class Plotter( object ) :
         image_min = np.min( image )
         image_max = np.max( image ) 
         ticks = np.linspace( image_min, image_max, n_cbar_ticks, dtype = int )
-        
+
+        self.mcp_hitmap_plot.scatter( cpt_tools.mcp_center_coords[0],
+                                      cpt_tools.mcp_center_coords[1],
+                                      marker = '+', c = 'r', s = 20, linewidths = 1  ) 
+
         self.mcp_hitmap_cbar.set_clim( image_min, image_max )
         self.mcp_hitmap_cbar.set_ticks( ticks )
         self.mcp_hitmap_cbar.draw_all()

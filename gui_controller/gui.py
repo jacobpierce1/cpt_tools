@@ -431,7 +431,8 @@ class gui( QTabWidget ) :
         
     def isolated_analysis_delete_rewire( self, i ) :
         self.analysis_plotter_widget.fit_widget.delete_button_clicked(i)
-        del self.active_fits[ self.active_row ] 
+        
+        self.active_fits[ i ] = None
 
         if i == 1 :
             self.analyzer.radii[ self.active_row ] = np.nan

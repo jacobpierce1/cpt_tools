@@ -23,7 +23,7 @@ DEFAULT_TABOR_SETTINGS = [ [ 1600.0, 656252.0, 0.5 ],  # omega
 
 
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QIntValidator, QDoubleValidator, QFont, QPixmap
+from PyQt5.QtGui import QIntValidator, QDoubleValidator, QFont, QPixmap, QImage
 # from PyQt5 import QtGui
 from PyQt5 import QtCore
 

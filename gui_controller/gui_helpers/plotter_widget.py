@@ -2,8 +2,9 @@ import cpt_tools
 from gui_helpers.gui_config import * 
 import gui_helpers
 
-import numpy as np
 
+import numpy as np
+import io
 
 
 class PlotterWidget( object ) :
@@ -17,7 +18,8 @@ class PlotterWidget( object ) :
 
         self.canvas = FigureCanvas( self.plotter.f )
         self.canvas.mpl_connect( 'motion_notify_event', self.mouse_moved )        
-
+        self.canvas.mpl_connect( 'button_press_event', self.clipboard_handler )
+        
         # mcp hitmap type
         self.plot_with_cuts_button = QCheckBox()
         self.plot_with_cuts = 0
@@ -292,3 +294,18 @@ class PlotterWidget( object ) :
             x, y = mouse_event.xdata, mouse_event.ydata
             self.coords_label.setText( '(%.2f, %.2f)' % (x ,y ) )
 
+
+            
+    # store the image in a buffer using savefig(), this has the
+    # advantage of applying all the default savefig parameters
+    # such as background color; those would be ignored if you simply
+    # grab the canvas using Qt
+    def clipboard_handler( self, event ):
+        # print( 'reached clipboard handler' ) 
+        if event.dblclick :
+            # print( 'copying...' ) 
+            # if event.key == 'ctrl+c':
+            buf = io.BytesIO()
+            self.plotter.f.savefig(buf)
+            QApplication.clipboard().setImage(QImage.fromData(buf.getvalue()))
+            buf.close()

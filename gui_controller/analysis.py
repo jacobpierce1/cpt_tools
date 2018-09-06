@@ -307,7 +307,10 @@ def fit_gaussian( x, y, bounds ) :
 
     if success > 0 :
 
-        dof = len( x_cut ) - len( params ) 
+        dof = len( x_cut ) - len( params )
+        print( x_cut )
+        print( params ) 
+        print( 'dof: ', dof ) 
         
         redchisqr = ( np.sum( _resid( params, gaussian, x_cut, y_cut, dy_cut ) ) ** 2
                       / dof ) 
@@ -332,4 +335,7 @@ def freq_estimate_resid( frequency, taccs, phases ) :
     print( taccs ) 
     print( phases )
     print( phase_predictions ) 
-    return phases - phase_predictions
+    ret = phases - phase_predictions
+    print( ret )
+    return ret 
+    
