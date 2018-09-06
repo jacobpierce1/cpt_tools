@@ -4,7 +4,7 @@
 # communication with the TDC and maintains a  buffer 
 # as well as operations for interacting with this buffer.
 
-import config
+import controller_config
 
 import numpy as np
 import ctypes 
@@ -42,7 +42,7 @@ class TDC( object ) :
     def __init__( self ) : 
         
         # load the TDC c API
-        if not config.USE_FAKE_DATA :
+        if not controller_config.USE_FAKE_DATA :
             self.tdc_driver_lib = ctypes.CDLL( _dll_path )
             
             self.tdc_ctx = self.tdc_driver_lib.TDCManager_New()
@@ -79,7 +79,7 @@ class TDC( object ) :
                 
     def disconnect( self ) : 
         print( 'deleting tdc_ctx' )
-        if not config.USE_FAKE_DATA : 
+        if not controller_config.USE_FAKE_DATA : 
             self.tdc_driver_lib.TDCManager_CleanUp( self.tdc_ctx )
             self.tdc_driver_lib.TDCManager_Delete( self.tdc_ctx )
         self.collecting_data = 0
@@ -94,38 +94,38 @@ class TDC( object ) :
         
     # pause data collection
     def pause( self ) :
-        if not config.USE_FAKE_DATA : 
+        if not controller_config.USE_FAKE_DATA : 
             self.tdc_driver_lib.TDCManager_Pause( self.tdc_ctx )
         self.collecting_data = 0
 
         
     def resume( self ) :
-        if not config.USE_FAKE_DATA : 
+        if not controller_config.USE_FAKE_DATA : 
             self.tdc_driver_lib.TDCManager_Continue( self.tdc_ctx )
         self.start_time = time.time()
         self.collecting_data = 1
 
     def clear( self ) :
-        # if not config.USE_FAKE_DATA :
+        # if not controller_config.USE_FAKE_DATA :
         #     self.tdc_driver_lib.TDCManager_ClearBuffer( self.tdc_ctx )
         self.num_data_in_buf = 0
         
         
     def get_state( self ) :
         state = -1
-        if not config.USE_FAKE_DATA : 
+        if not controller_config.USE_FAKE_DATA : 
             state = self.tdc_driver_lib.TDCManager_GetState( self.tdc_ctx )
         return state
                 
     def read( self ) :
         
-        if config.BENCHMARK :
+        if controller_config.BENCHMARK :
             start = time.time()
             
         if SAVE_FAKE_DATA : 
             time.sleep(5)
             
-        if config.USE_FAKE_DATA :
+        if controller_config.USE_FAKE_DATA :
             # print( self.collecting_data )
             
             if self.collecting_data : 
@@ -159,7 +159,7 @@ class TDC( object ) :
         self.update_time()
         # print( self.duration )
         
-        if config.BENCHMARK :
+        if controller_config.BENCHMARK :
             end = time.time()
             diff = ( end - start ) * 1000 
             print( 'BENCHMARK: read %d hits in %f ms'
@@ -194,7 +194,7 @@ class TDC( object ) :
         
         rollover_start, rollover_end = self.get_rollover_boundaries( rollovers )
 
-        if config.PRINT_TDC_DATA : 
+        if controller_config.PRINT_TDC_DATA : 
             print( 'rollovers: ')
             print( rollovers )
             print( '\nchannels:' )

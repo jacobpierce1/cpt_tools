@@ -20,8 +20,8 @@ class CPTanalyzer( object ) :
         self.ame_mass = 0
         self.ame_freq = 0
         
-        self.current_mass_estimate = 0 
-        self.current_freq_estimate = 0 
+        self.current_mass_estimate = np.nan
+        self.current_freq_estimate = np.nan
         
         self.data_list = [] 
 
@@ -54,7 +54,8 @@ class CPTanalyzer( object ) :
         del self.taccs[ idx ]
         del self.timestamps[ idx ]
         del self.reference_mask[ idx ]
-        
+
+        self.num_data -= 1 
         # try : 
         #     self.reference_mask.remove( idx ) 
         # except :
@@ -62,7 +63,8 @@ class CPTanalyzer( object ) :
 
     # def compute_reference_indices( self ) :
     #     self.reference_indices = np.where( 
-            
+
+    
     
     # apply fits and update plots 
     def append( self, cpt_data ) :
@@ -81,7 +83,7 @@ class CPTanalyzer( object ) :
             self.reference_mask.append( 0 ) 
             
         self.num_data += 1 
-        self.update() 
+        # self.update() 
         
     # def set_active_fit( self, params, errors, i ) :
         
@@ -121,19 +123,19 @@ class CPTanalyzer( object ) :
         self.ref_drift_plot.set_ylabel( 'Absolute Angle' )
         self.ref_drift_plot.set_title( 'Reference Drift' )
 
-        if self.num_data == 0 :
-            return
-
+        if np.sum( self.reference_mask ) == 0 :
+            return 
+        
         references = np.array( self.reference_mask, dtype = bool ) 
         
         ref_phase = np.array( self.angles )[ references ]
         ref_timestamps = np.array( self.timestamps )[ references ]
         ref_timestamps -= min( ref_timestamps )
 
-        print( 'plotting ref_drift_plot' )
-        print( self.reference_mask ) 
-        print( ref_timestamps )
-        print( ref_phase ) 
+        # print( 'plotting ref_drift_plot' )
+        # print( self.reference_mask ) 
+        # print( ref_timestamps )
+        # print( ref_phase ) 
 
         self.ref_drift_plot.scatter( ref_timestamps, ref_phase, s = 1, c = 'r',
                                      zorder = 2 ) 
@@ -145,9 +147,7 @@ class CPTanalyzer( object ) :
         # self.references
 
 
-    def update_radius_plot( self ) :
-        print( 'reached' ) 
-        
+    def update_radius_plot( self ) :        
         self.radius_plot.clear()
         self.radius_plot.set_xlabel( 'Accumulation Time' )
         self.radius_plot.set_ylabel( 'Radius' )
@@ -156,9 +156,9 @@ class CPTanalyzer( object ) :
         if self.num_data == 0 :
             return
         
-        print( 'plotting radii' ) 
-        print( self.taccs )
-        print( self.radii ) 
+        # print( 'plotting radii' ) 
+        # print( self.taccs )
+        # print( self.radii ) 
 
         self.radius_plot.scatter( self.taccs, self.radii, s = 1, zorder = 2 ) 
 
@@ -175,7 +175,8 @@ class CPTanalyzer( object ) :
         self.update_ref_drift_plot()
         self.update_radius_plot()
         self.update_residual_plot() 
-                
+        self.update_mass_estimate()
+        
 
     def set_ion_params( self, Z, A, Q ) :
         self.Z = Z
@@ -193,15 +194,28 @@ class CPTanalyzer( object ) :
     
 
     # compute new mass estimate using all the aggregated data.
-    def compute_new_mass_estimate( self ) :
+    def update_mass_estimate( self ) :
 
         reference_mask = np.array( self.reference_mask, dtype = bool )
         non_reference_mask = ~ reference_mask
 
+        print( reference_mask )
+        print( non_reference_mask )
+        print( self.timestamps ) 
+
         reference_indices = np.where( reference_mask == 1 )[0]
         non_reference_indices = np.where( reference_mask == 0 )[0]
 
-        reference_timestamps = self.timestamps[ reference_mask ] 
+        if np.sum( reference_mask ) == 0 or np.sum( non_reference_mask ) == 0 :
+            self.current_mass_estimate = np.nan
+            self.current_freq_estimate = np.nan
+            return 
+
+        #
+        # print( self.timestamps.shape )
+        # print( self.reference_mask.shape ) 
+        
+        reference_timestamps = np.array( self.timestamps )[ reference_mask ] 
         
         num_non_references = len( non_reference_indices )
         measured_phases = np.zeros( num_non_references ) 
@@ -212,18 +226,18 @@ class CPTanalyzer( object ) :
             #find closest reference
             idx = non_reference_indices[i]  # index in self.timestamps 
             timestamp = self.timestamps[ idx ]
-            ref_idx = np.argmin( np.abs( reference_timestamps - timestamp ) )  # index in reference_timestamps
-            ref_idx = references
+            rel_ref_idx = np.argmin( np.abs( reference_timestamps - timestamp ) )  # index in reference_timestamps
+            ref_idx = reference_indices[ rel_ref_idx ] 
 
             phase = self.angles[ idx ] - self.angles[ ref_idx ]
             measured_phases[i] = phase 
 
-        taccs = self.taccs[ non_reference_mask ]
+        taccs = np.array( self.taccs )[ non_reference_mask ]
         
-        scipy.optimize.leastsq( mass_estimate_resid, [ self.ame_freq_estimate ],
-                                args = ( taccs, phases ) )
+        ret = scipy.optimize.leastsq( mass_estimate_resid, [ self.ame_freq_estimate ],
+                                      args = ( taccs, phases ), full_output = 1  )
             
-
+        print( ret ) 
         
         
                                 

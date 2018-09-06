@@ -1,4 +1,4 @@
-import config
+import controller_config
 import tdc
 import tabor
 # import processing
@@ -6,7 +6,7 @@ import tabor
 import cpt_tools
 import plotter
 import analysis
-import cpt_tools
+import live_cpt_data
 
 import sys 
 import scipy.stats as st
@@ -71,7 +71,7 @@ class gui( QTabWidget ) :
         # the 3 custom classes we will be using to manage DAQ, processing, and plots
         self.tdc = tdc.TDC()
         self.tabor = tabor.Tabor() 
-        self.processor = cpt_tools.LiveCPTdata( self.tdc ) 
+        self.processor = live_cpt_data.LiveCPTdata( self.tdc ) 
         self.plotter = plotter.Plotter( self.processor )
                 
         ( self.controls_tab_idx,
@@ -124,7 +124,7 @@ class gui( QTabWidget ) :
         self.help_tab_init() 
         
         self.setWindowTitle("Phase Imaging DAQ and Real-Time Analysis")
-        self.resize( config.WINDOW_WIDTH, config.WINDOW_HEIGHT )
+        self.resize( controller_config.WINDOW_WIDTH, controller_config.WINDOW_HEIGHT )
                 
         self.kill_update_thread = 0
         self.kill_batch_thread = 0 
@@ -230,7 +230,7 @@ class gui( QTabWidget ) :
         buttons_layout.addWidget( save_comment_button ) 
         daq_layout.addRow( buttons_layout ) 
                 
-        self.alternate_name_entry = QLineEdit( config.DEFAULT_ALTERNATE_NAME )
+        self.alternate_name_entry = QLineEdit( controller_config.DEFAULT_ALTERNATE_NAME )
         daq_layout.addRow( 'Alternate Name', self.alternate_name_entry )
         
         # self.session_name_entry = QLineEdit()
@@ -406,18 +406,18 @@ class gui( QTabWidget ) :
         if not fit :
             return 
         
-        print( 'isolated_analysis_fit_rewire called' ) 
-        print( self.active_row )
-        print( self.active_fits )
-        print( i ) 
+        # print( 'isolated_analysis_fit_rewire called' ) 
+        # print( self.active_row )
+        # print( self.active_fits )
+        # print( i ) 
 
         if self.active_row is None :
             return
         
         self.active_fits[ self.active_row ][i] = fit
 
-        print( 'self.analyzer.angles: ', self.analyzer.angles )
-        print( 'self.analyzer.radii: ', self.analyzer.radii ) 
+        # print( 'self.analyzer.angles: ', self.analyzer.angles )
+        # print( 'self.analyzer.radii: ', self.analyzer.radii ) 
         
         if i == 1 :
             self.analyzer.radii[ self.active_row ] = fit.params[1]
@@ -499,6 +499,7 @@ class gui( QTabWidget ) :
         property_lookup_cols = [ 'Freq', 'Mass', 'T_{1/2}', 'Cf yield', 'Rel Natural Abund' ]
         self.property_lookup_table = QTableWidget( 1, len( property_lookup_cols ) )
         self.property_lookup_table.setHorizontalHeaderLabels( property_lookup_cols )
+        # self.property_lookup_table.setMaximumHeight( 100 )
 
         self.property_lookup_table.horizontalHeader().setSectionResizeMode( QHeaderView.Stretch ) 
         self.property_lookup_table.verticalHeader().setSectionResizeMode( QHeaderView.Stretch )
@@ -630,7 +631,7 @@ class gui( QTabWidget ) :
 
             tabor_params = self.tabor_params_widget.fetch()
             
-            if config.USE_TABOR :
+            if controller_config.USE_TABOR :
                 self.tabor.load_params( tabor_params ) 
             else :
                 print( 'INFO: simulating tabor load...' )
@@ -785,7 +786,8 @@ class gui( QTabWidget ) :
             # toggle_color( self.batch_start_button, 0 )
             # self.batch_start_button.setText( 'Batch Paused' )
             # return 
-        
+
+        self.kill_batch_thread = 0 
         stop_time = self.batch_stop_time_entry.text()
         try :
             stop_time = int( stop_time )
@@ -834,14 +836,14 @@ class gui( QTabWidget ) :
             print( 'INFO: running batch data for tacc = %d' % tacc ) 
             tabor_params.tacc = tacc
             
-            self.tacc_entry.setText( str( tacc ) ) 
+            self.tabor_params_widget.tacc_entry.setText( str( tacc ) ) 
             
             # self.set_tabor_params( tabor_params )
 
             self.tdc.pause()
             self.toggle_tabor_label( 0 ) 
             
-            if config.USE_TABOR :
+            if controller_config.USE_TABOR :
                 self.tabor.load_params( tabor_params ) 
             else :
                 print( 'INFO: simulating tabor load...' )
@@ -902,7 +904,11 @@ class gui( QTabWidget ) :
         self.combined_analysis_widget.update()
         self.active_row = len( self.active_fits ) - 1
         self.analysis_data_dirs_qlist.setCurrentRow( self.active_row )
-        self.set_analysis_plotter_data( self.active_row ) 
+
+        # print( self.active_fits ) 
+        
+        self.set_analysis_plotter_data( self.active_row )
+        self.analyzer.update() 
 
             
     def analysis_data_clicked( self ) :
@@ -919,18 +925,17 @@ class gui( QTabWidget ) :
 
         self.active_row = row
 
-        print( self.active_row ) 
-        print( self.active_fits )
+        # print( self.active_row )
+        # print( self.active_fits  )
         
-
+        
         for i in range(3) :
             fit = self.active_fits[ self.active_row ][i] 
             self.analysis_plotter.all_hists[i].fit = self.active_fits[ self.active_row ][i]
             self.analysis_plotter_widget.fit_widget.set_fit_params( fit, i ) 
             
         self.analysis_plotter_widget.update()
-        
-        # print( self.analysis_plotter_widget.cpt_data.
+
 
         
     def delete_button_clicked( self ) :
@@ -945,14 +950,10 @@ class gui( QTabWidget ) :
 
         if row > 0 : 
             self.set_analysis_plotter_data( row - 1 ) 
-        
+        else :
+            self.analysis_plotter_widget.set_cpt_data( cpt_tools.empty_cpt_data )
+            
         self.analysis_plotter_widget.update()
-        
-        # del self.analysis_data_list[ row ]
-        
-        
-    # def toggle_isolated_dataset( self ) :
-    #     self.plot_isolated_dataset = self.isolated_dataset_checkbox.checkState()
 
 
 

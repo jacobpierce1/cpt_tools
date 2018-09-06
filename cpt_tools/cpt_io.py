@@ -3,15 +3,15 @@
 import os 
 from stat import S_IREAD, S_IRGRP, S_IROTH, S_IWUSR
 from datetime import datetime 
+import numpy as np 
 
 from cpt_tools import DEFAULT_STORAGE_DIRECTORY
 
 
+cpt_header_key = np.array( [ 3, 16, 20 ], dtype = float )
 
 
 def write_log( message, author = None ) :
-
-    print( 'ABOUT TO WRITE LOG' ) 
     
     time_str = datetime.now().strftime( '%Y-%m-%d %H:%M' ) 
 
@@ -29,8 +29,6 @@ def write_log( message, author = None ) :
         f.write( log_message ) 
         
     lock_file( log_path )
-
-    print( 'WROTE LOG' ) 
 
 
 

@@ -1,5 +1,5 @@
 import os.path
-
+import numpy as np 
 
 calibrant_Z = 55
 calibrant_A = 133 # atomic mass 
@@ -8,6 +8,11 @@ calibrant_omega =  675000.3
 # calibrant_omega =  657844.45
 
 
+mcp_center_coords = np.array( [ -1.6, 3.0 ] )
+
+
+
+############################################
 
 # IS_WINDOWS = ( os.name == 'nt' )
 

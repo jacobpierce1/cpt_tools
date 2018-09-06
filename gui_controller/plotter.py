@@ -1,4 +1,4 @@
-import config
+import controller_config
 import analysis 
 
 import numpy as np
@@ -20,8 +20,9 @@ n_cbar_ticks = 5
 
 # mcp_hitmap_cmap = colorcet.m_rainbow
 # mcp_hitmap_cmap = colorcet.m_rainbow_bgyrm_35_85_c69
-# mcp_hitmap_cmap = colorcet.m_linear_kryw_0_100_c71
-mcp_hitmap_cmap = colorcet.m_linear_bmw_5_95_c86
+# mcp_hitmap_cmap = colorcet.m_linear_kryw_0_100_c71_r
+# mcp_hitmap_cmap = colorcet.m_linear_bmw_5_95_c86_r
+mcp_hitmap_cmap = colorcet.m_linear_bgyw_15_100_c68_r
 
 
 # all 3 1d histograms have the same functionality.
@@ -48,6 +49,9 @@ class PlotterHist( object ) :
     def update( self ) : 
         self.ax.clear() 
         self.ax.set_title( self.title )
+
+        if self.cpt_data is None :
+            return 
 
         if self.plot_with_cuts :
             if self.cpt_data.is_live : 
@@ -155,6 +159,12 @@ class Plotter( object ) :
     def update_mcp_hitmap( self ) :
 
         self.mcp_hitmap_plot = self.axarr[0][0]
+
+        if self.cpt_data is None :
+            # self.rebuild_mcp_plot = 0
+            self.mcp_hitmap_plot.clear()
+            if  self.mcp_hitmap_cbar : 
+                self.mcp_hitmap_cbar.ax.clear() 
         
         if self.plot_with_cuts :
             if self.cpt_data.is_live : 
@@ -271,9 +281,13 @@ class Plotter( object ) :
     def set_cpt_data( self, cpt_data ) :
         self.cpt_data = cpt_data
         
+        for hist in self.all_hists :
+            hist.cpt_data = cpt_data
+
+        if cpt_data is None :
+            return
+            
         self.tof_hist.data = cpt_data.tofs
         self.radius_hist.data = cpt_data.radii
         self.angle_hist.data = cpt_data.angles
 
-        for hist in self.all_hists :
-            hist.cpt_data = cpt_data
