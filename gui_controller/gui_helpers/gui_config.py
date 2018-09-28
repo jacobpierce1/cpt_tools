@@ -15,10 +15,10 @@ DEFAULT_TACC = 0
 DEFAULT_NUM_STEPS = 5
 
 # order: w_-, w_+, w_c 
-DEFAULT_TABOR_SETTINGS = [ [ 1600.0, 656252.0, 0.5 ],  # omega
-                           [ -140.0, 0.0, 0.0 ],  # phase
-                           [ 0.0005, 0.2, 0.5 ],  # amp 
-                           [ 1, 100, 208 ],  # loops 
+DEFAULT_TABOR_SETTINGS = [ [ 1571.0, 673429.0, 675000.0 ],  # omega
+                           [ -160.0, 0.0, 0.0 ],  # phase
+                           [ 0.0035, 0.22, 0.5 ],  # amp 
+                           [ 1, 103, 228 ],  # loops 
                            [ 3, 1, 1 ]   # length 
 ]
 

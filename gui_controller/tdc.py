@@ -287,6 +287,9 @@ class TDC( object ) :
 
     def compute_timestamps( self, rollover_start, rollover_end ) :
 
+        if len( rollover_start ) == 0 :
+            return
+    
         num_data = self.num_data_in_buf 
         times = self.times[ : num_data ]
         # timestamps = self.timestamps[ : num_data ] 
@@ -304,7 +307,8 @@ class TDC( object ) :
                 if rollover_count < self.prev_rollover_count :
                     self.num_rollover_loops += 1
             else :
-                rollover_idx = self.prev_rollover_idx 
+                rollover_count = self.prev_rollover_count
+                # rollover_idx = self.prev_rollover_idx 
             
             # note that times[ start ] is the rollover count.
             absolute_rollover_times[ start : end ] = (

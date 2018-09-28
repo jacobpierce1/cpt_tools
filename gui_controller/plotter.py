@@ -83,8 +83,8 @@ class PlotterHist( object ) :
         else :
             self.hist, self.bins, _ = self.ax.hist( data, bins = bins )
 
-        print( self.title )
-        print( data ) 
+        # print( self.title )
+        # print( data ) 
 
         
     def set_data_params( self, num_events, num_cut_data ) :
@@ -275,8 +275,20 @@ class Plotter( object ) :
         
         self.cpt_data = cpt_data
         
-        self.f, self.axarr = plt.subplots( 2, 2 )
-        self.f.subplots_adjust( hspace = 0.5, wspace = 0.7 )
+        self.f, self.axarr = plt.subplots( 2, 2, figsize = ( 6,6 ) )
+        self.f.subplots_adjust( hspace = 0.5, wspace = 0.5 )
+        
+        # for i in range(2) :
+        #    for j in range(2) : 
+                
+                # xmin, xmax = self.axarr[i,j].get_xlim()
+                # ymin, ymax = self.axarr[i,j].get_ylim()
+                # print((xmax-xmin)/(ymax-ymin))
+                # self.axarr[i,j].set_aspect(abs((xmax-xmin)/(ymax-ymin)) * 1, adjustable='box-forced' )
+                # self.axarr[i,j].set_aspect( 1, adjustable = 'box-forced' )
+                # im = self.axarr[i,j].get_images()
+                # extent =  im[0].get_extent()
+                # self.axarr[i,j].set_aspect(abs((extent[1]-extent[0])/(extent[3]-extent[2]))/ 1)
 
         center = cpt_tools.mcp_center_coords.astype( int )
         # print( 'center: ', center ) 

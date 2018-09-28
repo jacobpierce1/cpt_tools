@@ -1,0 +1,1 @@
+start cmd /k python3 gui_controller/gui.py
