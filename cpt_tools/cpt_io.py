@@ -20,7 +20,7 @@ def write_log( message, author = None ) :
     
     log_message = '%s\n%s\n%s\n\n' % ( time_str, author, message ) 
 
-    log_path = DEFAULT_STORAGE_DIRECTORY + 'log.txt'
+    log_path = DEFAULT_STORAGE_DIRECTORY + 'user_log.txt'
 
     if os.path.exists( log_path ) :
         unlock_file( log_path )

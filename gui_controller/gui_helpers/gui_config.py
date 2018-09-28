@@ -10,6 +10,7 @@ SUBTITLE_WEIGHT = 3
 PLOTTER_WIDGET_QLINEEDIT_WIDTH = 70
 
 
+
 DEFAULT_TACC = 0
 DEFAULT_NUM_STEPS = 5
 
@@ -20,6 +21,22 @@ DEFAULT_TABOR_SETTINGS = [ [ 1600.0, 656252.0, 0.5 ],  # omega
                            [ 1, 100, 208 ],  # loops 
                            [ 3, 1, 1 ]   # length 
 ]
+
+
+DEFAULT_TOF_CUT_LOWER = 0
+DEFAULT_TOF_CUT_UPPER = 40
+
+DEFAULT_RADIUS_CUT_LOWER = 0
+DEFAULT_RADIUS_CUT_UPPER = 10
+
+DEFAULT_SUM_X_CUT_LOWER = 0
+DEFAULT_SUM_X_CUT_UPPER = 100
+
+DEFAULT_SUM_Y_CUT_LOWER = 0
+DEFAULT_SUM_Y_CUT_UPPER = 100
+
+DEFAULT_DIFF_XY_CUT_LOWER = -100
+DEFAULT_DIFF_XY_CUT_UPPER = 100
 
 
 from PyQt5.QtWidgets import *
@@ -33,3 +50,8 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 
 MAX_SIZE_POLICY = size_policy = QSizePolicy( QSizePolicy.Maximum, QSizePolicy.Maximum )
+
+
+# don't modify below this line
+
+MU_UNICODE = '\u03bc'

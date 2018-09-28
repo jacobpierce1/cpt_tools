@@ -14,8 +14,7 @@ import collections
 import sys
 import os 
 
-_max_tdc_buf_size = 2**14
-# fake_data_path = 'test_data_tabor_on_with_rising.npy' 
+_max_tdc_buf_size = 2**16
 
 code_path = os.path.abspath( os.path.dirname( __file__ ) )
 os.chdir( code_path ) 
@@ -29,6 +28,12 @@ SAVE_FAKE_DATA = 0
 # falling_transition_mask = 2**31 
 # rising_transition_mask = 2**31 + 2**30 
 
+
+# amount of time in micro-seconds represented by one rollover.
+# each rollover is an absence of hits on any of the TDC channels for this amount of time. 
+ROLLOVER_DURATION = 512  
+
+
 rising_mask = 3
 falling_mask = 2
 rollover_mask = 2**28
@@ -39,7 +44,8 @@ group_mask = np.sum( 2 ** np.arange( 24, 32, dtype = 'int' ) )
 
 
 class TDC( object ) :
-    def __init__( self ) : 
+    
+    def __init__( self ) :
         
         # load the TDC c API
         if not controller_config.USE_FAKE_DATA :
@@ -63,8 +69,10 @@ class TDC( object ) :
         else :
             self.collecting_data = 1 
             
-        # hits from the TDC are stored here sequentially with no processing.
+        # hits from the TDC are stored here prior to processing. 
         self.data_buf = np.zeros( _max_tdc_buf_size, dtype = 'uint32' )
+
+        # the data in data_buf is processed and inserted into these arrays 
         self.channels = np.zeros( _max_tdc_buf_size, dtype = 'uint8' )
         self.times = np.zeros( _max_tdc_buf_size, dtype = 'int32' )
         self.timestamps = np.zeros( _max_tdc_buf_size, dtype = float )
@@ -73,17 +81,22 @@ class TDC( object ) :
 
         self.start_time = time.time()
         self.duration = 0
+
+        # increment if the rollover counter resets. that will occur in a session of more than 143
+        # minutes. it's not a problem, just needs to be accounted for here.
+        self.num_rollover_loops = 0 
         
         self.num_data_in_buf = 0
                 
                 
     def disconnect( self ) : 
-        print( 'deleting tdc_ctx' )
+        print( 'INFO: deleting tdc_ctx' )
         if not controller_config.USE_FAKE_DATA : 
             self.tdc_driver_lib.TDCManager_CleanUp( self.tdc_ctx )
             self.tdc_driver_lib.TDCManager_Delete( self.tdc_ctx )
         self.collecting_data = 0
 
+        
     def toggle( self ) :
         if self.collecting_data :
             self.pause()
@@ -110,6 +123,8 @@ class TDC( object ) :
         #     self.tdc_driver_lib.TDCManager_ClearBuffer( self.tdc_ctx )
         self.start_time = time.time() 
         self.num_data_in_buf = 0
+        self.prev_rollover_count = 0
+        self.num_rollover_loops = 0 
         
         
     def get_state( self ) :
@@ -119,6 +134,9 @@ class TDC( object ) :
         return state
                 
     def read( self ) :
+
+        if not controller_config.USE_TDC :
+            return 
         
         if controller_config.BENCHMARK :
             start = time.time()
@@ -156,7 +174,13 @@ class TDC( object ) :
         # print( 'num rollovers: ', np.sum( self.rollovers[ : self.num_data_in_buf]))
         
         # self.compute_timestamps() 
-        self.sort_data()
+
+        rollovers = self.rollovers[ : self.num_data_in_buf ] 
+        
+        rollover_start, rollover_end = self.get_rollover_boundaries( rollovers )
+
+        self.sort_data( rollover_start, rollover_end )
+        self.compute_timestamps( rollover_start, rollover_end )
         self.update_time()
         # print( self.duration )
         
@@ -177,15 +201,48 @@ class TDC( object ) :
                 self.times[ : self.num_data_in_buf ] ) )
             np.savetxt( 'debug_tdc_data.tsv', out, delimiter = '\t' )
             sys.exit(0) 
+
         return self.num_data_in_buf
 
 
 
     
+    # input: mask stating whether each hit in the array is a rollover or not (1 or 0 respectively)
+    # 
+    # output: returns two equal-size arrays, 'start' and 'end', such that the range start[i] : end[i]
+    # are NOT hits. so start gives the indices of each block of non-rollover data, and end gives
+    # the indices of the first rollover in any sequence of consecutive rollovers.
+    # 
+    # for example, suppose the rollover mask looks like this:    0 1 1 1 0 0 0 1 1 0 0 0 0
+    # let s = start, e = end. then the start / end indices are:  s e     s     e   s     e
+    #
+    # thus, start = ( 0, 4, 9 ) and end = ( 1, 7, 12 ).
+    # 
+    # note that if the first hit is not a rollover or the last hit is not a rollover (both of
+    # wich are the case in the above example), then start or end is designated accordingly.
+    
+    def get_rollover_boundaries( self, rollovers ) :
+
+        tmp = np.roll( rollovers, 1 )
+        tmp[0] = rollovers[0]
+
+        start = np.where( rollovers < tmp )[0]
+        end = np.where( rollovers > tmp )[0]
+
+        if not rollovers[0] :
+            start = np.insert( start, 0, 0 ) 
+
+        if not rollovers[-1] :
+            end = np.append( end, len( rollovers ) ) 
+
+        return start, end
+
+    
+    
     # the data is only partially sorted when it comes out of the TDC.
     # complete the sorting between each group of consecutive rolloovers.
     # @jit
-    def sort_data( self ) :
+    def sort_data( self, rollover_start, rollover_end ) :
 
         num_data = self.num_data_in_buf
 
@@ -193,8 +250,6 @@ class TDC( object ) :
         channels = self.channels[ : num_data ]
         times =  self.times[ : num_data ]
         
-        rollover_start, rollover_end = self.get_rollover_boundaries( rollovers )
-
         if controller_config.PRINT_TDC_DATA : 
             print( 'rollovers: ')
             print( rollovers )
@@ -225,25 +280,43 @@ class TDC( object ) :
             channels[ start : end ] = channels[ sort_indices ]
 
             # print( times[ start - 1 : end + 1 ] )
-            
+
 
             
-    def get_rollover_boundaries( self, rollovers ) :
+    # set the absolute timestamp of aech event.
 
-        tmp = np.roll( rollovers, 1 )
-        tmp[0] = rollovers[0]
+    def compute_timestamps( self, rollover_start, rollover_end ) :
 
-        start = np.where( rollovers < tmp )[0]
-        end = np.where( rollovers > tmp )[0]
+        num_data = self.num_data_in_buf 
+        times = self.times[ : num_data ]
+        # timestamps = self.timestamps[ : num_data ] 
 
-        if not rollovers[0] :
-            start = np.insert( start, 0, 0 ) 
+        # this array will contain the absolute time of the rollover corresponding to each
+        absolute_rollover_times = np.zeros( num_data )
 
-        if not rollovers[-1] :
-            end = np.append( end, len( rollovers ) ) 
+        for i in range( len( rollover_start ) ) :
 
-        return start, end
+            start = rollover_start[i]
+            end = rollover_end[i]
 
+            if start > 0 :
+                rollover_count = times[ start - 1 ]
+                if rollover_count < self.prev_rollover_count :
+                    self.num_rollover_loops += 1
+            else :
+                rollover_idx = self.prev_rollover_idx 
+            
+            # note that times[ start ] is the rollover count.
+            absolute_rollover_times[ start : end ] = (
+                ( self.num_rollover_loops * ( 2 ** 24 ) + rollover_count ) * ROLLOVER_DURATION )
+
+        # now compute the absolute time of each hit by adding its time to the associated absolute
+        # rollover time. the timestamps of the rollovers will be nonsense, that could be corrected
+        # if one so desired but there is no reason to preserve them once they have been used for
+        # sorting and absolute time computation.
+        self.timestamps[ : num_data ] = ( absolute_rollover_times + times ) * 25 / 1e6
+
+        self.prev_rollover_count = rollover_count
         
     def reset( self ) :
         self.num_data_in_buf = 0
@@ -268,10 +341,8 @@ class TDC( object ) :
 
     def get_falling( self, hits ) :
         return np.right_shift( hits, 30 ) == falling_mask 
-
-    # def compute_timestamps( self, hits ) :
-    #     for i in range( self.num_data_in_buf ) : 
-    
+        
+            
     def print_bin( self, x ) :
         print( format( x, '#034b' ) )
 

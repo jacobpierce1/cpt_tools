@@ -7,18 +7,70 @@ import numpy as np
 import io
 
 
+class CutWidget( object ) :
+
+    def __init__( self, name, default_low, default_high ) :
+
+        self.layout = QHBoxLayout()
+
+        self.checkbox = QCheckBox()
+        self.checkbox.setCheckState(2)
+        
+        self.lower_entry = QLineEdit( str( default_low ) )
+        self.lower_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
+        self.lower_entry.setValidator( QDoubleValidator(0., 10000., 10 ) )
+
+        self.upper_entry = QLineEdit( str( default_high ) )
+        self.upper_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
+        self.upper_entry.setValidator( QDoubleValidator(0., 10000., 10 ) )
+
+        self.layout.addWidget( self.checkbox ) 
+        self.layout.addWidget( self.lower_entry ) 
+        self.layout.addWidget( self.upper_entry )
+
+        self.name = name
+
+
+    def read( self ) :
+
+        if not self.checkbox.checkState() :
+            return None 
+        
+        lower = self.lower_entry.text() 
+        upper = self.upper_entry.text()
+
+        if not ( lower or upper ) :
+            return None
+
+        if not lower :
+            lower = - np.inf
+        else :
+            lower = float( lower )
+
+        if not upper :
+            upper = np.inf
+        else :
+            upper = float( upper ) 
+
+        return [ lower, upper ] 
+
+
+
+
+    
 class PlotterWidget( object ) :
 
     def __init__( self, plotter = None ) :
 
+        if not plotter :
+            plotter = plotting.Plotter()
+
         plot_selector_layout = QHBoxLayout()
-        button_names = [ 'Main', 'Projections', 'TDC' ]
+        button_names = plotter.plot_titles 
         for i in range( len( button_names ) ) :
             button = QPushButton( button_names[i] )
             plot_selector_layout.addWidget( button ) 
-        
-        if not plotter :
-            plotter = plotting.Plotter()
+            button.clicked.connect( lambda state, a=i : self.set_active_fig( a ) )
             
         self.plotter = plotter
 
@@ -57,7 +109,7 @@ class PlotterWidget( object ) :
 
         self.mcp_bounds_entries = np.zeros( (2,2), dtype = object )
         mcp_bounds_layouts = np.zeros(2, dtype = object ) 
-        defaults = np.array( [[-5,5], [-5,5]] )
+        defaults = np.array( [ self.plotter.mcp_x_bounds, self.plotter.mcp_y_bounds ] )
         mcp_hitmap_bounds_validator = QDoubleValidator( -1000, 1000, 10 )
         
         for i in range(2) :
@@ -82,49 +134,34 @@ class PlotterWidget( object ) :
         self.angle_hist_nbins_entry.setValidator( hist_nbins_validator ) 
 
         
-        # tof cut entry 
-        tof_bounds = QHBoxLayout()
+        self.tof_cut_widget = CutWidget( 'TOF Cut', DEFAULT_TOF_CUT_LOWER, DEFAULT_TOF_CUT_UPPER )
+
+        self.radius_cut_widget = CutWidget( 'Radius Cut', DEFAULT_RADIUS_CUT_LOWER,
+                                            DEFAULT_RADIUS_CUT_UPPER )
+
+        self.sum_x_cut_widget = CutWidget( 'Sum X', DEFAULT_SUM_X_CUT_LOWER,
+                                           DEFAULT_SUM_X_CUT_UPPER )
+
+        self.sum_y_cut_widget = CutWidget( 'Sum Y', DEFAULT_SUM_Y_CUT_LOWER,
+                                           DEFAULT_SUM_Y_CUT_UPPER )
         
-        self.tof_lower_cut_entry = QLineEdit( str( self.plotter.cpt_data.tof_cut_lower ) )
-        self.tof_lower_cut_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
-        self.tof_lower_cut_entry.setValidator( QDoubleValidator(0., 10000., 10 ) )
-
-        self.tof_upper_cut_entry = QLineEdit( str( self.plotter.cpt_data.tof_cut_upper ) )
-        self.tof_upper_cut_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH ) 
-        self.tof_upper_cut_entry.setValidator( QDoubleValidator(0., 10000., 10 ) )
-
-        tof_bounds.addWidget( self.tof_lower_cut_entry ) 
-        tof_bounds.addWidget( self.tof_upper_cut_entry )
-
-        r_bounds = QHBoxLayout() 
+        self.diff_xy_cut_widget = CutWidget( 'X - Y', DEFAULT_DIFF_XY_CUT_LOWER,
+                                             DEFAULT_DIFF_XY_CUT_UPPER )
         
-        self.r_lower_cut_entry = QLineEdit( str(0) )
-        self.r_lower_cut_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
-        self.r_lower_cut_entry.setValidator( QDoubleValidator( 0, 10000, 3 ) )
-        
-        self.r_upper_cut_entry = QLineEdit( str(10) )
-        self.r_upper_cut_entry.setMaximumWidth( PLOTTER_WIDGET_QLINEEDIT_WIDTH )
-        self.r_upper_cut_entry.setValidator( QDoubleValidator( 0, 10000, 3 ) )
-
-        r_bounds.addWidget( self.r_lower_cut_entry )
-        r_bounds.addWidget( self.r_upper_cut_entry ) 
-
         layout = QVBoxLayout()
+
+        
+        
+        controls_box = QGroupBox( 'Visualization Controls' )
+        controls_layout = QFormLayout()
 
         
         reload_button = QPushButton( 'Reload Parameters' ) 
         reload_button.clicked.connect( self.reload_visualization_params )         
-        layout.addWidget( reload_button ) 
-        
-        controls_box = QGroupBox( 'Visualization Controlps' )
-        controls_layout = QFormLayout()
-        # subtitle.setFont( QFont( SUBTITLE_FONT, SUBTITLE_SIZE,
-        #                                QFont.Bold ) )
+        controls_layout.addWidget( reload_button ) 
 
-        # controls_layout.addRow( subtitle )
         controls_layout.addRow( 'Plot with Cuts', self.plot_with_cuts_button ) 
         controls_layout.addRow( 'Hitmap Type:', mcp_hitmap_buttons )
-        # controls_layout.addRow( mcp_hitmap_settings )
         controls_layout.addRow( 'MCP bin width (mm):', self.mcp_bin_width_entry )
         controls_layout.addRow( 'MCP KDE bandwidth:', self.mcp_kde_bw_entry )
         controls_layout.addRow( 'MCP X Bounds:', mcp_bounds_layouts[0] ) 
@@ -150,20 +187,20 @@ class PlotterWidget( object ) :
 
         cuts_box = QGroupBox( 'Data Cuts' ) 
         cuts_layout = QFormLayout() 
-        cuts_layout.addRow( 'TOF lower / upper bounds:', tof_bounds ) 
-        cuts_layout.addRow( 'Radius Cut:', r_bounds ) 
+        cuts_layout.addRow( self.tof_cut_widget.name, self.tof_cut_widget.layout ) 
+        cuts_layout.addRow( self.radius_cut_widget.name, self.radius_cut_widget.layout  ) 
+        cuts_layout.addRow( self.sum_x_cut_widget.name, self.sum_x_cut_widget.layout  ) 
+        cuts_layout.addRow( self.sum_y_cut_widget.name, self.sum_y_cut_widget.layout  ) 
+        cuts_layout.addRow( self.diff_xy_cut_widget.name, self.diff_xy_cut_widget.layout  )
+        
         cuts_box.setLayout( cuts_layout )
         layout.addWidget( cuts_box ) 
 
         fits_box = QGroupBox( 'Gaussian Fitting' )
-        # fits_layout = QVBoxLayout()
-        # fits_layout.setSpacing(0)
         
         self.fit_widget = gui_helpers.FitWidget( self ) 
         
         fits_box.setLayout( self.fit_widget.layout )
-        # self.fit_widget.layout.setMinimumHeight( 150 )
-        # layout.addWidget( fits_box ) 
 
         self.metadata_widget = gui_helpers.MetadataWidget( self.plotter.cpt_data )
         layout.addWidget( self.metadata_widget.box )
@@ -181,7 +218,9 @@ class PlotterWidget( object ) :
         self.grid_layout.addLayout( layout, 0, 0, 0, 1, QtCore.Qt.AlignLeft )
         self.grid_layout.setColumnStretch( 0, 0.5 ) 
         self.grid_layout.addLayout( canvas_layout, 0, 1, 1, 1 )
-        self.grid_layout.setColumnStretch( 1, 1 ) 
+        self.grid_layout.setColumnStretch( 1, 1 )
+
+        # self.reload_visualization_params() 
 
         # self.grid_layout = QHBoxLayout()
         # self.grid_layout.addLayout( layout )
@@ -199,9 +238,9 @@ class PlotterWidget( object ) :
             self.canvas.draw()
 
             
-    # deallocate plotter 
-    def release( self ) :
-        plotter.release()
+    # # deallocate plotter 
+    # def release( self ) :
+    #     plotter.release()
         
     def plot_with_cuts_clicked( self ) :
         plot_with_cuts = self.plot_with_cuts_button.checkState() 
@@ -218,38 +257,37 @@ class PlotterWidget( object ) :
         self.reload_visualization_params() 
         
     def reload_visualization_params( self ) :
-        self.plotter.mcp_bin_width = float( self.mcp_bin_width_entry.text() )
-        self.plotter.mcp_kde_bandwidth = float( self.mcp_kde_bw_entry.text() )
+        self.plotter.rectangular_hitmap.bin_width = float( self.mcp_bin_width_entry.text() )
+        self.plotter.rectangular_hitmap.kde_bandwidth = float( self.mcp_kde_bw_entry.text() )
 
-        self.plotter.mcp_x_bounds = np.array( [ float( self.mcp_bounds_entries[0,j].text() )
-                                                for j in range(2) ] )
+        self.plotter.rectangular_hitmap.bounds[0] = np.array(
+            [ float( self.mcp_bounds_entries[0,j].text() ) for j in range(2) ] )
 
-        self.plotter.mcp_y_bounds = np.array( [ float( self.mcp_bounds_entries[1,j].text() )
-                                                for j in range(2) ] )
+        self.plotter.rectangular_hitmap.bounds[1] = np.array(
+            [ float( self.mcp_bounds_entries[1,j].text() ) for j in range(2) ] )
                 
-        self.plotter.tof_hist_nbins = int( self.tof_hist_nbins_entry.text() ) 
-        self.plotter.r_hist_nbins = int( self.r_hist_nbins_entry.text() ) 
-        self.plotter.angle_hist_nbins = int( self.angle_hist_nbins_entry.text() )
-
-        self.plotter.cpt_data.tof_cut_lower = float( self.tof_lower_cut_entry.text() )
-        self.plotter.cpt_data.tof_cut_upper = float( self.tof_upper_cut_entry.text() )
 
         self.plotter.tof_hist.n_bins = int( self.tof_hist_nbins_entry.text() )
         self.plotter.radius_hist.n_bins = int( self.r_hist_nbins_entry.text() )
         self.plotter.angle_hist.n_bins = int( self.angle_hist_nbins_entry.text() )
         
-        self.plotter.cpt_data.tof_cut_lower = float( self.tof_lower_cut_entry.text() )
-        self.plotter.cpt_data.tof_cut_upper = float( self.tof_upper_cut_entry.text() )
-        self.plotter.cpt_data.r_cut_lower = float( self.r_lower_cut_entry.text() )
-        self.plotter.cpt_data.r_cut_upper = float( self.r_upper_cut_entry.text() )
-        
-        
+        tof_cut = self.tof_cut_widget.read()
+        radius_cut = self.radius_cut_widget.read()
+        sum_x_cut = self.sum_x_cut_widget.read()
+        sum_y_cut = self.sum_y_cut_widget.read()
+        diff_xy_cut = self.diff_xy_cut_widget.read()
+
+        self.plotter.cpt_data.set_cuts( tof_cut = tof_cut, radius_cut = radius_cut,
+                                        sum_x_cut = sum_x_cut, sum_y_cut = sum_y_cut,
+                                        diff_xy_cut = diff_xy_cut ) 
+                
         if self.plotter.cpt_data.is_live : 
             self.plotter.cpt_data.reset_cuts()
         self.plotter.cpt_data.apply_cuts()
         
-        self.plotter.rebuild_mcp_plot = 1
-
+        self.plotter.rectangular_hitmap.rebuild = 1
+        self.plotter.polar_hitmap.rebuild = 1
+        
         self.update()
 
 
@@ -259,7 +297,7 @@ class PlotterWidget( object ) :
         new_bounds = [ None, None ]
         for i in range(2) :
             new_bounds[i] = bounds[i] + np.array( [ 2.5, -2.5 ] )
-            print( new_bounds[i] )
+            # print( new_bounds[i] )
             if new_bounds[i][1] <= new_bounds[i][0] :
                 print( 'WARNING: unable to zoom in' ) 
                 return 
@@ -278,10 +316,10 @@ class PlotterWidget( object ) :
         new_bounds = [ None, None ]
         for i in range(2) :
             new_bounds[i] = bounds[i] + np.array( [ -2.5, 2.5 ] )
-            print( new_bounds[i] ) 
-            if new_bounds[i][1] <= new_bounds[i][0] :
-                print( 'WARNING: unable to zoom in' ) 
-                return 
+            # print( new_bounds[i] ) 
+            # if new_bounds[i][1] <= new_bounds[i][0] :
+            #     print( 'WARNING: unable to zoom out' ) 
+            #     return 
 
         for i in range(2) :
             for j in range(2) : 
@@ -302,8 +340,12 @@ class PlotterWidget( object ) :
             x, y = mouse_event.xdata, mouse_event.ydata
             self.coords_label.setText( '(%.2f, %.2f)' % (x ,y ) )
 
-
-            
+    def set_active_fig( self, i )  :
+        self.plotter.clear() 
+        self.plotter.active_fig = i
+        self.plotter.update_all() 
+        self.canvas.draw() 
+        
     # store the image in a buffer using savefig(), this has the
     # advantage of applying all the default savefig parameters
     # such as background color; those would be ignored if you simply

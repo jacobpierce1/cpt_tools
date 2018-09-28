@@ -3,12 +3,12 @@ import numpy as np
 
 calibrant_Z = 55
 calibrant_A = 133 # atomic mass 
-# calibrant_mass = 132905451.961
 calibrant_omega =  675000.3
-# calibrant_omega =  657844.45
+
+# calibrant_omega =  657844.45  # frequency before magnet quench in june 2018
 
 
-mcp_center_coords = np.array( [ -1.6, 3.0 ] )
+mcp_center_coords = np.array( [ -2.38, 2.85 ] )
 
 
 

@@ -6,7 +6,6 @@ import numpy as np
 from cpt_tools import TaborParams
 
 
-MU_UNICODE = '\u03bc'
 
 
 
@@ -106,4 +105,14 @@ class TaborParamsWidget( object ) :
 
     
     def set( self, tabor_params ) :
-        return 
+
+        values = tabor_params.flatten()
+
+        self.tacc_entry.setText( str( values[0] ) )
+        self.num_steps_entry.setText( str( values[1] ) ) 
+
+        values = values[ 2 : ].reshape( 5, 3 ) 
+        
+        for i in range( 5 ) :
+            for j in range( 3 ) :
+                self.table.cellWidget( i, j ).setText( str( values[i,j] ) )

@@ -14,7 +14,7 @@ To add the `cpt_tools` module to your available python modules, change directory
 
 ## INSTRUCTIONS: 
 
-Run from within the directory mass_identifier (the folder where the file mass_identifier.py is located):
+Run from within the directory mass\_identifier (the folder where the file mass\_identifier.py is located):
 
 
 syntax: `$ ipython mass_identifier.py  mode  omega  d_omega  [optional query args]`

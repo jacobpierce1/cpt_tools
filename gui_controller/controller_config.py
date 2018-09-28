@@ -2,6 +2,7 @@ import os
 
 IS_WINDOWS = ( os.name == 'nt' ) 
 
+USE_TDC = 1
 USE_TABOR = 1 
 USE_FAKE_DATA = 0
 BENCHMARK = 0

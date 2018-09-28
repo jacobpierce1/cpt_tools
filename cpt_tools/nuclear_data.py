@@ -55,11 +55,20 @@ _reverse_periodic_table_dict = {v: k for k, v in _periodic_table_dict.items()}
 
 
 def element_to_z( elem ) :
-    return _periodic_table_dict[ elem.lower() ] 
+    try : 
+        return _periodic_table_dict[ elem.lower() ] 
+    except :
+        return None
 
+
+    
 def z_to_element( z ) :
-    return _reverse_periodic_table_dict[ z ] 
+    try : 
+        return _reverse_periodic_table_dict[ z ] 
+    except :
+        return None
 
+    
 
 class _NuclearData( object ) :
 

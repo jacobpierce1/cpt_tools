@@ -74,18 +74,15 @@ class gui( QTabWidget ) :
         self.processor = live_cpt_data.LiveCPTdata( self.tdc ) 
         self.plotter = plotter.Plotter( self.processor )
                 
-        ( self.controls_tab_idx,
-          self.processed_data_tab_idx,
-          self.isolated_analysis_tab_idx,
-          self.combined_analysis_tab_idx,
-          self.tools_tab_idx,
-          self.help_tab_idx ) = range(6)
+
         
         self.controls_tab = QWidget() 
         self.processed_data_tab = QWidget()
         # self.unprocessed_data_tab = QWidget()
         self.isolated_analysis_tab = QWidget()
         self.combined_analysis_tab = QWidget()
+        self.tracking_tab = QWidget() 
+        self.calibration_tab = QWidget() 
         self.tools_tab = QWidget() 
         # self.help_tab = QWidget()
         
@@ -93,19 +90,27 @@ class gui( QTabWidget ) :
                  # self.unprocessed_data_tab,
                  self.isolated_analysis_tab,
                  self.combined_analysis_tab,
-                 self.tools_tab ]
+                 self.tracking_tab,
+                 self.tools_tab,
+                 self.calibration_tab ]
                  # self.help_tab ]
+                
+        tab_idxs = range(7)
 
-        tab_idxs = [ self.controls_tab_idx, self.processed_data_tab_idx,
-                     # self.unprocessed_data_tab_idx,
-                     self.isolated_analysis_tab_idx,
-                     self.combined_analysis_tab_idx,
-                     self.tools_tab_idx ]
-        # self.help_tab_idx ]
-
+        ( self.controls_tab_idx,
+          self.processed_data_tab_idx,
+          self.isolated_analysis_tab_idx,
+          self.combined_analysis_tab_idx,
+          self.tracking_tab_idx,
+          self.tools_tab_idx,
+          self.calibration_tab_idx
+          # self.help_tab_idx
+        ) = tab_idxs
+                 
         tab_names = [ 'DAQ / Tabor / Output', 'Data Stream',
                       # 'Unprocessed Data',
-                      'Isolated Analysis', 'Combined Analysis', 'Tools', 'Help' ]
+                      'Isolated Analysis', 'Frequency Estimation',
+                      'Tracking', 'Tools', 'Calibration' ]
         
         self.num_tabs = len( tabs ) 
         
@@ -120,7 +125,9 @@ class gui( QTabWidget ) :
         # self.unprocessed_data_tab_init()
         self.isolated_analysis_tab_init()
         self.combined_analysis_tab_init() 
-        self.tools_tab_init() 
+        self.tools_tab_init()
+        self.calibration_tab_init()
+        self.tracking_tab_init() 
         # self.help_tab_init() 
         
         self.setWindowTitle("Phase Imaging DAQ and Real-Time Analysis")
@@ -315,10 +322,10 @@ class gui( QTabWidget ) :
         tab_idx = self.processed_data_tab_idx
         
         processed_data_plotter_widget = gui_helpers.PlotterWidget( self.plotter )
+        processed_data_plotter_widget.reload_visualization_params() 
         
         # matplotlib canvas 
         self.canvases[ tab_idx ] = processed_data_plotter_widget.canvas
-
         
         # self.toolbar = NavigationToolbar( self.canvases[ tab_idx ], self )
 
@@ -326,26 +333,6 @@ class gui( QTabWidget ) :
         
         self.processed_data_tab.setLayout( processed_data_plotter_widget.grid_layout ) 
         
-
-        
-    # def unprocessed_data_tab_init( self ):
-
-    #     tab_idx = self.unprocessed_data_tab_idx 
-        
-    #     f, axarr = plt.subplots( 2, 2 )
-    #     self.plotter.init_coords_plots( axarr )
-    #     self.canvases[ tab_idx ] = FigureCanvas( f ) 
-    #     self.tab_updaters[ tab_idx ] = [ self.plotter.update_coords_plots ]
-        
-    #     # set the layout
-    #     layout = QVBoxLayout()
-    #     # layout.addWidget(self.toolbar)
-
-    #     layout.addWidget( self.canvases[ tab_idx ] )
-        
-    #     self.unprocessed_data_tab.setLayout( layout )
-
-
         
         
     def isolated_analysis_tab_init( self ):
@@ -376,10 +363,20 @@ class gui( QTabWidget ) :
         buttons.addWidget( delete_button )
         analysis_controls_layout.addLayout( buttons ) 
 
-        analysis_controls_box.setLayout( analysis_controls_layout ) 
+        analysis_controls_box.setLayout( analysis_controls_layout )
+
+        tabor_box = QGroupBox( 'Tabor Parameters' )
+        # tabor_layout = QVBoxLayout() 
+        self.isolated_analysis_tabor_params_widget = gui_helpers.TaborParamsWidget( 0, 0 )
+        # tabor_layout.addWidget( self.isolated_analysis_tabor_params_widget.layout ) 
+        tabor_box.setLayout( self.isolated_analysis_tabor_params_widget.layout )
+        
+        tmp_layout = QVBoxLayout()
+        tmp_layout.addWidget( analysis_controls_box )
+        tmp_layout.addWidget( tabor_box )
         
         layout = QHBoxLayout()
-        layout.addWidget( analysis_controls_box )
+        layout.addLayout( tmp_layout )
         layout.addLayout( self.analysis_plotter_widget.grid_layout ) 
                 
         self.isolated_analysis_tab.setLayout( layout )
@@ -514,9 +511,20 @@ class gui( QTabWidget ) :
         layout.addWidget( property_lookup_box ) 
         
         self.tools_tab.setLayout( layout ) 
+
+
+        
+    def calibration_tab_init( self ) :
+        self.calibration_widget = gui_helpers.CalibrationWidget()
+        layout = QVBoxLayout()
+        layout.addWidget( self.calibration_widget.box ) 
+        self.calibration_tab.setLayout( layout )
         
 
-
+    def tracking_tab_init( self ) :
+        self.tracking_widget = gui_helpers.TrackingWidget()
+        self.tracking_tab.setLayout( self.tracking_widget.layout ) 
+        
 
     def help_tab_init( self ) :
         layout = QVBoxLayout()
@@ -913,6 +921,7 @@ class gui( QTabWidget ) :
         # print( self.active_fits ) 
         
         self.set_analysis_plotter_data( self.active_row )
+        
         # self.analyzer.update() 
 
             
@@ -940,8 +949,11 @@ class gui( QTabWidget ) :
             self.analysis_plotter_widget.fit_widget.set_fit_params( fit, i ) 
             
         self.analysis_plotter_widget.update()
-
-
+        self.isolated_analysis_tabor_params_widget.set( self.analyzer.data_list[ row ].tabor_params )
+        
+        
+        
+        
         
     def delete_button_clicked( self ) :
         row = self.analysis_data_dirs_qlist.currentRow() 

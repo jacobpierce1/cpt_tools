@@ -20,9 +20,11 @@ import re
 import datetime
 import sqlite3
 
+
 # from molecule_parser import atom_counter
 
-from cpt_tools import nuclear_data, mass_to_omega, omega_to_mass, z_to_element, atom_counter
+from cpt_tools import ( calibrant_omega, nuclear_data, mass_to_omega, omega_to_mass,
+                        z_to_element, element_to_z, atom_counter ) 
 
 # define this for database debug
 DEBUG_DB = 0
@@ -213,7 +215,8 @@ def print_help_info() :
              + '\toptional query args: \n\t\tmin_half_life FLOAT \n\t\tmin_cf_yield FLOAT '
              + '\n\t\tsmall_molecule_size INT \n\t\tmax_charge INT'
              + '\n\n'
-             + '\texample: to check all molecules in DB with max charge of 1 and defaults for other params: \n\t\tipython mass_identifier.py 1 616024 0.5 max_charge 1  '
+             + '\texample: to check all molecules in DB with max charge of 1 and defaults for other params: \n\t\tipython mass_identifier.py 1 %.1f 0.5 max_charge 1  ' % (
+                 calibrant_omega )
              # + '<--- check all molecules in database with max charge of 1, defaults for rest of params'
              + '\n\n'
     ) )
@@ -577,10 +580,11 @@ def get_molecule_db( atom_masses, atom_labels ) :
                 if molecule_counts is None :
                     continue
                 
-                Z_list_unique = [ periodic_table_dict.get( x.lower() )
+                Z_list_unique = [ element_to_z( x )
                                   for x in molecule_counts.keys() ]
 
-                # make sure it's a valid molecule
+                # make sure it's a valid molecule, any of the keys will be registered
+                # as None if it isn't a valid element
                 if None in Z_list_unique :
                     continue
 
