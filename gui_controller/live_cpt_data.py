@@ -221,7 +221,7 @@ class LiveCPTdata( cpt_tools.CPTdata ) :
     
 
         
-    def save( self, path = None, name = None, prefix = None ) :
+    def save( self, path = None, name = None, prefix = None, suffix = None ) :
 
         if prefix is None :
             prefix = create_element_prefix( self.Z, self.A ) 
@@ -231,9 +231,9 @@ class LiveCPTdata( cpt_tools.CPTdata ) :
             path += '/data/' + prefix + '/' 
 
         if name is None :
-            name = create_data_name( self.tabor_params, self.date_str, prefix ) 
-
-        file_path = path + name
+            name = create_data_name( self.tabor_params, self.date_str, prefix, suffix ) 
+            
+        file_path = path + name 
 
         print( 'INFO: saving file: ', file_path )
 
@@ -316,21 +316,24 @@ def create_element_prefix( Z, A ) :
 
 
 # default data name 
-def create_data_name( tabor_params, date_str, prefix = None ) :
+def create_data_name( tabor_params, date_str, prefix = None, suffix = None ) :
 
     if prefix is None : 
         prefix = create_element_prefix( Z, A )
         
     data_name = '%s_%s' % ( date_str, prefix )
 
-    w_c = tabor_params.freqs[2]
-    if not np.isnan( w_c ) :
-        data_name += '_%.0fuswc' % w_c
+    # w_c = tabor_params.freqs[2]
+    # if not np.isnan( w_c ) :
+    #     data_name += '_%.0fuswc' % w_c
 
     tacc = tabor_params.tacc
     if not np.isnan( tacc ) :
         data_name += '_%dustacc' % tacc
 
+    if suffix is not None :
+        data_name += '_' + suffix
+        
     data_name += '.cpt'
     
     return data_name 

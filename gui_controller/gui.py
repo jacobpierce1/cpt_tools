@@ -239,6 +239,9 @@ class gui( QTabWidget ) :
                 
         self.alternate_name_entry = QLineEdit( controller_config.DEFAULT_ALTERNATE_NAME )
         daq_layout.addRow( 'Alternate Name', self.alternate_name_entry )
+
+        self.suffix_entry = QLineEdit( '' )
+        daq_layout.addRow( 'File Suffix', self.suffix_entry ) 
         
         # self.session_name_entry = QLineEdit()
         # daq_layout.addRow( 'Session Name', self.session_name_entry )
@@ -739,8 +742,12 @@ class gui( QTabWidget ) :
             prefix = alternate_name
         else :
             prefix = None
+
+        suffix = self.suffix_entry.text()
+        if not suffix :
+            suffix = None
             
-        self.processor.save( prefix = prefix )
+        self.processor.save( prefix = prefix, suffix = suffix )
 
 
         

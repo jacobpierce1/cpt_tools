@@ -55,7 +55,7 @@ class PlotterHist( object ) :
         self.ax.clear() 
         self.ax.set_title( self.title )
 
-        print( num_cut_data, num_total_data, use_cuts ) 
+        # print( num_cut_data, num_total_data, use_cuts ) 
 
         # if self.cpt_data is None :
         #     return 
@@ -167,6 +167,8 @@ class PlotterHist2D( object ) :
         #     if  self.cbar : 
         #         self.cbar.ax.clear() 
 
+        if not self.cbar :
+            self.rebuild = 1 
         
         if use_cuts :
             # if self.cpt_data.is_live : 
@@ -271,12 +273,23 @@ class Plotter( object ) :
 
     def __init__( self, cpt_data ) :
 
-        self.active_fig = 0 
+        self.active_fig = 0
+        self.prev_active_fig = 0 
         
         self.cpt_data = cpt_data
         
         self.f, self.axarr = plt.subplots( 2, 2, figsize = ( 6,6 ) )
-        self.f.subplots_adjust( hspace = 0.5, wspace = 0.5 )
+        self.f.subplots_adjust( hspace = 0.7, wspace = 0.7 )
+
+        # w = 6
+        # h = 6
+        # l = self.f.subplotpars.left
+        # r = self.f.subplotpars.right
+        # t = self.f.subplotpars.top
+        # b = self.f.subplotpars.bottom
+        # figw = float(w)/(r-l)
+        # figh = float(h)/(t-b)
+        # self.f.set_size_inches(figw, figh)
         
         # for i in range(2) :
         #    for j in range(2) : 
@@ -410,34 +423,19 @@ class Plotter( object ) :
         
     def update_all( self ) :
 
-        # print( self.active_fig ) 
         args = ( self.cpt_data.num_cut_data, self.cpt_data.num_events, self.plot_with_cuts )
 
-        # print( args ) 
+        if self.prev_active_fig != self.active_fig :
+            for x in self.plots[ self.prev_active_fig ] :
+                x.clear() 
         
         for x in self.plots[ self.active_fig ] :
-            x.update( * args ) 
+            x.update( * args )
+
+        self.prev_active_fig = self.active_fig 
+
+
         
-        # if self.active_fig == 0 :
-            
-        #     # self.update_mcp_hitmap()
-        #     self.rectangular_hitmap.update( * args )
-        #     self.polar_hitmap.update( * args ) 
-        #     self.tof_hist.update( * args )
-                            
-        # elif self.active_fig == 1 :
-        #     self.radius_hist.update( * args ) 
-        #     self.angle_hist.update( * args )
-        #     self.x_hist.update( * args )
-        #     self.y_hist.update( * args ) 
-
-        # elif self.active_fig == 2 :
-        #     self.sumx_hist.update( * args )
-        #     self.sumy_hist.update( * args )
-        #     self.sumx_vs_x_plot.update( * args )
-        #     self.sumy_vs_y_plot.update( * args )
-
-            
     def set_plot_with_cuts( self, plot_with_cuts ) :
         self.plot_with_cuts = plot_with_cuts 
         for hist in self.all_hists :

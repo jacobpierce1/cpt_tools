@@ -312,7 +312,7 @@ class TDC( object ) :
             
             # note that times[ start ] is the rollover count.
             absolute_rollover_times[ start : end ] = (
-                ( self.num_rollover_loops * ( 2 ** 24 ) + rollover_count ) * ROLLOVER_DURATION )
+                ( self.num_rollover_loops * ( 2 ** 24 ) + rollover_count ) * ( 2 **24 ) ) 
 
         # now compute the absolute time of each hit by adding its time to the associated absolute
         # rollover time. the timestamps of the rollovers will be nonsense, that could be corrected

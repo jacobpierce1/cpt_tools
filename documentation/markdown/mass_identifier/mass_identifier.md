@@ -1,12 +1,3 @@
-# Overview of functionality
-
-
-
-
-# Installation
-
-To add the `cpt_tools` module to your available python modules, change directory to `cpt_tools` and run `pip install -e .'`. This runs the script `setup.py`.
-
 
 
 

@@ -56,7 +56,22 @@ class CutWidget( object ) :
 
 
 
+class FixedAspectFigureCanvas( FigureCanvas ) :
 
+    def __init__( self, figure ) :
+        super( FixedAspectFigureCanvas, self ).__init__( figure )
+        # sizePolicy = QSizePolicy( QSizePolicy.Preferred, QSizePolicy.Preferred )
+        sizePolicy = QSizePolicy( QSizePolicy.Maximum, QSizePolicy.Maximum )
+        sizePolicy.setHeightForWidth( True )
+        self.setSizePolicy(sizePolicy)
+
+    def heightForWidth( self, width ) :
+        print( 'computing width' )
+        return width 
+
+    def sizeHint( self ) :
+        return QtCore.QSize( 700, 700 ) 
+    
     
 class PlotterWidget( object ) :
 
@@ -74,9 +89,14 @@ class PlotterWidget( object ) :
             
         self.plotter = plotter
 
-        self.canvas = FigureCanvas( self.plotter.f )
+        # self.canvas = FigureCanvas( self.plotter.f )
+        self.canvas = FixedAspectFigureCanvas( self.plotter.f ) 
         self.canvas.mpl_connect( 'motion_notify_event', self.mouse_moved )        
         self.canvas.mpl_connect( 'button_press_event', self.clipboard_handler )
+
+        # self.canvas.setFixedWidth( 700 )
+        # self.canvas.setFixedHeight( 700 )
+        
         
         # mcp hitmap type
         self.plot_with_cuts_button = QCheckBox()
@@ -206,7 +226,7 @@ class PlotterWidget( object ) :
         layout.addWidget( self.metadata_widget.box )
 
         canvas_layout = QVBoxLayout()
-        canvas_layout.addLayout( plot_selector_layout ) 
+        canvas_layout.addLayout( plot_selector_layout )
         canvas_layout.addWidget( self.canvas )
         canvas_layout.addWidget( fits_box ) 
 

@@ -4,7 +4,7 @@
 
 This program was written to replace and extend the functionality of CoboldPC, the software written by RoentDek to communicate with the TDC, visualize aggregated data, and perform data cuts and fits. CoboldPC served its purpose well while it was used, but presented several problems which could not be fixed without completely new software, including the following:
 
-* Inability to communicate with Tabor from same program
+* Inability to communicate with Tabor from same program controlling TDC
 	* 	Inability to track Tabor parameters, so that they needed to be saved separately from the TDC data
 	*  User liability of remembering to pause the TDC during Tabor switching
 	*  User liability of naming files, occasionally leading to the wrong Tabor parameters being associated with a file
@@ -29,7 +29,7 @@ The TDC module is currently implemented to perform the bare minimum of functiona
 
 ### Configuration File
 
-There is a configuration file in the same directory as the gui called `global.cfg`. This file contains the configuration parameters that are supplied to the TDC every time a new connection is made to the TDC. Don't move this file, because otherwise it will not be found when the program is loaded. The specific settings in the configuration file are important for the DAQ working properly. For example, all the pulses coming out of the discriminators and entering the TDC are negative, so only falling transitions need to be recorded. If rising transitinos were recorded, then the transitions back to 0 from the negative pulses would be recorded, unnecessarily doubling the amount of data to be processed.
+There is a configuration file in the same directory as the gui called `global.cfg`. This file contains the configuration parameters that are supplied to the TDC every time a new connection is made to the TDC. Don't move this file, because otherwise it will not be found when the program is loaded. The specific settings in the configuration file are important for the DAQ working properly. For example, all the pulses coming out of the discriminators and entering the TDC are negative, so only falling transitions need to be recorded. If rising transitions were recorded, then the transitions back to 0 from the negative pulses would be recorded, unnecessarily doubling the amount of data to be processed. For more details on what parameters are set here, refer to the TDC manual. 
 
 
 ### Data Stream
@@ -40,11 +40,11 @@ When the data comes out of the TDC, it is only partially sorted by time, meaning
 
 ### Rollovers 
 
-Given the femto-second timing resolution of the TDC, it is not possible for absolute timestamps to be recorded without requiring an arbitrarily large size for each data time. The way of working around this is to only count relative timestamps up to a certain time (512 micro-seconds), then transmit the number of "rollovers", or times that the 512 micro-second counter has reached its maximum capacity, that have thus far been achieved. The absolute timestamp of a given event can then be computed as:
+Given the femto-second timing resolution of the TDC, it is not possible for absolute timestamps to be recorded without requiring an arbitrarily large size for each data time. The TDC's way of working around this is to only count relative timestamps up to a certain time (2^24 * , then transmit the number of "rollovers", or times that the 512 micro-second counter has reached its maximum capacity, that have thus far been achieved. The absolute timestamp of a given event can then be computed as:
 	
-	absolute time =  number of rollovers * 512 µs + relative time
+	absolute time =  number of rollovers * 2^24 + relative time
 
-where relative time is the time of the event as reported by the TDC, i.e. the time elapsed since the last rollover was reported.
+where relative time is the time of the event as reported by the TDC, i.e. the time elapsed since the last rollover was reported. There is an analogous counter for when the maximum number of rollovers (also 2^24) is achieved. After this, the time will be incremented appropriately, even though the rollover counter resets, because there is a counter for the number of times the rollover counter is reset (called `num_rollover_loops`).
 
 The rollovers have another important property, which is that while data between rollovers may not be sequential, rollovers _are_ sequential, both relative to each other and other real data. In other words, if the rollover counter is achieved while data is being collected (which doesn't happen very frequently, but I did notice it happening), then a rollover is issued before any other new data is. That means that the user doesn't need to manually check for counter resets since the rollovers are always sequentially reported (again, unlike the other data). 
 
@@ -55,6 +55,12 @@ The fact that the rollovers are reliably sequential is also critical for properl
 If we just sorted all the data by time without paying attention to the rollover, then it would appear that the event on channel 1 occurred first. The presence of the rollover means that it actually happened second. Since the non-rollover data is only partially sorted, the way to properly sort it is to sort each subset of the data contained between groups of rollovers. For example, if the sequence is `(0,3), (0,2), (0,1), (r,12), (r,13), (r,13), (1,3), (1,2), (1,1)`, then the algorithm to sort the data is to sort the hits on channel 0 (ignoring the rest of the data), skip through the group of sequential rollovers, then sort the data on channel 1. 
 
 Note that this is unrealistic data, it is just meant to illustrate the point that the sorting is performed on chunks of data located between sequential rollovers. See the function `tdc.sort_data` for the implementation.
+
+
+### Other information
+
+The grouping mode does not work for batch reads. If you try to use the grouping mode (set in global.cfg) and read data where there were N hits, you will just read the oldest hit that was not previously read. In principle you could keep constantly reading data, but it seemed to me that even constantly reading at the fastest rate could not keep up with typical data rates. Thus, I recommend to continue operating the TDC not in group mode.
+
 
 
 ## `LiveCPTdata`: Event Detection and Processing
